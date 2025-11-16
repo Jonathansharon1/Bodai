@@ -1,0 +1,114 @@
+.quickSummary {
+  margin-bottom: 32px;
+}
+
+.quickSummary__header {
+  margin-bottom: 20px;
+}
+
+.quickSummary__title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.quickSummary__title::before {
+  content: '📊';
+  font-size: 24px;
+}
+
+.quickSummary__subtitle {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0;
+}
+
+.quickSummary__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.quickSummary__card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 2px solid;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background: #ffffff;
+}
+
+.quickSummary__card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.quickSummary__card--strength {
+  border-color: #10b981;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(16, 185, 129, 0.02) 100%);
+}
+
+.quickSummary__card--opportunity {
+  border-color: #f59e0b;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, rgba(245, 158, 11, 0.02) 100%);
+}
+
+.quickSummary__cardIcon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+}
+
+.quickSummary__card--strength .quickSummary__cardIcon {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.quickSummary__card--opportunity .quickSummary__cardIcon {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.quickSummary__cardContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.quickSummary__cardTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+.quickSummary__cardScore {
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.quickSummary__card--strength .quickSummary__cardScore {
+  color: #10b981;
+}
+
+.quickSummary__card--opportunity .quickSummary__cardScore {
+  color: #f59e0b;
+}
+
+@media (max-width: 768px) {
+  .quickSummary__grid {
+    grid-template-columns: 1fr;
+  }
+}
+

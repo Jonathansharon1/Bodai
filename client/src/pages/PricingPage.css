@@ -1,0 +1,292 @@
+.pricingPage {
+  min-height: 100vh;
+  background: linear-gradient(180deg, var(--bg-800) 0%, var(--bg-900) 100%);
+  padding: 0 20px 64px;
+}
+
+.pricingPage__container {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.pricingPage__header {
+  text-align: center;
+  margin-bottom: 64px;
+  padding-top: 80px;
+}
+
+.pricingPage__title {
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin: 0 0 16px;
+  letter-spacing: -0.02em;
+}
+
+.pricingPage__subtitle {
+  font-size: 20px;
+  color: var(--text-muted);
+  margin: 0 0 32px;
+}
+
+.pricingPage__billingToggle {
+  display: inline-flex;
+  background: var(--surface);
+  border: 2px solid rgba(0, 78, 100, 0.1);
+  border-radius: 12px;
+  padding: 4px;
+  gap: 4px;
+}
+
+.billingToggle__button {
+  padding: 12px 24px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.billingToggle__button:hover {
+  color: var(--text-dark);
+}
+
+.billingToggle__button.active {
+  background: var(--accent);
+  color: var(--text-light);
+}
+
+.billingToggle__badge {
+  background: var(--accent-secondary);
+  color: var(--text-light);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.pricingPage__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 32px;
+  margin-bottom: 64px;
+}
+
+@media (min-width: 1200px) {
+  .pricingPage__cards {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.pricingPage__payAsYouGo {
+  margin-bottom: 64px;
+  display: flex;
+  justify-content: center;
+}
+
+.payAsYouGo__card {
+  max-width: 600px;
+  width: 100%;
+  background: var(--surface);
+  border: 2px solid rgba(0, 78, 100, 0.1);
+  border-radius: 20px;
+  padding: 32px;
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  box-shadow: var(--shadow-card);
+  transition: all 0.3s ease;
+}
+
+.payAsYouGo__card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+.payAsYouGo__icon {
+  font-size: 64px;
+  flex-shrink: 0;
+}
+
+.payAsYouGo__content {
+  flex: 1;
+}
+
+.payAsYouGo__title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin: 0 0 8px;
+}
+
+.payAsYouGo__description {
+  font-size: 16px;
+  color: var(--text-muted);
+  margin: 0 0 16px;
+  line-height: 1.6;
+}
+
+.payAsYouGo__price {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.payAsYouGo__amount {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.payAsYouGo__period {
+  font-size: 16px;
+  color: var(--text-muted);
+}
+
+.payAsYouGo__hint {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 0 0 20px;
+  font-style: italic;
+}
+
+.payAsYouGo__button {
+  padding: 12px 24px;
+  background: var(--accent);
+  color: var(--text-light);
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.payAsYouGo__button:hover {
+  background: var(--accent-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 78, 100, 0.3);
+}
+
+.pricingPage__socialProof {
+  display: flex;
+  justify-content: center;
+  gap: 64px;
+  margin-bottom: 64px;
+  flex-wrap: wrap;
+}
+
+.socialProof__item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-align: right;
+}
+
+.socialProof__icon {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.socialProof__number {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin-bottom: 4px;
+}
+
+.socialProof__label {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.pricingPage__faq {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.faq__title {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--text-dark);
+  text-align: center;
+  margin: 0 0 48px;
+}
+
+.faq__list {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.faq__item {
+  background: var(--surface);
+  border: 1px solid rgba(0, 78, 100, 0.1);
+  border-radius: 12px;
+  padding: 24px;
+  transition: all 0.2s ease;
+}
+
+.faq__item:hover {
+  border-color: var(--accent);
+  box-shadow: 0 4px 12px rgba(0, 78, 100, 0.1);
+}
+
+.faq__question {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-dark);
+  margin: 0 0 12px;
+}
+
+.faq__answer {
+  font-size: 16px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .pricingPage {
+    padding: 40px 16px 32px;
+  }
+  
+  .pricingPage__title {
+    font-size: 32px;
+  }
+  
+  .pricingPage__subtitle {
+    font-size: 18px;
+  }
+  
+  .pricingPage__cards {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  
+  .payAsYouGo__card {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .pricingPage__socialProof {
+    gap: 32px;
+  }
+  
+  .socialProof__item {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+

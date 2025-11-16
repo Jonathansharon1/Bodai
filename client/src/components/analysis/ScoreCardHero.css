@@ -1,0 +1,168 @@
+.scoreCardHero {
+  margin-bottom: 32px;
+}
+
+.scoreCardHero__container {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 2px solid #e2e8f0;
+  border-radius: 24px;
+  padding: 40px 32px;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.scoreCardHero__container:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+.scoreCardHero__header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.scoreCardHero__emoji {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.scoreCardHero__message {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.scoreCardHero__score {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.scoreCardHero__scoreValue {
+  font-size: 72px;
+  font-weight: 800;
+  line-height: 1;
+  color: #0f172a;
+  letter-spacing: -0.04em;
+}
+
+.scoreCardHero__scoreMax {
+  font-size: 32px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.scoreCardHero__stage {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #3b82f6;
+  margin-bottom: 24px;
+}
+
+.scoreCardHero__progress {
+  margin-bottom: 20px;
+}
+
+.scoreCardHero__progressTrack {
+  width: 100%;
+  height: 12px;
+  background: #e2e8f0;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.scoreCardHero__progressFill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 1s ease-out;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.scoreCardHero__progressLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.scoreCardHero__comparison {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 16px;
+}
+
+.scoreCardHero__comparison--first {
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  color: #8b5cf6;
+}
+
+.scoreCardHero__comparison--improved {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.scoreCardHero__comparison--declined {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.scoreCardHero__comparison--stable {
+  background: rgba(100, 116, 139, 0.1);
+  border: 1px solid rgba(100, 116, 139, 0.2);
+  color: #64748b;
+}
+
+.scoreCardHero__encouragement {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.scoreCardHero__encouragement p {
+  font-size: 16px;
+  color: #475569;
+  margin: 0;
+  font-style: italic;
+  line-height: 1.6;
+}
+
+@media (max-width: 768px) {
+  .scoreCardHero__container {
+    padding: 32px 24px;
+  }
+
+  .scoreCardHero__scoreValue {
+    font-size: 56px;
+  }
+
+  .scoreCardHero__scoreMax {
+    font-size: 24px;
+  }
+
+  .scoreCardHero__message {
+    font-size: 24px;
+  }
+}
+

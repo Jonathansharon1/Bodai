@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+client/node_modules/
+
+# Environment variables
+.env
+client/.env
+*.env.local
+*.env.development.local
+*.env.test.local
+*.env.production.local
+
+# Build outputs
+client/build/
+dist/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+bash.exe.stackdump
+
+# Temporary files
+*.tmp
+*.temp
+
+# AWS/S3
+.aws/
+
+# Supabase local (if using local dev)
+.supabase/
+

@@ -1,0 +1,90 @@
+.onboardingPage {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #F2F7FA 0%, #EFF5F7 50%, #FFFFFF 100%);
+  padding: 40px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.onboardingPage__container {
+  max-width: 800px;
+  width: 100%;
+  background: #FFFFFF;
+  border-radius: 24px;
+  box-shadow: 0 20px 60px rgba(0, 78, 100, 0.12);
+  overflow: hidden;
+}
+
+.onboardingPage__header {
+  background: linear-gradient(135deg, #004E64 0%, #006B8F 100%);
+  padding: 48px 40px;
+  text-align: center;
+  color: #FFFFFF;
+}
+
+.onboardingPage__badge {
+  display: inline-block;
+  padding: 8px 20px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin-bottom: 20px;
+  backdrop-filter: blur(10px);
+}
+
+.onboardingPage__title {
+  font-size: clamp(32px, 5vw, 42px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 16px;
+  line-height: 1.2;
+}
+
+.onboardingPage__subtitle {
+  font-size: 18px;
+  line-height: 1.6;
+  margin: 0;
+  opacity: 0.95;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.onboardingPage__content {
+  padding: 48px 40px;
+}
+
+.onboardingPage__footer {
+  padding: 24px 40px;
+  background: #F2F7FA;
+  border-top: 1px solid #E9ECEF;
+  text-align: center;
+}
+
+.onboardingPage__footerText {
+  font-size: 14px;
+  color: #6E6E6E;
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  .onboardingPage {
+    padding: 20px 16px;
+  }
+
+  .onboardingPage__header {
+    padding: 36px 24px;
+  }
+
+  .onboardingPage__content {
+    padding: 32px 24px;
+  }
+
+  .onboardingPage__footer {
+    padding: 20px 24px;
+  }
+}
+

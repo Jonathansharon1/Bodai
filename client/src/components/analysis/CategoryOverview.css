@@ -1,0 +1,140 @@
+.categoryOverview {
+  margin-bottom: 32px;
+}
+
+.categoryOverview__header {
+  margin-bottom: 20px;
+}
+
+.categoryOverview__title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 4px 0;
+}
+
+.categoryOverview__subtitle {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0;
+}
+
+.categoryOverview__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+}
+
+.categoryOverview__card {
+  background: #ffffff;
+  border: 2px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.categoryOverview__card:hover {
+  border-color: #cbd5e1;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.categoryOverview__card.expanded {
+  border-color: #3b82f6;
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.15);
+}
+
+.categoryOverview__cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.categoryOverview__cardIcon {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 12px;
+}
+
+.categoryOverview__cardInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.categoryOverview__cardLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+.categoryOverview__cardScore {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.categoryOverview__cardStars {
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.categoryOverview__cardDetails {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.categoryOverview__progressBar {
+  width: 100%;
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.categoryOverview__progressFill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.categoryOverview__cardHint {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0;
+  font-style: italic;
+}
+
+@media (max-width: 768px) {
+  .categoryOverview__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .categoryOverview__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
