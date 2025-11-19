@@ -120,16 +120,73 @@ export const parseActionItems = (text) => {
   // Filter out intro items
   const filteredItems = items.filter(item => !item.isIntro);
   
+  // Deduplicate by normalized title (case/spacing-insensitive)
+  const dedupedItems = [];
+  const seenTitles = new Set();
+  
+  filteredItems.forEach(item => {
+    const rawTitle = (typeof item === 'string' ? item : item.title || '').trim();
+    if (!rawTitle) {
+      return;
+    }
+    const normalizedTitle = rawTitle
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .replace(/[.?!]+$/, '')
+      .trim();
+    if (seenTitles.has(normalizedTitle)) {
+      return;
+    }
+    seenTitles.add(normalizedTitle);
+    dedupedItems.push(item);
+  });
+  
   // Debug logging
-  if (filteredItems.length > 0) {
-    console.log(`parseActionItems: Found ${filteredItems.length} action items:`, filteredItems.map(i => i.title));
+  if (dedupedItems.length > 0) {
+    console.log(`parseActionItems: Found ${dedupedItems.length} unique action items:`, dedupedItems.map(i => i.title));
   } else {
     console.log('parseActionItems: No action items found in text');
+    // Find and log the Action Plan section specifically
+    const actionPlanStart = lines.findIndex(line => 
+      line.toLowerCase().includes('action plan') || 
+      line.toLowerCase().includes('action:')
+    );
+    if (actionPlanStart !== -1) {
+      const actionPlanSection = lines.slice(actionPlanStart, actionPlanStart + 50).join('\n');
+      console.log('Action Plan section found:', actionPlanSection.substring(0, 1000));
+    } else {
+      console.log('No "Action Plan" section found in text');
+    }
     // Log a sample of the text to help debug
-    const sampleLines = lines.slice(0, 50).join('\n');
-    console.log('Sample of text being parsed:', sampleLines.substring(0, 500));
+    const sampleLines = lines.slice(0, 100).join('\n');
+    console.log('Sample of text being parsed:', sampleLines.substring(0, 1000));
   }
   
-  return filteredItems;
+  // Transform action items into Tier 1 / Tier 2 structure
+  const tieredItems = dedupedItems.map(item => {
+    if (typeof item === 'string') {
+      return {
+        title: item,
+        details: [],
+        instantTip: item
+      };
+    }
+
+    const rawInstantTip =
+      item.details?.find(detail => detail.toLowerCase().includes('why it matters')) ||
+      item.details?.find(detail => detail.toLowerCase().includes('what to do')) ||
+      item.details?.[0] ||
+      item.title;
+
+    const practicePrompt = item.details?.find(detail => detail.toLowerCase().includes('practice prompt')) || null;
+
+    return {
+      ...item,
+      instantTip: rawInstantTip || item.title,
+      practicePrompt: practicePrompt
+    };
+  });
+
+  return tieredItems;
 };
 

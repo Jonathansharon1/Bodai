@@ -28,6 +28,7 @@
   color: #0f172a;
   margin: 0;
   letter-spacing: -0.02em;
+  font-family: var(--font-display);
 }
 
 .dashboard__subtitle {
@@ -47,6 +48,7 @@
   color: var(--text-dark);
   margin: 0 0 12px;
   letter-spacing: -0.02em;
+  font-family: var(--font-display);
 }
 
 .pageContent p {
@@ -83,6 +85,7 @@
   font-weight: 700;
   margin: 0 0 12px;
   color: var(--text-dark);
+  font-family: var(--font-display);
 }
 
 .dashboard__empty p {
@@ -152,6 +155,7 @@
   color: var(--text-dark);
   margin: 0;
   letter-spacing: -0.01em;
+  font-family: var(--font-display);
 }
 
 .goalsCard__confidence {
@@ -173,6 +177,7 @@
   font-size: 14px;
   font-weight: 600;
   color: var(--accent);
+  font-family: var(--font-mono);
 }
 
 .goalsCard__progress {
@@ -200,6 +205,7 @@
   color: var(--text-muted);
   margin: 0;
   text-align: center;
+  font-family: var(--font-mono);
 }
 
 .dashboard__encouragement {
@@ -239,6 +245,7 @@
   font-weight: 700;
   color: var(--text-dark);
   margin: 0 0 4px;
+  font-family: var(--font-display);
 }
 
 .encouragementCard__text {
@@ -312,6 +319,7 @@
   font-weight: 600;
   color: var(--accent);
   white-space: nowrap;
+  font-family: var(--font-mono);
 }
 
 .analysisCard__goal {
@@ -322,6 +330,7 @@
   align-items: center;
   gap: 6px;
   white-space: nowrap;
+  font-family: var(--font-display);
 }
 
 .analysisCard__goalIcon {
@@ -900,56 +909,112 @@
 }
 
 /* Action Items */
-.journalCard__actionItem {
-  padding: 16px;
-  background: #f8fafc;
-  border-radius: 12px;
-  border-left: 3px solid #3b82f6;
-  transition: all 0.2s ease;
-}
-
-.journalCard__actionItem:hover {
-  background: #f1f5f9;
-  transform: translateX(2px);
-}
-
-.journalCard__actionItemLabel {
+.journalCard__actionCard {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  cursor: pointer;
-  width: 100%;
+  gap: 16px;
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.journalCard__checkbox {
-  width: 20px;
-  height: 20px;
-  margin-top: 2px;
-  cursor: pointer;
-  accent-color: #3b82f6;
+.journalCard__actionCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+}
+
+.journalCard__actionIcon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: rgba(59, 130, 246, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #2563eb;
   flex-shrink: 0;
-  border-radius: 6px;
 }
 
-.journalCard__actionItemText {
+.journalCard__actionBody {
   flex: 1;
-  font-size: 14px;
-  line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.journalCard__actionMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.journalCard__chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #1d4ed8;
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.journalCard__chip--muted {
+  background: rgba(148, 163, 184, 0.2);
   color: #475569;
+}
+
+.journalCard__chip--accent {
+  background: rgba(16, 185, 129, 0.15);
+  color: #047857;
+}
+
+.journalCard__actionTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
   margin: 0;
-  font-weight: 500;
-  transition: all 0.2s ease;
+  letter-spacing: -0.01em;
+  font-family: var(--font-display);
 }
 
-.journalCard__actionItemText.completed {
-  text-decoration: line-through;
-  color: #94a3b8;
-  opacity: 0.7;
+.journalCard__actionDescription {
+  font-size: 14px;
+  color: #475569;
+  line-height: 1.6;
+  margin: 0;
 }
 
-.journalCard__actionItem .journalCard__itemMeta {
-  margin-top: 8px;
-  margin-left: 32px;
+.journalCard__expandableText {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.journalCard__expandToggle {
+  align-self: flex-start;
+  border: none;
+  background: transparent;
+  color: #2563eb;
+  font-weight: 600;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.journalCard__expandToggle .rotated {
+  transform: rotate(180deg);
+}
+
+.journalCard__actionCard .journalCard__itemMeta {
+  margin-top: 4px;
 }
 
 /* Achievements Card */
@@ -1048,6 +1113,155 @@
   .achievementsCard {
     padding: 16px;
   }
+}
+
+.dashboard__journeyTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  align-items: center;
+}
+
+.journeyTabs__loading {
+  font-size: 0.95rem;
+  color: #64748b;
+}
+
+.journeyTabs__empty {
+  background: #f8fafc;
+  border: 1px dashed #cbd5f5;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  width: 100%;
+  justify-content: space-between;
+}
+
+.journeyTabs__emptyTitle {
+  margin: 0 0 0.25rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.journeyTabs__emptySubtitle {
+  margin: 0;
+  color: #475569;
+  max-width: 38rem;
+}
+
+.journeyTab {
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  border-radius: 999px;
+  padding: 0.65rem 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.journeyTab:hover {
+  border-color: #cbd5f5;
+  color: #0f172a;
+}
+
+.journeyTab--active {
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 10px 25px rgba(99, 102, 241, 0.25);
+}
+
+.journeyTab__title {
+  white-space: nowrap;
+}
+
+.journeyTab__meta {
+  font-size: 0.75rem;
+  opacity: 0.85;
+}
+
+.journeyTab--add {
+  border: 1px dashed #cbd5f5;
+  color: #4f46e5;
+  background: #f5f3ff;
+}
+
+.journeyModalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 3rem 1rem;
+  z-index: 1000;
+  overflow-y: auto;
+}
+
+.journeyModalCard {
+  background: #fff;
+  border-radius: 20px;
+  width: min(900px, 100%);
+  box-shadow: 0 25px 80px rgba(15, 23, 42, 0.25);
+  padding: 1.5rem;
+  position: relative;
+}
+
+.journeyModal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.journeyModal__eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  color: #6366f1;
+  margin: 0 0 0.35rem;
+}
+
+.journeyModal__close {
+  border: none;
+  background: rgba(148, 163, 184, 0.2);
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.journeyModal__body {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.journeyModal__status {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: #eef2ff;
+  border-radius: 8px;
+  color: #312e81;
+  font-size: 0.9rem;
+}
+
+.journeyModal__error {
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: #fee2e2;
+  border-radius: 8px;
+  color: #b91c1c;
+  font-size: 0.9rem;
 }
 
 

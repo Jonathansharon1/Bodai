@@ -9,7 +9,7 @@
 
 .nextStepsPreview__header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: flex-start;
   margin-bottom: 24px;
   gap: 16px;
@@ -46,28 +46,6 @@
   margin: 0;
 }
 
-.nextStepsPreview__viewAll {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 16px;
-  background: transparent;
-  border: 2px solid #e2e8f0;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #3b82f6;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-}
-
-.nextStepsPreview__viewAll:hover {
-  background: rgba(59, 130, 246, 0.05);
-  border-color: #3b82f6;
-  transform: translateX(2px);
-}
-
 .nextStepsPreview__list {
   display: flex;
   flex-direction: column;
@@ -75,67 +53,127 @@
 }
 
 .nextStepsPreview__item {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 16px;
-  background: #f8fafc;
-  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
   border: 1px solid #e2e8f0;
-  transition: all 0.2s ease;
+  background: #f8fafc;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .nextStepsPreview__item:hover {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-  transform: translateX(4px);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
 }
 
-.nextStepsPreview__itemNumber {
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
+.nextStepsPreview__itemAccent {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, #2563eb 0%, #3b82f6 100%);
+}
+
+.nextStepsPreview__itemBody {
+  padding: 18px 20px 18px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nextStepsPreview__itemMeta {
   display: flex;
   align-items: center;
-  justify-content: center;
-  background: #3b82f6;
-  color: #ffffff;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 700;
+  gap: 8px;
 }
 
-.nextStepsPreview__itemContent {
-  flex: 1;
-  min-width: 0;
+.nextStepsPreview__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
 }
 
 .nextStepsPreview__itemTitle {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
   color: #0f172a;
-  margin-bottom: 6px;
-  line-height: 1.4;
+  margin: 0;
+  letter-spacing: -0.01em;
 }
 
-.nextStepsPreview__itemDetails {
+.nextStepsPreview__itemDescription {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #475569;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.nextStepsPreview__instantLabel {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #16a34a;
   margin-top: 8px;
 }
 
-.nextStepsPreview__itemDetail {
-  font-size: 14px;
-  color: #64748b;
-  line-height: 1.5;
-  padding-left: 12px;
-  position: relative;
+.nextStepsPreview__practice {
+  border-top: 1px solid rgba(148, 163, 184, 0.3);
+  padding-top: 12px;
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.nextStepsPreview__itemDetail::before {
-  content: '•';
-  position: absolute;
-  left: 0;
-  color: #3b82f6;
-  font-weight: bold;
+.nextStepsPreview__practiceHeader {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #2563eb;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.nextStepsPreview__practiceSummary {
+  margin: 0;
+  font-size: 13px;
+  color: #1e293b;
+  line-height: 1.5;
+}
+
+.nextStepsPreview__practiceButton {
+  align-self: flex-start;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid #2563eb;
+  background: transparent;
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.nextStepsPreview__practiceButton:hover {
+  background: rgba(37, 99, 235, 0.1);
+  transform: translateY(-1px);
 }
 
 .nextStepsPreview__footer {
@@ -173,10 +211,6 @@
 
   .nextStepsPreview__header {
     flex-direction: column;
-  }
-
-  .nextStepsPreview__viewAll {
-    align-self: flex-start;
   }
 }
 

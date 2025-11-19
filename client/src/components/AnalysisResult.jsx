@@ -6,7 +6,6 @@ import {
   Circle, 
   Copy, 
   Check,
-  Sparkles,
   TrendingUp,
   TrendingDown,
   Minus,
@@ -20,10 +19,6 @@ import {
   Zap,
   Award
 } from 'lucide-react';
-import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer } from 'recharts';
-import ScoreCardHero from './analysis/ScoreCardHero';
-import QuickSummary from './analysis/QuickSummary';
-import CategoryOverview from './analysis/CategoryOverview';
 import TopStrengthCard from './analysis/TopStrengthCard';
 import TopOpportunityCard from './analysis/TopOpportunityCard';
 import NextStepsPreview from './analysis/NextStepsPreview';
@@ -184,9 +179,27 @@ const parseFocusAreas = (text) => {
   return areas;
 };
 
+const normalizeActionText = (text) => {
+  if (!text) return '';
+  let normalized = text;
+  // Ensure each action starts on a new line
+  normalized = normalized.replace(/\*\s*Action:/gi, '\nAction:');
+  normalized = normalized.replace(/(?<!^)(?=Action:)/gi, '\n'); // fallback if multiple in same line
+
+  // Split inline details into their own lines
+  normalized = normalized.replace(/-\s*(What to do|Why it matters|Example)/gi, '\n  $1');
+  normalized = normalized.replace(/•\s*(What to do|Why it matters|Example)/gi, '\n  $1');
+
+  // Replace multiple spaces after colon
+  normalized = normalized.replace(/(Action:|What to do|Why it matters|Example):\s*/gi, '$1: ');
+
+  return normalized;
+};
+
 const parseActionItems = (text) => {
   const items = [];
-  const lines = text.split('\n');
+  const normalizedText = normalizeActionText(text);
+  const lines = normalizedText.split('\n');
   let currentAction = null;
   let introText = []; // Store any text before first action
   
@@ -328,12 +341,12 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
     action: false,
     quick: false
   });
-  const [checkedActions, setCheckedActions] = useState({});
   const [copied, setCopied] = useState(false);
   const [metrics, setMetrics] = useState(null);
   const [previousMetrics, setPreviousMetrics] = useState(null);
   const [isFirstAnalysis, setIsFirstAnalysis] = useState(false);
   const [loadingMetrics, setLoadingMetrics] = useState(false);
+  const [viewMode, setViewMode] = useState('summary');
 
   const sections = parseAnalysisText(markdown);
 
@@ -391,13 +404,6 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
     }));
   };
 
-  const toggleAction = (index) => {
-    setCheckedActions(prev => ({
-      ...prev,
-      [index]: !prev[index]
-    }));
-  };
-
   const copyToClipboard = () => {
     if (markdown) {
       navigator.clipboard.writeText(markdown);
@@ -405,12 +411,6 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
       setTimeout(() => setCopied(false), 2000);
     }
   };
-
-  const completedActions = Object.values(checkedActions).filter(Boolean).length;
-  // Count only actual actions (not intro text)
-  const actualActions = sections?.actionPlan?.filter(a => !a.isIntro) || [];
-  const totalActions = actualActions.length;
-  const progressPercentage = totalActions > 0 ? (completedActions / totalActions) * 100 : 0;
 
   if (loading) {
     return (
@@ -506,6 +506,8 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
   // Get top strength and opportunity for initial view
   const topStrength = sections?.keyStrengths?.[0] || null;
   const topOpportunity = sections?.focusAreas?.[0] || null;
+  const actionItems = (sections?.actionPlan || []).filter(item => !item?.isIntro);
+  const hasActionItems = actionItems.length > 0;
   
   // Get strength score (try to match to metrics)
   const getStrengthScore = (strength) => {
@@ -535,461 +537,261 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
   const strengthScore = getStrengthScore(topStrength);
   const opportunityScore = getOpportunityScore(topOpportunity);
 
-  return (
-    <div className="analysisResult">
-      <div className="analysisResult__header">
-        <h3 className="analysisResult__title">Your Body Language Analysis</h3>
-        <button 
-          className="analysisResult__copyBtn"
-          onClick={copyToClipboard}
-          title="Copy analysis"
-        >
-          {copied ? <Check size={16} /> : <Copy size={16} />}
-        </button>
-      </div>
+  const handleViewAllActions = () => {
+    setViewMode('full');
+    setExpandedSections(prev => ({ ...prev, action: true }));
+    setTimeout(() => {
+      const actionSection = document.getElementById('accordion-content-action');
+      if (actionSection) {
+        actionSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
+  };
 
-      {/* Initial Experience - Hero View */}
-      {overallScore !== null && overallScore !== undefined ? (
-        <div className="analysisResult__initialExperience">
-          {/* Score Card Hero */}
-          <ScoreCardHero
-            score={overallScore}
-            stageTitle={stageTitle}
-            isFirstAnalysis={isFirstAnalysis}
-            comparison={comparison}
-          />
-
-          {/* Quick Summary */}
-          <QuickSummary
-            strengths={sections?.keyStrengths}
-            focusAreas={sections?.focusAreas}
-            metrics={metrics}
-          />
-
-          {/* Category Overview */}
-          {metrics && <CategoryOverview metrics={metrics} />}
-
-          {/* Top Strength */}
-          {topStrength && (
-            <TopStrengthCard
-              strength={topStrength}
-              score={strengthScore}
-            />
-          )}
-
-          {/* Top Opportunity */}
-          {topOpportunity && (
-            <TopOpportunityCard
-              opportunity={topOpportunity}
-              currentScore={opportunityScore}
-              targetScore={opportunityScore ? opportunityScore + 2 : 7}
-            />
-          )}
-
-          {/* Next Steps Preview */}
-          {sections?.actionPlan && sections.actionPlan.length > 0 && (
-            <NextStepsPreview
-              actionItems={sections.actionPlan.filter(a => !a.isIntro)}
-              onViewAll={() => {
-                setExpandedSections(prev => ({ ...prev, action: true }));
-                // Scroll to action section
-                setTimeout(() => {
-                  const actionSection = document.getElementById('accordion-content-action');
-                  if (actionSection) {
-                    actionSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  }
-                }, 100);
-              }}
-            />
-          )}
-
-          {/* Expandable Details Section */}
-          <div className="analysisResult__expandableSection">
-            <button
-              className="analysisResult__expandButton"
-              onClick={() => {
-                setExpandedSections({
-                  overall: true,
-                  strengths: true,
-                  focus: true,
-                  action: true,
-                  quick: true
-                });
-              }}
-            >
-              <ChevronDown size={20} />
-              <span>View Full Analysis Details</span>
-            </button>
-          </div>
-        </div>
-      ) : (
-        // Fallback: Show Quick Summary and sections even without metrics
-        <div className="analysisResult__initialExperience">
-          {/* Quick Summary */}
-          <QuickSummary
-            strengths={sections?.keyStrengths}
-            focusAreas={sections?.focusAreas}
-            metrics={null}
-          />
-
-          {/* Top Strength */}
-          {topStrength && (
-            <TopStrengthCard
-              strength={topStrength}
-              score={null}
-            />
-          )}
-
-          {/* Top Opportunity */}
-          {topOpportunity && (
-            <TopOpportunityCard
-              opportunity={topOpportunity}
-              currentScore={null}
-              targetScore={7}
-            />
-          )}
-
-          {/* Next Steps Preview */}
-          {sections?.actionPlan && sections.actionPlan.length > 0 && (
-            <NextStepsPreview
-              actionItems={sections.actionPlan.filter(a => !a.isIntro)}
-              onViewAll={() => {
-                setExpandedSections(prev => ({ ...prev, action: true }));
-                setTimeout(() => {
-                  const actionSection = document.getElementById('accordion-content-action');
-                  if (actionSection) {
-                    actionSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  }
-                }, 100);
-              }}
-            />
-          )}
-
-          {/* Expandable Details Section */}
-          <div className="analysisResult__expandableSection">
-            <button
-              className="analysisResult__expandButton"
-              onClick={() => {
-                setExpandedSections({
-                  overall: true,
-                  strengths: true,
-                  focus: true,
-                  action: true,
-                  quick: true
-                });
-              }}
-            >
-              <ChevronDown size={20} />
-              <span>View Full Analysis Details</span>
-            </button>
-          </div>
-        </div>
+  const renderQuickSummaryView = () => (
+    <div className="analysisResult__summaryView">
+      {topStrength && (
+        <TopStrengthCard
+          strength={topStrength}
+          score={strengthScore}
+        />
       )}
 
-      {/* Performance Summary Header - Legacy (for when metrics not available) */}
-      {metrics && !overallScore && (
-        <div className="analysisResult__performanceSummary">
-          <div className="analysisResult__performanceHeader">
-            <div className="analysisResult__scoreCard">
-              <div className="analysisResult__scoreValue">{overallScore || '--'}</div>
-              <div className="analysisResult__scoreLabel">Overall Score</div>
-              {stageTitle && (
-                <div className="analysisResult__stageBadge">{stageTitle}</div>
-              )}
-            </div>
-            {comparison && (
-              <div className={`analysisResult__comparison analysisResult__comparison--${comparison.type}`}>
-                {comparison.type === 'first' ? (
-                  <div className="analysisResult__comparisonContent">
-                    <Sparkles size={20} />
-                    <span>{comparison.message}</span>
-                  </div>
-                ) : (
-                  <div className="analysisResult__comparisonContent">
-                    {React.createElement(comparison.icon, { size: 20 })}
-                    <span>
-                      {comparison.type === 'improved' && `+${comparison.diff} points`}
-                      {comparison.type === 'declined' && `-${comparison.diff} points`}
-                      {comparison.type === 'stable' && 'No change'}
-                    </span>
-                    <span className="analysisResult__comparisonLabel">vs. previous</span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+      {topOpportunity && (
+        <TopOpportunityCard
+          opportunity={topOpportunity}
+          currentScore={opportunityScore}
+          targetScore={opportunityScore ? opportunityScore + 2 : 7}
+        />
+      )}
 
-          {metricsData && (
-            <div className="analysisResult__metricsVisualization">
-              <div className="analysisResult__radarChart">
-                <ResponsiveContainer width="100%" height={300}>
-                  <RadarChart data={metricsData}>
-                    <PolarGrid stroke="#e2e8f0" />
-                    <PolarAngleAxis 
-                      dataKey="category" 
-                      tick={{ fill: '#64748b', fontSize: 12, fontWeight: 500 }}
-                    />
-                    <PolarRadiusAxis 
-                      angle={90} 
-                      domain={[0, 10]} 
-                      tick={{ fill: '#94a3b8', fontSize: 10 }}
-                    />
-                    <Radar
-                      name="Current"
-                      dataKey="value"
-                      stroke="#3b82f6"
-                      fill="#3b82f6"
-                      fillOpacity={0.6}
-                      strokeWidth={2}
-                    />
-                  </RadarChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="analysisResult__metricsBars">
-                {metricsData.map((item, index) => {
-                  const IconComponent = item.icon;
-                  const percentage = (item.value / 10) * 100;
-                  const prevValue = previousMetrics ? parseFloat(previousMetrics[item.key]) || 0 : null;
-                  const diff = prevValue !== null ? item.value - prevValue : null;
+      {hasActionItems && (
+        <NextStepsPreview
+          actionItems={actionItems}
+          onViewAll={handleViewAllActions}
+        />
+      )}
+
+      {!topStrength && !topOpportunity && !hasActionItems && (
+        <div className="analysisResult__emptySummary">
+          <p>Upload a new analysis to unlock your personalized summary.</p>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="analysisResult">
+    <div className="analysisResult__header">
+      <div className="analysisResult__titleGroup">
+        <h3 className="analysisResult__title">Your Video Analysis</h3>
+        <div className="analysisResult__viewMode">
+          <div className="analysisResult__viewToggle" role="tablist" aria-label="Analysis view mode">
+            <button
+              className={`analysisResult__toggleOption ${viewMode === 'summary' ? 'is-active' : ''}`}
+              onClick={() => setViewMode('summary')}
+              role="tab"
+              aria-selected={viewMode === 'summary'}
+            >
+              Quick Summary
+            </button>
+            <button
+              className={`analysisResult__toggleOption ${viewMode === 'full' ? 'is-active' : ''}`}
+              onClick={() => setViewMode('full')}
+              role="tab"
+              aria-selected={viewMode === 'full'}
+            >
+              Full Analysis
+            </button>
+            <span className={`analysisResult__toggleThumb ${viewMode === 'summary' ? 'is-left' : 'is-right'}`} />
+          </div>
+        </div>
+      </div>
+    </div>
+
+      {viewMode === 'summary' && renderQuickSummaryView()}
+
+      {viewMode === 'full' && (
+        <>
+          {/* Key Strengths */}
+          {sections.keyStrengths && sections.keyStrengths.length > 0 && (
+            <AccordionSection
+              id="strengths"
+              icon={<TrendingUp size={20} />}
+              title="Key Strengths"
+              expanded={expandedSections.strengths}
+              onToggle={() => toggleSection('strengths')}
+            >
+              <div className="analysisResult__strengths">
+                {sections.keyStrengths.map((strength, index) => {
+                  const parts = strength.split(/[.:]/);
+                  const title = parts[0]?.trim() || strength.substring(0, 50);
+                  const description = parts.length > 1 ? parts.slice(1).join('.').trim() : strength;
                   
                   return (
-                    <div key={index} className="analysisResult__metricBar">
-                      <div className="analysisResult__metricBarHeader">
-                        <div className="analysisResult__metricBarLabel">
-                          <IconComponent size={18} color={item.color} />
-                          <span>{item.category}</span>
-                        </div>
-                        <div className="analysisResult__metricBarValue">
-                          <span className="analysisResult__metricBarScore">{item.value.toFixed(1)}</span>
-                          {diff !== null && diff !== 0 && (
-                            <span className={`analysisResult__metricBarDiff ${diff > 0 ? 'positive' : 'negative'}`}>
-                              {diff > 0 ? '+' : ''}{diff.toFixed(1)}
-                            </span>
-                          )}
-                        </div>
+                    <div key={index} className="analysisResult__strengthCard">
+                      <div className="analysisResult__strengthIcon">
+                        <CheckCircle2 size={24} />
                       </div>
-                      <div className="analysisResult__metricBarTrack">
-                        <div 
-                          className="analysisResult__metricBarFill"
-                          style={{ 
-                            width: `${percentage}%`,
-                            backgroundColor: item.color
-                          }}
-                        />
+                      <div className="analysisResult__strengthText">
+                        <strong>{title}</strong>
+                        {description !== title && <span>{description}</span>}
                       </div>
                     </div>
                   );
                 })}
               </div>
-            </div>
+            </AccordionSection>
           )}
-        </div>
-      )}
 
-      {/* Overall Impression */}
-      {sections.overallImpression && (
-        <div className="analysisResult__section analysisResult__overall">
-          <div className="analysisResult__sectionHeader">
-            <div className="analysisResult__sectionIcon">
-              <Sparkles size={20} />
-            </div>
-            <h4 className="analysisResult__sectionTitle">Overall Impression</h4>
-          </div>
-          <div className="analysisResult__sectionContent">
-            <p className="analysisResult__overallText">{sections.overallImpression}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Key Strengths */}
-      {sections.keyStrengths && sections.keyStrengths.length > 0 && (
-        <AccordionSection
-          id="strengths"
-          icon={<TrendingUp size={20} />}
-          title="Key Strengths"
-          expanded={expandedSections.strengths}
-          onToggle={() => toggleSection('strengths')}
-        >
-          <div className="analysisResult__strengths">
-            {sections.keyStrengths.map((strength, index) => {
-              // Try to extract title and description
-              const parts = strength.split(/[.:]/);
-              const title = parts[0]?.trim() || strength.substring(0, 50);
-              const description = parts.length > 1 ? parts.slice(1).join('.').trim() : strength;
-              
-              return (
-                <div key={index} className="analysisResult__strengthCard">
-                  <div className="analysisResult__strengthIcon">
-                    <CheckCircle2 size={24} />
-                  </div>
-                  <div className="analysisResult__strengthText">
-                    <strong>{title}</strong>
-                    {description !== title && <span>{description}</span>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </AccordionSection>
-      )}
-
-      {/* Focus Areas */}
-      {sections.focusAreas && sections.focusAreas.length > 0 && (
-        <AccordionSection
-          id="focus"
-          icon={<Lightbulb size={20} />}
-          title="Focus Areas"
-          expanded={expandedSections.focus}
-          onToggle={() => toggleSection('focus')}
-        >
-          <div className="analysisResult__focusAreas">
-            {sections.focusAreas.map((area, index) => (
-              <div key={index} className="analysisResult__focusCard">
-                <h5 className="analysisResult__focusTitle">{area.title || area}</h5>
-                {area.description && (
-                  <p className="analysisResult__focusDescription">{area.description}</p>
-                )}
-                {area.howToImprove && (
-                  <div className="analysisResult__focusImprove">
-                    <strong>How to improve:</strong> {area.howToImprove}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </AccordionSection>
-      )}
-
-      {/* Action Plan */}
-      {sections.actionPlan && sections.actionPlan.length > 0 && (
-        <AccordionSection
-          id="action"
-          icon={<Rocket size={20} />}
-          title="Action Plan"
-          expanded={expandedSections.action}
-          onToggle={() => toggleSection('action')}
-        >
-          <div className="analysisResult__actionPlan">
-            {totalActions > 0 && (
-              <div className="analysisResult__progress">
-                <div className="analysisResult__progressBar">
-                  <div 
-                    className="analysisResult__progressFill"
-                    style={{ width: `${progressPercentage}%` }}
-                  />
-                </div>
-                <span className="analysisResult__progressText">
-                  {completedActions} of {totalActions} completed
-                </span>
-              </div>
-            )}
-            <div className="analysisResult__actionList">
-              {sections.actionPlan.map((action, actionIndex) => {
-                const actionTitle = typeof action === 'string' ? action : action.title;
-                const actionDetails = typeof action === 'string' ? [] : (action.details || []);
-                const isIntro = action.isIntro || false;
-                
-                // If it's intro text (no "Action:" prefix), display as regular text without checkbox
-                if (isIntro) {
-                  return (
-                    <div key={actionIndex} className="analysisResult__actionIntro">
-                      <p>{actionTitle}</p>
-                    </div>
-                  );
-                }
-                
-                // Calculate the actual action index (excluding intro items)
-                const actualActionIndex = sections.actionPlan
-                  .slice(0, actionIndex)
-                  .filter(a => !a.isIntro).length;
-                
-                // Parse details into structured format
-                const parsedDetails = {
-                  whatToDo: null,
-                  whyItMatters: null,
-                  example: null,
-                  other: []
-                };
-
-                actionDetails.forEach((detail) => {
-                  const lowerDetail = detail.toLowerCase();
-                  if (lowerDetail.includes('what to do') || (parsedDetails.whatToDo === null && actionDetails.indexOf(detail) === 0)) {
-                    parsedDetails.whatToDo = detail.replace(/^[-*•]\s*(what to do)[:\s-]+/i, '').trim();
-                  } else if (lowerDetail.includes('why it matters') || lowerDetail.includes('why')) {
-                    parsedDetails.whyItMatters = detail.replace(/^[-*•]\s*(why it matters|why)[:\s-]+/i, '').trim();
-                  } else if (lowerDetail.includes('example')) {
-                    parsedDetails.example = detail.replace(/^[-*•]\s*(example)[:\s-]+/i, '').trim();
-                  } else {
-                    parsedDetails.other.push(detail);
-                  }
-                });
-
-                return (
-                  <div key={actionIndex} className="analysisResult__actionGroup">
-                    <label className="analysisResult__actionItem">
-                      <input
-                        type="checkbox"
-                        checked={checkedActions[actualActionIndex] || false}
-                        onChange={() => toggleAction(actualActionIndex)}
-                        className="analysisResult__checkbox"
-                      />
-                      <span className="analysisResult__actionText">{actionTitle}</span>
-                    </label>
-                    {(parsedDetails.whatToDo || parsedDetails.whyItMatters || parsedDetails.example || parsedDetails.other.length > 0) && (
-                      <div className="analysisResult__actionDetails">
-                        {parsedDetails.whatToDo && (
-                          <div className="analysisResult__actionDetail">
-                            <strong className="analysisResult__actionDetailLabel">What to do:</strong>
-                            <span>{parsedDetails.whatToDo}</span>
-                          </div>
-                        )}
-                        {parsedDetails.whyItMatters && (
-                          <div className="analysisResult__actionDetail">
-                            <strong className="analysisResult__actionDetailLabel">Why it matters:</strong>
-                            <span>{parsedDetails.whyItMatters}</span>
-                          </div>
-                        )}
-                        {parsedDetails.example && (
-                          <div className="analysisResult__actionDetail">
-                            <strong className="analysisResult__actionDetailLabel">Example:</strong>
-                            <span>{parsedDetails.example}</span>
-                          </div>
-                        )}
-                        {parsedDetails.other.map((detail, detailIndex) => (
-                          <div key={detailIndex} className="analysisResult__actionDetail">
-                            {detail}
-                          </div>
-                        ))}
+          {/* Focus Areas */}
+          {sections.focusAreas && sections.focusAreas.length > 0 && (
+            <AccordionSection
+              id="focus"
+              icon={<Lightbulb size={20} />}
+              title="Focus Areas"
+              expanded={expandedSections.focus}
+              onToggle={() => toggleSection('focus')}
+            >
+              <div className="analysisResult__focusAreas">
+                {sections.focusAreas.map((area, index) => (
+                  <div key={index} className="analysisResult__focusCard">
+                    <h5 className="analysisResult__focusTitle">{area.title || area}</h5>
+                    {area.description && (
+                      <p className="analysisResult__focusDescription">{area.description}</p>
+                    )}
+                    {area.howToImprove && (
+                      <div className="analysisResult__focusImprove">
+                        <strong>How to improve:</strong> {area.howToImprove}
                       </div>
                     )}
                   </div>
-                );
-              })}
-            </div>
-          </div>
-        </AccordionSection>
-      )}
-
-      {/* Quick Wins */}
-      {sections.quickWins && sections.quickWins.length > 0 && (
-        <AccordionSection
-          id="quick"
-          icon={<MessageSquare size={20} />}
-          title="Quick Wins"
-          expanded={expandedSections.quick}
-          onToggle={() => toggleSection('quick')}
-        >
-          <div className="analysisResult__quickWins">
-            {sections.quickWins.map((win, index) => (
-              <div key={index} className="analysisResult__quickWinCard">
-                <div className="analysisResult__quickWinIcon">
-                  <Lightbulb size={20} />
-                </div>
-                <p className="analysisResult__quickWinText">{win}</p>
+                ))}
               </div>
-            ))}
-          </div>
-        </AccordionSection>
+            </AccordionSection>
+          )}
+
+          {/* Action Plan */}
+          {sections.actionPlan && sections.actionPlan.length > 0 && (
+            <AccordionSection
+              id="action"
+              icon={<Rocket size={20} />}
+              title="Action Plan"
+              expanded={expandedSections.action}
+              onToggle={() => toggleSection('action')}
+            >
+              <div className="analysisResult__actionPlan">
+                {sections.actionPlan.map((action, actionIndex) => {
+                  const actionTitle = typeof action === 'string' ? action : action.title;
+                  const actionDetails = typeof action === 'string' ? [] : (action.details || []);
+                  const isIntro = action.isIntro || false;
+                  
+                  if (isIntro) {
+                    return (
+                      <div key={actionIndex} className="analysisResult__actionIntro">
+                        <p>{actionTitle}</p>
+                      </div>
+                    );
+                  }
+                  
+                  const actualActionIndex = sections.actionPlan
+                    .slice(0, actionIndex)
+                    .filter(a => !a.isIntro).length;
+                  
+                  const parsedDetails = {
+                    whatToDo: null,
+                    whyItMatters: null,
+                    example: null,
+                    other: []
+                  };
+
+                  actionDetails.forEach((detail) => {
+                    const lowerDetail = detail.toLowerCase();
+                    if (lowerDetail.includes('what to do') || (parsedDetails.whatToDo === null && actionDetails.indexOf(detail) === 0)) {
+                      parsedDetails.whatToDo = detail.replace(/^[-*•]\s*(what to do)[:\s-]+/i, '').trim();
+                    } else if (lowerDetail.includes('why it matters') || lowerDetail.includes('why')) {
+                      parsedDetails.whyItMatters = detail.replace(/^[-*•]\s*(why it matters|why)[:\s-]+/i, '').trim();
+                    } else if (lowerDetail.includes('example')) {
+                      parsedDetails.example = detail.replace(/^[-*•]\s*(example)[:\s-]+/i, '').trim();
+                    } else {
+                      parsedDetails.other.push(detail);
+                    }
+                  });
+
+                  const summary =
+                    parsedDetails.whyItMatters ||
+                    parsedDetails.whatToDo ||
+                    parsedDetails.example ||
+                    actionDetails[0] ||
+                    'Keep this focus top-of-mind during your next recording.';
+
+                  const showSummaryToggle = summary.length > 220;
+
+                  return (
+                    <div key={actionIndex} className="analysisResult__actionCard">
+                      <div className="analysisResult__actionBadge">
+                        Focus {actualActionIndex + 1}
+                      </div>
+                      <div className="analysisResult__actionTitle">{actionTitle}</div>
+                      {summary && (
+                        <ExpandableText text={summary} collapsedLines={3} />
+                      )}
+                      {(parsedDetails.whatToDo || parsedDetails.whyItMatters || parsedDetails.example || parsedDetails.other.length > 0) && (
+                        <div className="analysisResult__actionDetails">
+                          {parsedDetails.whatToDo && (
+                            <div className="analysisResult__actionDetail">
+                              <span className="analysisResult__actionDetailLabel">What to practice</span>
+                              <ExpandableText text={parsedDetails.whatToDo} collapsedLines={2} threshold={600} />
+                            </div>
+                          )}
+                          {parsedDetails.whyItMatters && (
+                            <div className="analysisResult__actionDetail">
+                              <span className="analysisResult__actionDetailLabel">Why it matters</span>
+                              <ExpandableText text={parsedDetails.whyItMatters} collapsedLines={2} threshold={600} />
+                            </div>
+                          )}
+                          {parsedDetails.example && (
+                            <div className="analysisResult__actionDetail">
+                              <span className="analysisResult__actionDetailLabel">Example</span>
+                              <ExpandableText text={parsedDetails.example} collapsedLines={2} threshold={600} />
+                            </div>
+                          )}
+                          {parsedDetails.other.map((detail, detailIndex) => (
+                            <div key={detailIndex} className="analysisResult__actionDetail">
+                              <ExpandableText text={detail} collapsedLines={2} threshold={600} />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </AccordionSection>
+          )}
+
+          {/* Quick Wins */}
+          {sections.quickWins && sections.quickWins.length > 0 && (
+            <AccordionSection
+              id="quick"
+              icon={<MessageSquare size={20} />}
+              title="Quick Wins"
+              expanded={expandedSections.quick}
+              onToggle={() => toggleSection('quick')}
+            >
+              <div className="analysisResult__quickWins">
+                {sections.quickWins.map((win, index) => (
+                  <div key={index} className="analysisResult__quickWinCard">
+                    <div className="analysisResult__quickWinIcon">
+                      <Lightbulb size={20} />
+                    </div>
+                    <p className="analysisResult__quickWinText">{win}</p>
+                  </div>
+                ))}
+              </div>
+            </AccordionSection>
+          )}
+        </>
       )}
 
     </div>
@@ -1028,3 +830,33 @@ function AccordionSection({ id, icon, title, emoji, expanded, onToggle, children
     </div>
   );
 }
+
+const ExpandableText = ({ text, collapsedLines = 3, threshold = 220 }) => {
+  const [expanded, setExpanded] = useState(false);
+  if (!text) return null;
+
+  const shouldCollapse = text.length > threshold;
+
+  return (
+    <div className={`analysisResult__expandableText ${expanded ? 'expanded' : ''}`}>
+      <p className="analysisResult__actionSummary" style={shouldCollapse && !expanded ? {
+        display: '-webkit-box',
+        WebkitLineClamp: collapsedLines,
+        WebkitBoxOrient: 'vertical',
+        overflow: 'hidden'
+      } : undefined}>
+        {text}
+      </p>
+      {shouldCollapse && (
+        <button
+          type="button"
+          className="analysisResult__expandToggle"
+          onClick={() => setExpanded(prev => !prev)}
+        >
+          {expanded ? 'Show less' : 'Show more'}
+          <ChevronDown size={16} className={expanded ? 'rotated' : ''} />
+        </button>
+      )}
+    </div>
+  );
+};

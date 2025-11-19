@@ -35,6 +35,19 @@ export const uploadVideoToS3 = async (videoBuffer, originalFilename, mimeType, u
   const sanitizedFilename = originalFilename.replace(/[^a-zA-Z0-9.-]/g, '_');
   const key = `${UPLOAD_PREFIX}${userId}/${uniqueId}-${sanitizedFilename}`;
 
+  // Sanitize metadata values - S3 metadata headers must only contain ASCII characters
+  // S3 metadata keys must be lowercase and values can only contain ASCII printable characters
+  const sanitizeMetadata = (value) => {
+    if (!value) return '';
+    // Convert to string and sanitize for S3 metadata
+    return String(value)
+      .replace(/[^\x20-\x7E]/g, '') // Keep only ASCII printable characters (space to ~)
+      .replace(/[\r\n\t]/g, ' ') // Replace line breaks and tabs with space
+      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+      .trim()
+      .substring(0, 1024); // S3 metadata values have a 2KB limit per key-value pair
+  };
+
   // Upload to S3
   const command = new PutObjectCommand({
     Bucket: BUCKET_NAME,
@@ -43,11 +56,12 @@ export const uploadVideoToS3 = async (videoBuffer, originalFilename, mimeType, u
     ContentType: mimeType,
     // Make videos private (only accessible via pre-signed URLs)
     ACL: 'private',
-    // Add metadata
+    // Add metadata - sanitize all values to ensure only ASCII printable characters
+    // Note: Metadata keys are automatically converted to lowercase by AWS SDK
     Metadata: {
-      originalFilename: originalFilename,
-      userId: userId,
-      uploadedAt: new Date().toISOString(),
+      originalfilename: sanitizeMetadata(originalFilename), // lowercase key
+      userid: sanitizeMetadata(userId), // lowercase key
+      uploadedat: sanitizeMetadata(new Date().toISOString()), // lowercase key
     },
   });
 

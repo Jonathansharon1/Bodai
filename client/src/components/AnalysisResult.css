@@ -12,6 +12,23 @@
   padding: 0 2.5rem 2rem;
 }
 
+.analysisResult__summaryView {
+  padding: 2rem 2.5rem 2.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.analysisResult__emptySummary {
+  padding: 2rem;
+  border: 1px dashed #cbd5f5;
+  border-radius: 16px;
+  text-align: center;
+  color: #64748b;
+  font-weight: 500;
+  background: #f8fafc;
+}
+
 .analysisResult__expandableSection {
   margin-top: 32px;
   padding-top: 32px;
@@ -42,19 +59,93 @@
 
 .analysisResult__header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
   padding: 2rem 2.5rem;
   background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
   border-bottom: 1px solid #e2e8f0;
 }
 
+.analysisResult__titleGroup {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
 .analysisResult__title {
-  font-size: 1.875rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: #0f172a;
   margin: 0;
   letter-spacing: -0.02em;
+  font-family: var(--font-display);
+}
+
+.analysisResult__viewMode {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.analysisResult__toggleLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.analysisResult__viewToggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  padding: 4px;
+  gap: 4px;
+  min-width: 220px;
+  box-shadow: inset 0 1px 1px rgba(148, 163, 184, 0.4);
+}
+
+.analysisResult__toggleOption {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.analysisResult__toggleOption.is-active {
+  color: #0f172a;
+}
+
+.analysisResult__toggleThumb {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  width: calc(50% - 4px);
+  background: #ffffff;
+  border-radius: 999px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.analysisResult__toggleThumb.is-left {
+  transform: translateX(0);
+}
+
+.analysisResult__toggleThumb.is-right {
+  transform: translateX(100%);
 }
 
 .analysisResult__copyBtn {
@@ -120,6 +211,7 @@
   -webkit-text-fill-color: transparent;
   background-clip: text;
   letter-spacing: -0.03em;
+  font-family: var(--font-mono);
 }
 
 .analysisResult__scoreLabel {
@@ -128,6 +220,7 @@
   color: #64748b;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  font-family: var(--font-mono);
 }
 
 .analysisResult__stageBadge {
@@ -245,6 +338,7 @@
   color: #0f172a;
   min-width: 40px;
   text-align: right;
+  font-family: var(--font-mono);
 }
 
 .analysisResult__metricBarDiff {
@@ -252,6 +346,7 @@
   font-weight: 600;
   padding: 0.25rem 0.5rem;
   border-radius: 6px;
+  font-family: var(--font-mono);
 }
 
 .analysisResult__metricBarDiff.positive {
@@ -331,6 +426,7 @@
   align-items: center;
   gap: 0.5rem;
   letter-spacing: -0.01em;
+  font-family: var(--font-display);
 }
 
 .analysisResult__emoji {
@@ -484,6 +580,7 @@
   color: #92400e;
   margin: 0 0 0.75rem 0;
   letter-spacing: -0.01em;
+  font-family: var(--font-display);
 }
 
 .analysisResult__focusDescription {
@@ -512,51 +609,11 @@
 .analysisResult__actionPlan {
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
-}
-
-.analysisResult__progress {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding: 1.25rem;
-  background: #f8fafc;
-  border-radius: 12px;
-}
-
-.analysisResult__progressBar {
-  width: 100%;
-  height: 10px;
-  background: #e2e8f0;
-  border-radius: 6px;
-  overflow: hidden;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
-.analysisResult__progressFill {
-  height: 100%;
-  background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
-  border-radius: 6px;
-  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 1px 3px rgba(59, 130, 246, 0.3);
-}
-
-.analysisResult__progressText {
-  font-size: 0.9375rem;
-  color: #475569;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.analysisResult__actionList {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
+  gap: 1.5rem;
 }
 
 .analysisResult__actionIntro {
   padding: 1rem 1.5rem;
-  margin-bottom: 0.5rem;
   color: #475569;
   line-height: 1.7;
   font-size: 0.9375rem;
@@ -566,92 +623,98 @@
   margin: 0;
 }
 
-.analysisResult__actionGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.analysisResult__actionItem {
-  display: flex;
-  align-items: flex-start;
-  gap: 1.25rem;
+.analysisResult__actionCard {
   padding: 1.5rem;
   background: #f8fafc;
-  border: 2px solid #e2e8f0;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.analysisResult__actionItem:hover {
-  background: #f1f5f9;
-  border-color: #3b82f6;
-  transform: translateX(4px);
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
-}
-
-.analysisResult__checkbox {
-  width: 22px;
-  height: 22px;
-  margin-top: 2px;
-  cursor: pointer;
-  accent-color: #3b82f6;
-  flex-shrink: 0;
-  border-radius: 6px;
-}
-
-.analysisResult__actionText {
-  flex: 1;
-  line-height: 1.7;
-  color: #0f172a;
-  user-select: none;
-  font-size: 1rem;
-  font-weight: 600;
-}
-
-.analysisResult__actionItem input:checked + .analysisResult__actionText {
-  color: #64748b;
-  text-decoration: line-through;
-}
-
-.analysisResult__actionDetails {
-  margin-top: 0.75rem;
-  margin-left: 3.5rem;
-  margin-bottom: 0.5rem;
-  padding-left: 1.5rem;
-  border-left: 3px solid #cbd5e1;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  position: relative;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
 }
 
-.analysisResult__actionDetails::before {
-  content: '';
-  position: absolute;
-  left: -3px;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: linear-gradient(180deg, #3b82f6 0%, #cbd5e1 100%);
-  border-radius: 2px;
+.analysisResult__actionBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.12);
+  color: #1d4ed8;
+}
+
+.analysisResult__actionTitle {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  letter-spacing: -0.01em;
+  font-family: var(--font-display);
+}
+
+.analysisResult__actionSummary {
+  margin: 0;
+  color: #475569;
+  line-height: 1.7;
+  font-size: 0.975rem;
+}
+
+.analysisResult__expandableText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.analysisResult__expandToggle {
+  align-self: flex-start;
+  border: none;
+  background: transparent;
+  color: #2563eb;
+  font-weight: 600;
+  font-size: 0.875rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.analysisResult__expandToggle .rotated {
+  transform: rotate(180deg);
+}
+
+.analysisResult__actionDetails {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-top: 0.5rem;
 }
 
 .analysisResult__actionDetail {
-  padding: 1rem 1.25rem;
-  background: #ffffff;
-  border-radius: 10px;
-  color: #475569;
-  line-height: 1.7;
-  font-size: 0.9375rem;
+  padding: 1rem;
+  border-radius: 12px;
   border: 1px solid #e2e8f0;
-  transition: all 0.2s ease;
-  position: relative;
-  margin-left: 0.5rem;
+  background: #ffffff;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.4rem;
+  min-height: 120px;
+}
+
+.analysisResult__actionDetail .analysisResult__expandableText {
+  margin-top: 0.25rem;
+}
+
+.analysisResult__actionDetail .analysisResult__actionSummary {
+  margin: 0;
+  color: #475569;
+  line-height: 1.6;
+  font-size: 0.9375rem;
 }
 
 .analysisResult__actionDetailLabel {

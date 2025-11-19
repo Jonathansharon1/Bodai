@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, Lightbulb } from 'lucide-react';
+import { CheckCircle2, Lightbulb, BarChart3 } from 'lucide-react';
 import './QuickSummary.css';
 
 export default function QuickSummary({ strengths, focusAreas, metrics }) {
@@ -42,11 +42,26 @@ export default function QuickSummary({ strengths, focusAreas, metrics }) {
     return null;
   }
 
+  const splitIntoSentences = (text) => {
+    if (!text) return [];
+    return text
+      .split(/(?<=[.?!])\s+/)
+      .map(sentence => sentence.replace(/^[-*•]\s*/, '').trim())
+      .filter(Boolean);
+  };
+
   return (
     <div className="quickSummary">
       <div className="quickSummary__header">
-        <h3 className="quickSummary__title">Quick Summary</h3>
-        <p className="quickSummary__subtitle">Your key highlights at a glance</p>
+        <div className="quickSummary__headerLeft">
+          <div className="quickSummary__headerIcon">
+            <BarChart3 size={22} />
+          </div>
+          <div>
+            <h3 className="quickSummary__title">Quick Summary</h3>
+            <p className="quickSummary__subtitle">Key highlights at a glance</p>
+          </div>
+        </div>
       </div>
 
       <div className="quickSummary__grid">
@@ -56,6 +71,7 @@ export default function QuickSummary({ strengths, focusAreas, metrics }) {
           const score = getScoreForItem(strength);
           const parts = strengthText.split(/[.:]/);
           const title = parts[0]?.trim() || strengthText.substring(0, 40);
+          const description = parts.length > 1 ? parts.slice(1).join('.').trim() : null;
           
           return (
             <div key={index} className="quickSummary__card quickSummary__card--strength">
@@ -64,9 +80,18 @@ export default function QuickSummary({ strengths, focusAreas, metrics }) {
               </div>
               <div className="quickSummary__cardContent">
                 <div className="quickSummary__cardTitle">{title}</div>
-                {score && (
-                  <div className="quickSummary__cardScore">{score}/10</div>
-                )}
+                <div className="quickSummary__cardMeta">
+                  {score ? (
+                    <span className="quickSummary__cardMetric">Score {score}/10</span>
+                  ) : (
+                    <span className="quickSummary__cardMetric quickSummary__cardMetric--neutral">Keep doing this</span>
+                  )}
+                </div>
+                <div className="quickSummary__cardDescription">
+                  {splitIntoSentences(description || strengthText).map((sentence, idx) => (
+                    <p key={idx}>{sentence}</p>
+                  ))}
+                </div>
               </div>
             </div>
           );
@@ -84,12 +109,28 @@ export default function QuickSummary({ strengths, focusAreas, metrics }) {
                   ? topOpportunity.split(/[.:]/)[0]?.trim() || topOpportunity.substring(0, 40)
                   : topOpportunity.title || 'Improvement Opportunity'}
               </div>
-              {(() => {
-                const score = getScoreForItem(topOpportunity);
-                return score ? (
-                  <div className="quickSummary__cardScore">{score}/10</div>
-                ) : null;
-              })()}
+              <div className="quickSummary__cardMeta">
+                {(() => {
+                  const score = getScoreForItem(topOpportunity);
+                  return score ? (
+                    <span className="quickSummary__cardMetric quickSummary__cardMetric--opportunity">
+                      Current {score}/10
+                    </span>
+                  ) : (
+                    <span className="quickSummary__cardMetric quickSummary__cardMetric--opportunity">
+                      Priority focus
+                    </span>
+                  );
+                })()}
+              </div>
+              <div className="quickSummary__cardDescription">
+                {splitIntoSentences(
+                  (typeof topOpportunity === 'object' && (topOpportunity.description || topOpportunity.howToImprove)) ||
+                  (typeof topOpportunity === 'string' ? topOpportunity : '')
+                ).map((sentence, idx) => (
+                  <p key={idx}>{sentence}</p>
+                ))}
+              </div>
             </div>
           </div>
         )}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { 
   Target,
@@ -16,7 +16,8 @@ import {
   BarChart3,
   CheckCircle2,
   Circle,
-  ListTodo
+  ListTodo,
+  ChevronDown
 } from 'lucide-react';
 import {
   LineChart,
@@ -28,9 +29,53 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
+import OnboardingQuestions from './OnboardingQuestions';
 import './Dashboard.css';
+import JourneySwitcher from './JourneySwitcher';
+function ExpandableDashboardText({ text, collapsedLines = 2 }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!text) return null;
+  const shouldCollapse = text.length > 180;
+  return (
+    <div className={`journalCard__expandableText ${expanded ? 'expanded' : ''}`}>
+      <p
+        className="journalCard__actionDescription"
+        style={
+          shouldCollapse && !expanded
+            ? {
+                display: '-webkit-box',
+                WebkitLineClamp: collapsedLines,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+              }
+            : undefined
+        }
+      >
+        {text}
+      </p>
+      {shouldCollapse && (
+        <button
+          type="button"
+          className="journalCard__expandToggle"
+          onClick={() => setExpanded((prev) => !prev)}
+        >
+          {expanded ? 'Show less' : 'Show more'}
+          <ChevronDown size={14} className={expanded ? 'rotated' : ''} />
+        </button>
+      )}
+    </div>
+  );
+}
 
-export default function Dashboard({ onNewAnalysis, refreshTrigger }) {
+export default function Dashboard({
+  onNewAnalysis,
+  refreshTrigger,
+  journeys = [],
+  journeysLoading = false,
+  activeJourneyId = null,
+  onSelectJourney,
+  onStartJourney
+}) {
   const { user } = useUser();
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState(null);
@@ -42,11 +87,18 @@ export default function Dashboard({ onNewAnalysis, refreshTrigger }) {
     achievements: [],
     actionItems: []
   });
+  const [journeyModalOpen, setJourneyModalOpen] = useState(false);
+  const [journeyModalError, setJourneyModalError] = useState(null);
+  const [journeyModalSubmitting, setJourneyModalSubmitting] = useState(false);
+  const activeJourney = useMemo(
+    () => journeys.find(journey => journey.id === activeJourneyId) || null,
+    [journeys, activeJourneyId]
+  );
 
   useEffect(() => {
     if (user) {
       fetchUserProfile();
-      fetchProgressData();
+      fetchProgressData(activeJourneyId);
       // Also check localStorage for fallback
       const savedContext = localStorage.getItem('bodai_user_context');
       if (savedContext) {
@@ -64,9 +116,9 @@ export default function Dashboard({ onNewAnalysis, refreshTrigger }) {
   // Refresh when refreshTrigger changes
   useEffect(() => {
     if (user && refreshTrigger !== undefined) {
-      fetchProgressData();
+      fetchProgressData(activeJourneyId);
     }
-  }, [refreshTrigger, user]);
+  }, [refreshTrigger, user, activeJourneyId]);
 
   const fetchUserProfile = async () => {
     if (!user) return;
@@ -88,12 +140,32 @@ export default function Dashboard({ onNewAnalysis, refreshTrigger }) {
     }
   };
 
-  const fetchProgressData = async () => {
+  const handleJourneyModalComplete = async (answers) => {
+    if (!onStartJourney) return;
+    setJourneyModalSubmitting(true);
+    setJourneyModalError(null);
+    try {
+      await onStartJourney(answers);
+      setJourneyModalOpen(false);
+    } catch (err) {
+      console.error('Failed to create journey:', err);
+      setJourneyModalError(err.message || 'Failed to create focus. Please try again.');
+    } finally {
+      setJourneyModalSubmitting(false);
+    }
+  };
+
+  const fetchProgressData = async (journeyIdParam = activeJourneyId) => {
     if (!user) return;
     
     setLoading(true);
     try {
-      const res = await fetch(process.env.REACT_APP_API_URL || 'http://localhost:5000/api/communication/progress', {
+      const params = new URLSearchParams();
+      if (journeyIdParam) {
+        params.append('journeyId', journeyIdParam);
+      }
+      const endpoint = `${process.env.REACT_APP_API_URL || 'http://localhost:5000/api/communication/progress'}${params.toString() ? `?${params.toString()}` : ''}`;
+      const res = await fetch(endpoint, {
         headers: {
           'X-Clerk-User-Id': user.id,
           'Content-Type': 'application/json'
@@ -127,6 +199,76 @@ export default function Dashboard({ onNewAnalysis, refreshTrigger }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const formatActionDescription = (item) => {
+    if (!item) return '';
+    const details = item.details || {};
+
+    if (typeof details === 'string') {
+      return details;
+    }
+
+    const text =
+      details.why_it_matters ||
+      details.what_to_do ||
+      (Array.isArray(details.all_details) ? details.all_details[0] : null) ||
+      '';
+
+    if (!text) {
+      return 'Keep this focus in mind for your next recording.';
+    }
+
+    return text;
+  };
+
+  const formatMetricLabel = (metric) => {
+    if (!metric) return 'Overall focus';
+    const labels = {
+      presence: 'Presence',
+      voice_expression: 'Voice',
+      clarity: 'Clarity',
+      authenticity: 'Authenticity',
+      impact: 'Impact',
+      confidence: 'Confidence',
+      overall: 'Overall'
+    };
+
+function ExpandableDashboardText({ text, collapsedLines = 2 }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!text) return null;
+  const shouldCollapse = text.length > 180;
+  return (
+    <div className={`journalCard__expandableText ${expanded ? 'expanded' : ''}`}>
+      <p
+        className="journalCard__actionDescription"
+        style={
+          shouldCollapse && !expanded
+            ? {
+                display: '-webkit-box',
+                WebkitLineClamp: collapsedLines,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+              }
+            : undefined
+        }
+      >
+        {text}
+      </p>
+      {shouldCollapse && (
+        <button
+          type="button"
+          className="journalCard__expandToggle"
+          onClick={() => setExpanded((prev) => !prev)}
+        >
+          {expanded ? 'Show less' : 'Show more'}
+          <ChevronDown size={14} className={expanded ? 'rotated' : ''} />
+        </button>
+      )}
+    </div>
+  );
+}
+    return labels[metric] || 'Overall focus';
   };
 
   const getGoalIcon = (goal) => {
@@ -179,7 +321,7 @@ export default function Dashboard({ onNewAnalysis, refreshTrigger }) {
     const confidence = parseFloat(metric.confidence) || 0;
 
     return {
-      name: `Session ${index + 1}`,
+    name: `Session ${index + 1}`,
       date: metric.analyses?.created_at ? new Date(metric.analyses.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '',
       presence,
       voice_expression: voice,
@@ -249,6 +391,9 @@ export default function Dashboard({ onNewAnalysis, refreshTrigger }) {
 
   const latestMetrics = progressData.profile?.latest_metrics;
   const latestInsight = progressData.profile?.latest_insight;
+  const focusSlug = activeJourney?.focus_slug || userProfile?.primary_goal || localUserContext?.primaryGoal;
+  const focusLabel = activeJourney?.display_name || activeJourney?.focus_label || (focusSlug ? getGoalLabel(focusSlug) : null);
+  const focusConfidence = activeJourney?.confidence_level || userProfile?.confidence_level || localUserContext?.confidenceLevel;
 
   if (loading) {
     return (
@@ -260,6 +405,15 @@ export default function Dashboard({ onNewAnalysis, refreshTrigger }) {
 
   return (
     <div className="dashboard">
+      <JourneySwitcher
+        className="dashboard__journeyTabs"
+        journeys={journeys}
+        journeysLoading={journeysLoading}
+        activeJourneyId={activeJourneyId}
+        onSelectJourney={onSelectJourney}
+        onAddJourney={onStartJourney ? () => setJourneyModalOpen(true) : undefined}
+      />
+
       {/* Header */}
       <div className="dashboard__header">
         <div className="dashboard__headerContent">
@@ -291,23 +445,23 @@ export default function Dashboard({ onNewAnalysis, refreshTrigger }) {
       )}
 
       {/* Goals Card */}
-      {(userProfile?.primary_goal || localUserContext?.primaryGoal) && (
+      {focusSlug && (
         <div className="dashboard__goalsCard">
           <div className="goalsCard">
             <div className="goalsCard__header">
               <div className="goalsCard__icon">
-                {React.createElement(getGoalIcon(userProfile?.primary_goal || localUserContext?.primaryGoal), { size: 48 })}
+                {React.createElement(getGoalIcon(focusSlug), { size: 48 })}
               </div>
               <div className="goalsCard__info">
                 <h3 className="goalsCard__title">Your Focus</h3>
-                <p className="goalsCard__goal">{getGoalLabel(userProfile?.primary_goal || localUserContext?.primaryGoal)}</p>
+                <p className="goalsCard__goal">{focusLabel}</p>
               </div>
             </div>
-            {(userProfile?.confidence_level || localUserContext?.confidenceLevel) && (
+            {focusConfidence && (
               <div className="goalsCard__confidence">
                 <span className="goalsCard__confidenceLabel">Current Confidence:</span>
                 <span className="goalsCard__confidenceValue">
-                  {getConfidenceLabel(userProfile?.confidence_level || localUserContext?.confidenceLevel)}
+                  {getConfidenceLabel(focusConfidence)}
                 </span>
               </div>
             )}
@@ -321,10 +475,10 @@ export default function Dashboard({ onNewAnalysis, refreshTrigger }) {
           <div className="chartCard">
             <div className="chartCard__header">
               <div>
-                <h3 className="chartCard__title">
-                  <TrendingUp size={20} />
-                  Progress Over Time
-                </h3>
+            <h3 className="chartCard__title">
+              <TrendingUp size={20} />
+              Progress Over Time
+            </h3>
                 <p className="chartCard__subtitle">
                   Track your improvement across all communication metrics
                 </p>
@@ -484,44 +638,25 @@ export default function Dashboard({ onNewAnalysis, refreshTrigger }) {
             <div className="journalCard__list">
               {progressData.actionItems && progressData.actionItems.length > 0 ? (
                 progressData.actionItems.slice(0, 10).map((item, idx) => (
-                  <div key={item.id || idx} className="journalCard__item journalCard__actionItem">
-                    <label className="journalCard__actionItemLabel">
-                      <input
-                        type="checkbox"
-                        checked={item.status === 'completed'}
-                        onChange={async () => {
-                          const newStatus = item.status === 'completed' ? 'pending' : 'completed';
-                          try {
-                            const res = await fetch(
-                              `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/action-items/${item.id}/status`,
-                              {
-                                method: 'PATCH',
-                                headers: {
-                                  'X-Clerk-User-Id': user.id,
-                                  'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify({ status: newStatus })
-                              }
-                            );
-                            if (res.ok) {
-                              // Refresh data
-                              fetchProgressData();
-                            }
-                          } catch (err) {
-                            console.error('Failed to update action item status:', err);
-                          }
-                        }}
-                        className="journalCard__checkbox"
-                      />
-                      <span className={`journalCard__actionItemText ${item.status === 'completed' ? 'completed' : ''}`}>
-                        {item.title}
-                      </span>
-                    </label>
-                    {item.analyses && (
-                      <div className="journalCard__itemMeta">
-                        {new Date(item.analyses.created_at).toLocaleDateString()} • {item.analyses.video_filename}
+                  <div key={item.id || idx} className="journalCard__actionCard">
+                    <div className="journalCard__actionIcon">
+                      <Sparkles size={16} />
+                    </div>
+                    <div className="journalCard__actionBody">
+                      <div className="journalCard__actionMeta">
+                        <span className="journalCard__chip">{formatMetricLabel(item.practice_prompt_target_metric)}</span>
+                        <span className={`journalCard__chip ${item.status === 'completed' ? 'journalCard__chip--muted' : 'journalCard__chip--accent'}`}>
+                          {item.status === 'completed' ? 'Completed' : 'Active focus'}
+                        </span>
                       </div>
-                    )}
+                      <div className="journalCard__actionTitle">{item.title}</div>
+                      <ExpandableDashboardText text={formatActionDescription(item)} />
+                      {item.analyses && (
+                        <div className="journalCard__itemMeta">
+                          Added {new Date(item.analyses.created_at).toLocaleDateString()} • {item.analyses.video_filename}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ))
               ) : (
@@ -572,6 +707,36 @@ export default function Dashboard({ onNewAnalysis, refreshTrigger }) {
           <button className="btn btn--primary" onClick={onNewAnalysis}>
             Start Your First Analysis
           </button>
+        </div>
+      )}
+
+      {journeyModalOpen && (
+        <div className="journeyModalOverlay">
+          <div className="journeyModalCard">
+            <div className="journeyModal__header">
+              <div>
+                <p className="journeyModal__eyebrow">New focus journey</p>
+                <h3>What would you like to improve?</h3>
+              </div>
+              <button
+                type="button"
+                className="journeyModal__close"
+                onClick={() => !journeyModalSubmitting && setJourneyModalOpen(false)}
+                aria-label="Close new journey modal"
+              >
+                ×
+              </button>
+            </div>
+            <div className="journeyModal__body">
+              <OnboardingQuestions onComplete={handleJourneyModalComplete} />
+              {journeyModalSubmitting && (
+                <div className="journeyModal__status">Creating your personalized dashboard…</div>
+              )}
+              {journeyModalError && (
+                <div className="journeyModal__error">{journeyModalError}</div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

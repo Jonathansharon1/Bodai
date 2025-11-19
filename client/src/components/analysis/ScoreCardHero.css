@@ -35,6 +35,7 @@
   font-weight: 700;
   margin: 0;
   letter-spacing: -0.02em;
+  font-family: var(--font-display);
 }
 
 .scoreCardHero__score {
@@ -51,12 +52,14 @@
   line-height: 1;
   color: #0f172a;
   letter-spacing: -0.04em;
+  font-family: var(--font-mono);
 }
 
 .scoreCardHero__scoreMax {
   font-size: 32px;
   font-weight: 600;
   color: #64748b;
+  font-family: var(--font-mono);
 }
 
 .scoreCardHero__stage {
@@ -71,6 +74,7 @@
   font-weight: 600;
   color: #3b82f6;
   margin-bottom: 24px;
+  font-family: var(--font-display);
 }
 
 .scoreCardHero__progress {
@@ -97,6 +101,7 @@
   font-size: 14px;
   font-weight: 600;
   color: #64748b;
+  font-family: var(--font-mono);
 }
 
 .scoreCardHero__comparison {
@@ -108,6 +113,7 @@
   font-size: 14px;
   font-weight: 500;
   margin-bottom: 16px;
+  font-family: var(--font-mono);
 }
 
 .scoreCardHero__comparison--first {

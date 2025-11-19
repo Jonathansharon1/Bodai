@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { createClient } from '@supabase/supabase-js';
+import { generatePracticePromptFromAction } from './geminiService.js';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 // Support both naming conventions
@@ -78,6 +79,224 @@ export const getOrCreateUser = async (clerkUserId, email = null) => {
   return newUser.id;
 };
 
+const GOAL_LABELS = {
+  confidence: 'Build Self-Confidence',
+  interview: 'Job Interview Preparation',
+  presentation: 'Improve Presentations',
+  communication: 'Better Communication',
+  leadership: 'Leadership Presence',
+  dating: 'Dating & Romantic',
+  social: 'Social Confidence',
+  general: 'General Improvement'
+};
+
+const buildJourneyPayload = (userId, journeyData = {}) => {
+  const focusSlug = journeyData.focusSlug || journeyData.primaryGoal || 'general';
+  return {
+    user_id: userId,
+    focus_slug: focusSlug,
+    focus_label: journeyData.focusLabel || GOAL_LABELS[focusSlug] || journeyData.displayName || 'Custom Journey',
+    display_name: journeyData.displayName || null,
+    confidence_level: journeyData.confidenceLevel || journeyData.confidence || 'medium',
+    goal_context: journeyData.goalSpecificContext || journeyData.goalContext || null,
+    status: journeyData.status || 'active',
+    is_default: journeyData.isDefault || false,
+    started_from: journeyData.startedFrom || 'dashboard',
+    last_active_at: journeyData.lastActiveAt || new Date().toISOString()
+  };
+};
+
+export const getUserJourneys = async (clerkUserId) => {
+  if (!supabase) {
+    return [];
+  }
+
+  const userId = await getOrCreateUser(clerkUserId);
+
+  const { data, error } = await supabase
+    .from('user_journeys')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching user journeys:', error);
+    return [];
+  }
+
+  return data || [];
+};
+
+export const getJourneyForUser = async (clerkUserId, journeyId) => {
+  if (!supabase || !journeyId) {
+    return null;
+  }
+
+  const userId = await getOrCreateUser(clerkUserId);
+
+  const { data, error } = await supabase
+    .from('user_journeys')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('id', journeyId)
+    .single();
+
+  if (error) {
+    if (error.code !== 'PGRST116') {
+      console.error('Error fetching journey:', error);
+    }
+    return null;
+  }
+
+  return data;
+};
+
+export const createUserJourney = async (clerkUserId, journeyData = {}) => {
+  if (!supabase) {
+    return null;
+  }
+
+  const userId = await getOrCreateUser(clerkUserId);
+  const payload = buildJourneyPayload(userId, journeyData);
+
+  if (payload.is_default) {
+    await supabase
+      .from('user_journeys')
+      .update({ is_default: false })
+      .eq('user_id', userId);
+  }
+
+  const { data, error } = await supabase
+    .from('user_journeys')
+    .insert(payload)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating journey:', error);
+    throw new Error(`Failed to create journey: ${error.message}`);
+  }
+
+  return data;
+};
+
+export const updateUserJourney = async (clerkUserId, journeyId, updates = {}) => {
+  if (!supabase || !journeyId) {
+    return null;
+  }
+
+  const userId = await getOrCreateUser(clerkUserId);
+  const updatePayload = {
+    ...updates,
+    updated_at: new Date().toISOString()
+  };
+
+  if (Object.prototype.hasOwnProperty.call(updatePayload, 'displayName')) {
+    updatePayload.display_name = updatePayload.displayName;
+    delete updatePayload.displayName;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(updatePayload, 'lastActiveAt')) {
+    updatePayload.last_active_at = updatePayload.lastActiveAt;
+    delete updatePayload.lastActiveAt;
+  }
+
+  if (updates.focusSlug || updates.primaryGoal) {
+    const focusSlug = updates.focusSlug || updates.primaryGoal;
+    updatePayload.focus_slug = focusSlug;
+    updatePayload.focus_label = updates.focusLabel || GOAL_LABELS[focusSlug] || updates.display_name || null;
+    delete updatePayload.focusSlug;
+    delete updatePayload.primaryGoal;
+    delete updatePayload.focusLabel;
+  }
+
+  if (updates.goalSpecificContext) {
+    updatePayload.goal_context = updates.goalSpecificContext;
+    delete updatePayload.goalSpecificContext;
+  }
+
+  if (updates.confidenceLevel) {
+    updatePayload.confidence_level = updates.confidenceLevel;
+    delete updatePayload.confidenceLevel;
+  }
+
+  if (updates.is_default === true) {
+    await supabase
+      .from('user_journeys')
+      .update({ is_default: false })
+      .eq('user_id', userId);
+  }
+
+  const { data, error } = await supabase
+    .from('user_journeys')
+    .update(updatePayload)
+    .eq('id', journeyId)
+    .eq('user_id', userId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating journey:', error);
+    return null;
+  }
+
+  return data;
+};
+
+export const ensureDefaultJourney = async (clerkUserId, journeyData = {}) => {
+  if (!supabase) {
+    return null;
+  }
+
+  const userId = await getOrCreateUser(clerkUserId);
+
+  const { data: existingDefault } = await supabase
+    .from('user_journeys')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('is_default', true)
+    .limit(1)
+    .single();
+
+  if (existingDefault) {
+    const updated = await updateUserJourney(clerkUserId, existingDefault.id, {
+      focusSlug: journeyData.primaryGoal || journeyData.focusSlug || existingDefault.focus_slug,
+      focusLabel: journeyData.focusLabel,
+      confidenceLevel: journeyData.confidenceLevel || existingDefault.confidence_level,
+      goalSpecificContext: journeyData.goalSpecificContext || existingDefault.goal_context
+    });
+    return updated || existingDefault;
+  }
+
+  return await createUserJourney(clerkUserId, {
+    ...journeyData,
+    isDefault: true,
+    startedFrom: journeyData.startedFrom || 'onboarding'
+  });
+};
+
+export const getDefaultJourneyForUser = async (clerkUserId) => {
+  if (!supabase) {
+    return null;
+  }
+
+  const userId = await getOrCreateUser(clerkUserId);
+
+  const { data, error } = await supabase
+    .from('user_journeys')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('is_default', true)
+    .limit(1)
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    console.error('Error fetching default journey:', error);
+  }
+
+  return data || null;
+};
+
 /**
  * Get user with subscription info
  */
@@ -126,19 +345,19 @@ export const canUserUploadAnalysis = async (clerkUserId) => {
     return { allowed: false, reason: 'User not found' };
   }
 
-  // Check if subscription is still active
+    // Check if subscription is still active
   if (user.subscription_status !== 'active') {
     return { allowed: false, reason: 'Subscription not active' };
   }
 
-  if (user.subscription_expires_at && new Date(user.subscription_expires_at) < new Date()) {
-    return { allowed: false, reason: 'Subscription expired' };
-  }
+      if (user.subscription_expires_at && new Date(user.subscription_expires_at) < new Date()) {
+        return { allowed: false, reason: 'Subscription expired' };
+      }
 
   // Pro users can always upload (unlimited)
   if (user.subscription_type === 'pro') {
-    return { allowed: true, reason: null };
-  }
+      return { allowed: true, reason: null };
+    }
 
   // Get subscription limits
   const limits = getSubscriptionLimits(user.subscription_type);
@@ -267,6 +486,12 @@ export const saveOnboardingAnswers = async (clerkUserId, answers) => {
       }
     }
   }
+
+  try {
+    await ensureDefaultJourney(clerkUserId, answers);
+  } catch (journeyError) {
+    console.error('Failed to ensure default journey:', journeyError);
+  }
 };
 
 /**
@@ -322,7 +547,6 @@ export const saveAnalysis = async (userId, analysisData) => {
     return null;
   }
 
-  // Build insert data - start without s3_key (column might not exist yet)
   const insertData = {
     user_id: userId,
     video_filename: analysisData.videoFilename,
@@ -332,54 +556,68 @@ export const saveAnalysis = async (userId, analysisData) => {
     analysis_result: analysisData.analysisResult
   };
 
-  // Try to add s3_key, but handle gracefully if column doesn't exist
-  // We'll try to insert with s3_key, and if it fails, retry without it
   if (analysisData.s3Key !== undefined && analysisData.s3Key !== null) {
     insertData.s3_key = analysisData.s3Key;
+  }
+
+  if (analysisData.journeyId) {
+    insertData.journey_id = analysisData.journeyId;
+  }
+
+  if (analysisData.recordingPrompt) {
+    insertData.recording_prompt_id = analysisData.recordingPrompt.id || null;
+    insertData.recording_prompt_title = analysisData.recordingPrompt.title || null;
+    insertData.recording_prompt_description = analysisData.recordingPrompt.description || null;
+    insertData.recording_prompt_target_metric = analysisData.recordingPrompt.targetMetric || null;
+    insertData.recording_action_item_id = analysisData.recordingPrompt.actionItemId || null;
   }
 
   console.log('Inserting analysis data:', {
     userId,
     videoFilename: analysisData.videoFilename,
     hasS3Key: !!analysisData.s3Key,
+    s3Key: analysisData.s3Key || 'NULL',
     resultLength: analysisData.analysisResult?.length || 0
   });
 
-  // Try to insert with s3_key first
-  let { data, error } = await supabase
-    .from('analyses')
-    .insert(insertData)
-    .select('id, created_at, s3_key')
-    .single();
+  const removableColumns = [
+    'recording_prompt_id',
+    'recording_prompt_title',
+    'recording_prompt_description',
+    'recording_prompt_target_metric',
+    'recording_action_item_id',
+    's3_key'
+  ];
 
-  // If error is about missing s3_key column, retry without it
-  if (error && (error.code === 'PGRST204' || error.message?.includes('s3_key'))) {
-    console.warn('s3_key column not found, retrying without it...');
-    // Remove s3_key from insert data
-    const { s3_key, ...insertDataWithoutS3 } = insertData;
-    const retryResult = await supabase
+  let attemptData = { ...insertData };
+  let data = null;
+
+  while (true) {
+    const result = await supabase
       .from('analyses')
-      .insert(insertDataWithoutS3)
-      .select('id, created_at')
+      .insert(attemptData)
+      .select('id, created_at, s3_key, recording_prompt_id')
       .single();
-    
-    if (retryResult.error) {
-      console.error('Error saving analysis to Supabase (retry):', retryResult.error);
-      console.error('Error code:', retryResult.error.code);
-      console.error('Error message:', retryResult.error.message);
-      throw new Error(`Failed to save analysis: ${retryResult.error.message} (code: ${retryResult.error.code})`);
+
+    if (!result.error) {
+      data = result.data;
+      break;
     }
-    
-    data = retryResult.data;
-    error = null;
-    console.warn('⚠️  Analysis saved without s3_key column. Please run migration to add s3_key column.');
-  } else if (error) {
-    console.error('Error saving analysis to Supabase:', error);
-    console.error('Error code:', error.code);
-    console.error('Error message:', error.message);
-    console.error('Error details:', error.details);
-    console.error('Error hint:', error.hint);
-    throw new Error(`Failed to save analysis: ${error.message} (code: ${error.code})`);
+
+    const missingColumn = removableColumns.find(col => result.error.message?.includes(col));
+    if (missingColumn) {
+      console.warn(`⚠️  ${missingColumn} column not found in database! Please run the latest migration.`);
+      const { [missingColumn]: _, ...rest } = attemptData;
+      attemptData = rest;
+      continue;
+    }
+
+    console.error('Error saving analysis to Supabase:', result.error);
+    console.error('Error code:', result.error.code);
+    console.error('Error message:', result.error.message);
+    console.error('Error details:', result.error.details);
+    console.error('Error hint:', result.error.hint);
+    throw new Error(`Failed to save analysis: ${result.error.message} (code: ${result.error.code})`);
   }
 
   console.log('Analysis saved successfully:', data);
@@ -389,7 +627,7 @@ export const saveAnalysis = async (userId, analysisData) => {
 /**
  * Get user's analyses
  */
-export const getUserAnalyses = async (clerkUserId, limit = 50) => {
+export const getUserAnalyses = async (clerkUserId, limit = 50, journeyId = null) => {
   if (!supabase) {
     return [];
   }
@@ -398,10 +636,16 @@ export const getUserAnalyses = async (clerkUserId, limit = 50) => {
   const userId = await getOrCreateUser(clerkUserId);
 
   // Then get analyses
-  const { data, error } = await supabase
+  let query = supabase
     .from('analyses')
-    .select('id, video_filename, video_size, mime_type, s3_key, user_context, analysis_result, created_at')
-    .eq('user_id', userId)
+    .select('id, video_filename, video_size, mime_type, s3_key, user_context, analysis_result, created_at, recording_prompt_id, recording_prompt_title, recording_prompt_description, recording_prompt_target_metric, recording_action_item_id')
+    .eq('user_id', userId);
+
+  if (journeyId) {
+    query = query.eq('journey_id', journeyId);
+  }
+
+  const { data, error } = await query
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -426,7 +670,7 @@ export const getAnalysisById = async (analysisId, clerkUserId) => {
 
   const { data, error } = await supabase
     .from('analyses')
-    .select('id, video_filename, video_size, mime_type, s3_key, user_context, analysis_result, created_at, updated_at')
+    .select('id, video_filename, video_size, mime_type, s3_key, user_context, analysis_result, created_at, updated_at, recording_prompt_id, recording_prompt_title, recording_prompt_description, recording_prompt_target_metric, recording_action_item_id')
     .eq('id', analysisId)
     .eq('user_id', userId)
     .single();
@@ -442,7 +686,7 @@ export const getAnalysisById = async (analysisId, clerkUserId) => {
 /**
  * Save communication metrics for an analysis (with sub-metrics)
  */
-export const saveCommunicationMetrics = async (userId, analysisId, metrics) => {
+export const saveCommunicationMetrics = async (userId, analysisId, metrics, journeyId = null) => {
   if (!supabase) {
     console.warn('Supabase not configured, skipping metrics save');
     return null;
@@ -520,6 +764,10 @@ export const saveCommunicationMetrics = async (userId, analysisId, metrics) => {
     }
   }
 
+  if (journeyId) {
+    insertData.journey_id = journeyId;
+  }
+
   const { data, error } = await supabase
     .from('communication_metrics')
     .insert(insertData)
@@ -537,7 +785,7 @@ export const saveCommunicationMetrics = async (userId, analysisId, metrics) => {
 /**
  * Save communication insights
  */
-export const saveCommunicationInsights = async (userId, analysisId, insights) => {
+export const saveCommunicationInsights = async (userId, analysisId, insights, journeyId = null) => {
   if (!supabase || !insights || insights.length === 0) {
     return [];
   }
@@ -546,7 +794,8 @@ export const saveCommunicationInsights = async (userId, analysisId, insights) =>
     user_id: userId,
     analysis_id: analysisId,
     insight_type: 'ai_generated',
-    content: insight
+    content: insight,
+    journey_id: journeyId || null
   }));
 
   const { data, error } = await supabase
@@ -565,14 +814,18 @@ export const saveCommunicationInsights = async (userId, analysisId, insights) =>
 /**
  * Save action items from analysis (with duplicate checking)
  */
-export const saveActionItems = async (userId, analysisId, actionItems) => {
+export const saveActionItems = async (userId, analysisId, actionItems, options = {}) => {
   if (!supabase || !actionItems || actionItems.length === 0) {
     return [];
   }
 
   const savedItems = [];
+  const itemsNeedingPrompts = [];
+  const shouldGeneratePrompts = options.generatePracticePrompts !== false;
+  const maxItems = options.maxActionItems ?? 1;
+  const itemsToProcess = actionItems.slice(0, maxItems);
 
-  for (const action of actionItems) {
+  for (const action of itemsToProcess) {
     // Skip intro text items
     if (action.isIntro) {
       continue;
@@ -628,18 +881,68 @@ export const saveActionItems = async (userId, analysisId, actionItems) => {
       });
     }
 
-    // Insert new action item
-    const { data, error } = await supabase
-      .from('action_items')
-      .insert({
-        user_id: userId,
-        analysis_id: analysisId,
-        title: title,
-        details: details,
-        status: 'pending'
-      })
-      .select()
-      .single();
+    const inferredMetric = inferTargetMetricFromTitle(title);
+
+    const insertPayload = {
+      user_id: userId,
+      analysis_id: analysisId,
+      title: title,
+      details: details,
+      status: 'pending',
+      practice_prompt_title: null,
+      practice_prompt_description: null,
+      practice_prompt_setup: null,
+      practice_prompt_notice: null,
+      practice_prompt_tip: null,
+      practice_prompt_target_metric: inferredMetric,
+      practice_prompt_difficulty: null,
+      practice_prompt_time: null,
+      practice_prompt_version: null,
+      practice_prompt_source: null,
+      practice_prompt_generated: false,
+      journey_id: options.journeyId || null
+    };
+
+    let data = null;
+    let error = null;
+    const removableColumns = [
+      'practice_prompt_title',
+      'practice_prompt_description',
+      'practice_prompt_setup',
+      'practice_prompt_notice',
+      'practice_prompt_tip',
+      'practice_prompt_source',
+      'practice_prompt_generated',
+      'practice_prompt_target_metric',
+      'practice_prompt_difficulty',
+      'practice_prompt_time',
+      'practice_prompt_version'
+    ];
+
+    let attemptPayload = { ...insertPayload };
+    while (true) {
+      const result = await supabase
+        .from('action_items')
+        .insert(attemptPayload)
+        .select()
+        .single();
+
+      if (!result.error) {
+        data = result.data;
+        break;
+      }
+
+      const missingColumn = removableColumns.find(col => result.error.message?.includes(col));
+      if (missingColumn) {
+        console.warn(`⚠️  ${missingColumn} column missing on action_items. Please run migrations.`);
+        const { [missingColumn]: _, ...rest } = attemptPayload;
+        attemptPayload = rest;
+        continue;
+      }
+
+      error = result.error;
+      break;
+    }
 
     if (error) {
       console.error('Error saving action item:', error);
@@ -658,18 +961,148 @@ export const saveActionItems = async (userId, analysisId, actionItems) => {
     if (data) {
       console.log(`Successfully saved action item: "${title}" (ID: ${data.id})`);
       savedItems.push(data);
+      if (shouldGeneratePrompts) {
+        itemsNeedingPrompts.push({
+          id: data.id,
+          title,
+          details,
+          userContext: options.userContext || null,
+          targetMetric: inferredMetric
+        });
+      }
     } else {
       console.warn(`Action item "${title}" was not saved - no data returned`);
     }
   }
 
+  if (shouldGeneratePrompts && itemsNeedingPrompts.length > 0) {
+    console.log(`Generating practice prompts for ${itemsNeedingPrompts.length} action item(s)`);
+    await generatePracticePromptsForItems(itemsNeedingPrompts);
+  } else if (shouldGeneratePrompts) {
+    console.log('No action items need practice prompts (shouldGeneratePrompts=true but itemsNeedingPrompts is empty)');
+  }
+
   return savedItems;
+};
+
+const generatePracticePromptsForItems = async (items) => {
+  if (!supabase || !items || items.length === 0) {
+    return;
+  }
+
+  for (const item of items) {
+    try {
+      const prompt =
+        await generatePromptWithRetry(item) ||
+        buildFallbackPracticePrompt(item);
+
+      if (prompt) {
+        console.log(`Updating action item ${item.id} with practice prompt: ${prompt.title}`);
+        const updateResult = await supabase
+          .from('action_items')
+          .update({
+            practice_prompt_title: prompt.title,
+            practice_prompt_description: prompt.description,
+            practice_prompt_setup: prompt.setup || null,
+            practice_prompt_notice: prompt.whatToNotice || null,
+            practice_prompt_tip: prompt.recordingTip || null,
+            practice_prompt_source: prompt.source || 'ai',
+            practice_prompt_generated: true,
+            practice_prompt_target_metric: prompt.targetMetric || 'overall',
+            practice_prompt_difficulty: prompt.difficulty || null,
+            practice_prompt_time: prompt.estimatedTime || null,
+            practice_prompt_version: prompt.version || null
+          })
+          .eq('id', item.id);
+        
+        if (updateResult.error) {
+          console.error(`Failed to update practice prompt for action item ${item.id}:`, updateResult.error);
+        } else {
+          console.log(`Successfully updated practice prompt for action item ${item.id}`);
+        }
+      } else {
+        console.warn(`No practice prompt (AI or fallback) generated for action item ${item.id}`);
+      }
+    } catch (err) {
+      console.error(`Failed to generate practice prompt for action item ${item.id}:`, err.message || err);
+    }
+  }
+};
+
+const generatePromptWithRetry = async (item, maxAttempts = 3) => {
+  const difficulty = deriveDifficultyFromContext(item.userContext);
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const prompt = await generatePracticePromptFromAction({
+        title: item.title,
+        details: item.details || {},
+        userContext: item.userContext || {},
+        targetMetric: item.targetMetric || inferTargetMetricFromTitle(item.title),
+        difficulty,
+        estimatedTime: '2 minutes',
+        previousTitles: [] // TODO: fetch existing practice prompts history
+      });
+
+      if (prompt) {
+        return prompt;
+      }
+      console.warn(`Prompt generation returned empty result (attempt ${attempt}/${maxAttempts}) for action item ${item.id}`);
+    } catch (err) {
+      console.error(`Prompt generation failed (attempt ${attempt}/${maxAttempts}) for action item ${item.id}:`, err.message || err);
+    }
+
+    if (attempt < maxAttempts) {
+      const backoff = 500 * attempt;
+      await sleep(backoff);
+    }
+  }
+  return null;
+};
+
+const buildFallbackPracticePrompt = (item) => {
+  const title = item.title || 'Practice Focus';
+  const details = item.details || {};
+  const whatToDo = details.what_to_do || (Array.isArray(details.all_details) ? details.all_details[0] : null);
+  const description = `Record a 90-second video practicing "${title}". Explain the main message, then rehearse it once more with improved delivery.`;
+
+  return {
+    title: `Rehearse: ${title}`,
+    description,
+    setup: 'Place your phone or laptop camera at eye level, about an arm’s length away. Stand or sit upright with good lighting.',
+    whatToNotice: details.why_it_matters || 'Pay attention to eye contact, vocal energy, and whether your gestures support the message.',
+    recordingTip: whatToDo || 'Speak with intention, pause briefly between key points, and keep your gestures purposeful.',
+    targetMetric: item.targetMetric || inferTargetMetricFromTitle(title) || 'overall',
+    difficulty: 'intermediate',
+    estimatedTime: '90 seconds',
+    version: 1,
+    source: 'fallback'
+  };
+};
+
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+const inferTargetMetricFromTitle = (title = '') => {
+  const lower = title.toLowerCase();
+  if (lower.includes('voice') || lower.includes('vocal')) return 'voice_expression';
+  if (lower.includes('eye') || lower.includes('presence')) return 'presence';
+  if (lower.includes('clarity') || lower.includes('structure')) return 'clarity';
+  if (lower.includes('authentic')) return 'authenticity';
+  if (lower.includes('impact') || lower.includes('energy') || lower.includes('persuasive')) return 'impact';
+  if (lower.includes('confidence') || lower.includes('calm')) return 'confidence';
+  return 'overall';
+};
+
+const deriveDifficultyFromContext = (userContext) => {
+  const confidence = userContext?.confidenceLevel;
+  if (confidence === 'very-low' || confidence === 'low') return 'beginner';
+  if (confidence === 'high' || confidence === 'very-high') return 'advanced';
+  return 'intermediate';
 };
 
 /**
  * Get user's action items (To-Do List)
  */
-export const getUserActionItems = async (clerkUserId, status = null) => {
+export const getUserActionItems = async (clerkUserId, status = null, journeyId = null) => {
   if (!supabase) {
     return [];
   }
@@ -690,6 +1123,10 @@ export const getUserActionItems = async (clerkUserId, status = null) => {
 
   if (status) {
     query = query.eq('status', status);
+  }
+
+  if (journeyId) {
+    query = query.eq('journey_id', journeyId);
   }
 
   const { data, error } = await query
@@ -844,14 +1281,14 @@ export const checkAndUnlockAchievements = async (userId, metrics) => {
 /**
  * Get user's communication metrics (for progress chart)
  */
-export const getUserCommunicationMetrics = async (clerkUserId, limit = 20) => {
+export const getUserCommunicationMetrics = async (clerkUserId, limit = 20, journeyId = null) => {
   if (!supabase) {
     return [];
   }
 
   const userId = await getOrCreateUser(clerkUserId);
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('communication_metrics')
     .select(`
       *,
@@ -861,7 +1298,13 @@ export const getUserCommunicationMetrics = async (clerkUserId, limit = 20) => {
         created_at
       )
     `)
-    .eq('user_id', userId)
+    .eq('user_id', userId);
+
+  if (journeyId) {
+    query = query.eq('journey_id', journeyId);
+  }
+
+  const { data, error } = await query
     .order('created_at', { ascending: true })
     .limit(limit);
 
@@ -876,14 +1319,14 @@ export const getUserCommunicationMetrics = async (clerkUserId, limit = 20) => {
 /**
  * Get user's communication insights (journal)
  */
-export const getUserCommunicationInsights = async (clerkUserId, limit = 50) => {
+export const getUserCommunicationInsights = async (clerkUserId, limit = 50, journeyId = null) => {
   if (!supabase) {
     return [];
   }
 
   const userId = await getOrCreateUser(clerkUserId);
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('communication_insights')
     .select(`
       *,
@@ -893,7 +1336,13 @@ export const getUserCommunicationInsights = async (clerkUserId, limit = 50) => {
         created_at
       )
     `)
-    .eq('user_id', userId)
+    .eq('user_id', userId);
+
+  if (journeyId) {
+    query = query.eq('journey_id', journeyId);
+  }
+
+  const { data, error } = await query
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -941,7 +1390,7 @@ export const getUserAchievements = async (clerkUserId) => {
 /**
  * Get user's latest communication profile (for dashboard)
  */
-export const getUserCommunicationProfile = async (clerkUserId) => {
+export const getUserCommunicationProfile = async (clerkUserId, journeyId = null) => {
   if (!supabase) {
     return null;
   }
@@ -949,10 +1398,16 @@ export const getUserCommunicationProfile = async (clerkUserId) => {
   const userId = await getOrCreateUser(clerkUserId);
 
   // Get latest metrics
-  const { data: latestMetrics, error: metricsError } = await supabase
+  let metricsQuery = supabase
     .from('communication_metrics')
     .select('*')
-    .eq('user_id', userId)
+    .eq('user_id', userId);
+
+  if (journeyId) {
+    metricsQuery = metricsQuery.eq('journey_id', journeyId);
+  }
+
+  const { data: latestMetrics, error: metricsError } = await metricsQuery
     .order('created_at', { ascending: false })
     .limit(1)
     .single();
@@ -962,13 +1417,23 @@ export const getUserCommunicationProfile = async (clerkUserId) => {
   }
 
   // Get latest insight
-  const { data: latestInsight } = await supabase
+  let insightQuery = supabase
     .from('communication_insights')
     .select('*')
-    .eq('user_id', userId)
+    .eq('user_id', userId);
+
+  if (journeyId) {
+    insightQuery = insightQuery.eq('journey_id', journeyId);
+  }
+
+  const { data: latestInsight, error: insightError } = await insightQuery
     .order('created_at', { ascending: false })
     .limit(1)
     .single();
+
+  if (insightError && insightError.code !== 'PGRST116') {
+    console.error('Error fetching latest insight:', insightError);
+  }
 
   return {
     latest_metrics: latestMetrics,

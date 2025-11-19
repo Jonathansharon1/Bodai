@@ -11,6 +11,14 @@ export default function Header() {
   const isLightPage = location.pathname === '/pricing';
   const headerClass = isLightPage ? 'siteHeader siteHeader--light' : 'siteHeader';
 
+  const navButtonStyle = {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    font: 'inherit',
+    color: '#ffffff'
+  };
+
   return (
     <header className={headerClass} role="banner">
       <div className="siteHeader__inner">
@@ -18,18 +26,11 @@ export default function Header() {
           <Logo size={28} className="brand__logo" />
         </Link>
         <nav className="nav" aria-label="Main">
-          <button 
-            className="nav__link" 
-            onClick={() => navigate('/')}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', color: 'inherit' }}
-          >
-            Home
-          </button>
           <SignedIn>
             <button 
               className="nav__link" 
               onClick={() => navigate('/dashboard')}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', color: 'inherit' }}
+              style={navButtonStyle}
             >
               Dashboard
             </button>
@@ -37,28 +38,28 @@ export default function Header() {
           <button 
             className="nav__link" 
             onClick={() => navigate('/pricing')}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', color: 'inherit' }}
+            style={navButtonStyle}
           >
             Pricing
           </button>
           <button 
             className="nav__link" 
             onClick={() => navigate('/#product')}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', color: 'inherit' }}
+            style={navButtonStyle}
           >
             Product
           </button>
           <button 
             className="nav__link" 
             onClick={() => navigate('/#resources')}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', color: 'inherit' }}
+            style={navButtonStyle}
           >
             Resources
           </button>
           <button 
             className="nav__link" 
             onClick={() => navigate('/#about')}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', color: 'inherit' }}
+            style={navButtonStyle}
           >
             About
           </button>

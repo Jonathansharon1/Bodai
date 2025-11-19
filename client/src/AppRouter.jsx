@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import OnboardingPage from './pages/OnboardingPage';
 import AnalysisPage from './pages/AnalysisPage';
 import Dashboard from './components/Dashboard';
 import MyAnalysesPage from './pages/MyAnalysesPage';
+import MyProgressPage from './pages/MyProgressPage';
 import PricingPage from './pages/PricingPage';
 import SubscriptionPage from './pages/SubscriptionPage';
 import Sidebar from './components/layout/Sidebar';
@@ -150,6 +151,12 @@ export default function AppRouter() {
   const [currentAnalysisId, setCurrentAnalysisId] = useState(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeMessage, setUpgradeMessage] = useState('');
+  const [journeys, setJourneys] = useState([]);
+  const [journeysLoading, setJourneysLoading] = useState(true);
+  const [activeJourneyId, setActiveJourneyId] = useState(null);
+  const [practiceCompletionNotices, setPracticeCompletionNotices] = useState([]);
+  const [hasCompletedAnalysis, setHasCompletedAnalysis] = useState(() => localStorage.getItem('bodai_has_completed_analysis') === 'true');
+  const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
   // Load user context from localStorage on mount
   useEffect(() => {
@@ -162,6 +169,140 @@ export default function AppRouter() {
       }
     }
   }, []);
+
+  const syncUserContextFromJourney = useCallback((journey) => {
+    if (!journey) return;
+    const context = {
+      primaryGoal: journey.focus_slug || 'general',
+      confidenceLevel: journey.confidence_level || 'medium'
+    };
+    if (journey.goal_context) {
+      context.goalSpecificContext = journey.goal_context;
+    }
+    setUserContext(context);
+    localStorage.setItem('bodai_user_context', JSON.stringify(context));
+  }, []);
+
+  const fetchJourneys = useCallback(async () => {
+    if (!user?.id) {
+      setJourneys([]);
+      setActiveJourneyId(null);
+      setJourneysLoading(false);
+      return;
+    }
+
+    setJourneysLoading(true);
+    try {
+      const res = await fetch(`${apiBase}/api/journeys`, {
+        headers: {
+          'X-Clerk-User-Id': user.id,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const journeyList = Array.isArray(data.journeys) ? data.journeys : [];
+        setJourneys(journeyList);
+        const storedActive = localStorage.getItem('bodai_active_journey');
+        let nextActive = storedActive && journeyList.some(j => j.id === storedActive) ? storedActive : null;
+        if (!nextActive && journeyList.length > 0) {
+          nextActive = (journeyList.find(j => j.is_default) || journeyList[0]).id;
+        }
+        if (nextActive) {
+          localStorage.setItem('bodai_active_journey', nextActive);
+          const activeJourney = journeyList.find(j => j.id === nextActive);
+          if (activeJourney) {
+            syncUserContextFromJourney(activeJourney);
+          }
+        }
+        setActiveJourneyId(nextActive);
+      }
+    } catch (err) {
+      console.error('Failed to fetch journeys:', err);
+    } finally {
+      setJourneysLoading(false);
+    }
+  }, [apiBase, user?.id, syncUserContextFromJourney]);
+
+  useEffect(() => {
+    fetchJourneys();
+  }, [fetchJourneys]);
+
+  useEffect(() => {
+    if (!user?.id || hasCompletedAnalysis) return;
+
+    const controller = new AbortController();
+    const detectExistingAnalysis = async () => {
+      try {
+        const res = await fetch(`${apiBase}/api/analyses`, {
+          headers: {
+            'X-Clerk-User-Id': user.id,
+            'Content-Type': 'application/json'
+          },
+          signal: controller.signal
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const analyses = Array.isArray(data.analyses) ? data.analyses : [];
+        if (analyses.length > 0) {
+          setHasCompletedAnalysis(true);
+          localStorage.setItem('bodai_has_completed_analysis', 'true');
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.warn('Failed to detect existing analyses:', err.message || err);
+        }
+      }
+    };
+
+    detectExistingAnalysis();
+    return () => controller.abort();
+  }, [user?.id, hasCompletedAnalysis, apiBase]);
+
+  const handleJourneySelect = useCallback((journeyId) => {
+    setActiveJourneyId(journeyId);
+    if (journeyId) {
+      localStorage.setItem('bodai_active_journey', journeyId);
+      const journey = journeys.find(j => j.id === journeyId);
+      if (journey) {
+        syncUserContextFromJourney(journey);
+      }
+    } else {
+      localStorage.removeItem('bodai_active_journey');
+    }
+  }, [journeys, syncUserContextFromJourney]);
+
+  const handleJourneyCreate = useCallback(async (answers) => {
+    if (!user?.id) {
+      throw new Error('User not authenticated');
+    }
+
+    const payload = {
+      primaryGoal: answers?.primaryGoal || 'general',
+      confidenceLevel: answers?.confidenceLevel || 'medium',
+      goalSpecificContext: answers?.goalSpecificContext || {},
+      setDefault: true
+    };
+
+    const res = await fetch(`${apiBase}/api/journeys`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Clerk-User-Id': user.id
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to create journey');
+    }
+
+    const data = await res.json();
+    await fetchJourneys();
+    return data.journey;
+  }, [apiBase, user?.id, fetchJourneys]);
 
   const handleQuestionsComplete = async (answers) => {
     setUserContext(answers);
@@ -184,6 +325,7 @@ export default function AppRouter() {
     }
     
     navigate('/dashboard');
+    fetchJourneys();
   };
 
   const onSelect = (f) => {
@@ -196,7 +338,7 @@ export default function AppRouter() {
     setResult('');
   };
 
-  const onAnalyze = async () => {
+  const onAnalyze = async (options = {}) => {
     if (!file) return;
     
     setIsLoading(true);
@@ -204,6 +346,21 @@ export default function AppRouter() {
     try {
       const form = new FormData();
       form.append('video', file);
+      if (options.recordingPrompt) {
+        const prompt = options.recordingPrompt;
+        if (prompt.id) form.append('recording_prompt_id', prompt.id);
+        if (prompt.title) form.append('recording_prompt_title', prompt.title);
+        if (prompt.description) form.append('recording_prompt_description', prompt.description);
+        if (prompt.actionItemId) form.append('recording_prompt_action_item_id', prompt.actionItemId);
+        if (prompt.targetMetric) form.append('recording_prompt_target_metric', prompt.targetMetric);
+        if (prompt.source) form.append('recording_prompt_source', prompt.source);
+        if (prompt.setup) form.append('recording_prompt_setup', prompt.setup);
+        if (prompt.whatToNotice) form.append('recording_prompt_notice', prompt.whatToNotice);
+        if (prompt.recordingTip) form.append('recording_prompt_tip', prompt.recordingTip);
+        if (prompt.difficulty) form.append('recording_prompt_difficulty', prompt.difficulty);
+        if (prompt.estimatedTime) form.append('recording_prompt_time', prompt.estimatedTime);
+        if (prompt.version) form.append('recording_prompt_version', prompt.version);
+      }
 
       const headers = {};
       if (userContext) {
@@ -211,6 +368,9 @@ export default function AppRouter() {
       }
       if (user?.id) {
         headers['X-Clerk-User-Id'] = user.id;
+      }
+      if (activeJourneyId) {
+        form.append('journey_id', activeJourneyId);
       }
 
       const res = await fetch(process.env.REACT_APP_API_URL || 'http://localhost:5000/api/analyze-video', {
@@ -232,8 +392,12 @@ export default function AppRouter() {
       
       const data = await res.json();
       setResult(data.result || '');
-      // Store analysisId for metrics fetching
+      setPracticeCompletionNotices(data.completedPracticePrompts || []);
       if (data.analysisId) {
+        if (!hasCompletedAnalysis) {
+          setHasCompletedAnalysis(true);
+          localStorage.setItem('bodai_has_completed_analysis', 'true');
+        }
         // Store in state or pass to AnalysisResult
         setCurrentAnalysisId(data.analysisId);
       }
@@ -246,12 +410,24 @@ export default function AppRouter() {
     }
   };
 
+  const dismissPracticeNotices = useCallback(() => setPracticeCompletionNotices([]), []);
+
   const handleNewAnalysis = () => {
     setFile(null);
     setResult('');
     setViewingAnalysis(null);
     setCurrentAnalysisId(null);
     navigate('/new-analysis');
+  };
+
+  const handleViewAnalysis = (analysis) => {
+    if (!analysis) return;
+    dismissPracticeNotices();
+    setFile(null);
+    setResult('');
+    setViewingAnalysis(analysis);
+    setCurrentAnalysisId(analysis.id);
+    navigate(`/analysis/${analysis.id}`);
   };
 
   const handleNavigate = (page) => {
@@ -342,6 +518,12 @@ export default function AppRouter() {
             result={result}
             viewingAnalysis={null}
             currentAnalysisId={currentAnalysisId}
+            userContext={userContext}
+            activeJourneyId={activeJourneyId}
+            practiceCompletionNotices={practiceCompletionNotices}
+            onDismissPracticeNotices={dismissPracticeNotices}
+            hasCompletedAnalysis={hasCompletedAnalysis}
+            refreshTrigger={dashboardRefreshTrigger}
             onBackToDashboard={() => {
               setViewingAnalysis(null);
               setResult('');
@@ -366,6 +548,12 @@ export default function AppRouter() {
             result={result}
             viewingAnalysis={viewingAnalysis}
             currentAnalysisId={viewingAnalysis?.id}
+            userContext={userContext}
+            activeJourneyId={activeJourneyId}
+            practiceCompletionNotices={practiceCompletionNotices}
+            onDismissPracticeNotices={dismissPracticeNotices}
+            hasCompletedAnalysis={hasCompletedAnalysis}
+            refreshTrigger={dashboardRefreshTrigger}
             onBackToDashboard={() => {
               setViewingAnalysis(null);
               setResult('');
@@ -385,7 +573,13 @@ export default function AppRouter() {
             <div className="dashboardLayout">
               <Dashboard 
                 onNewAnalysis={handleNewAnalysis}
+                onViewAnalysis={handleViewAnalysis}
                 refreshTrigger={dashboardRefreshTrigger}
+                journeys={journeys}
+                journeysLoading={journeysLoading}
+                activeJourneyId={activeJourneyId}
+                onSelectJourney={handleJourneySelect}
+                onStartJourney={handleJourneyCreate}
               />
             </div>
           </>
@@ -397,7 +591,13 @@ export default function AppRouter() {
           <>
             <Sidebar />
             <div className="dashboardLayout">
-              <MyAnalysesPage />
+              <MyAnalysesPage 
+                onViewAnalysis={handleViewAnalysis}
+                journeys={journeys}
+                journeysLoading={journeysLoading}
+                activeJourneyId={activeJourneyId}
+                onSelectJourney={handleJourneySelect}
+              />
             </div>
           </>
         </ProtectedRoute>
@@ -408,10 +608,12 @@ export default function AppRouter() {
           <>
             <Sidebar />
             <div className="dashboardLayout">
-              <div className="pageContent">
-                <h2>My Progress</h2>
-                <p>Track your improvement over time</p>
-              </div>
+              <MyProgressPage 
+                journeys={journeys}
+                journeysLoading={journeysLoading}
+                activeJourneyId={activeJourneyId}
+                onSelectJourney={handleJourneySelect}
+              />
             </div>
           </>
         </ProtectedRoute>

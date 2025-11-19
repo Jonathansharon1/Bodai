@@ -27,6 +27,7 @@
   font-size: 20px;
   color: var(--text-dark);
   letter-spacing: -0.02em;
+  font-family: var(--font-display);
 }
 
 .sidebar__logoIcon {
@@ -84,7 +85,7 @@
   font-size: 15px;
   font-weight: 500;
   color: var(--text-dark);
-  font-family: inherit;
+  font-family: var(--font-display);
   position: relative;
 }
 
@@ -167,6 +168,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-family: var(--font-display);
 }
 
 .sidebar__userEmail {
@@ -175,6 +177,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-family: var(--font-mono);
 }
 
 /* Scrollbar styling */

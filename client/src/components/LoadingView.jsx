@@ -106,8 +106,11 @@ export default function LoadingView({ active = true }) {
       <div className="loadingView__container">
         {/* Main Title */}
         <h2 className="loadingView__mainTitle">
-          Analyzing your video
+          Running your body-language assessment
         </h2>
+        <p className="loadingView__subtitle">
+          We’re evaluating movement, eye contact, pacing, and presence signals from your recording.
+        </p>
 
         {/* Progress Bar */}
         <div className="loadingView__progressWrapper">
@@ -136,7 +139,7 @@ export default function LoadingView({ active = true }) {
 
         {/* Bottom Hint */}
         <p className="loadingView__hint">
-          This may take up to a minute depending on video length
+          This may take up to a 1-2 minutes depending on video length
         </p>
       </div>
     </div>

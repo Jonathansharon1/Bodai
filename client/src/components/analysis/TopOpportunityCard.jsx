@@ -15,6 +15,20 @@ export default function TopOpportunityCard({ opportunity, currentScore, targetSc
     ? parts.slice(1).join('.').trim() 
     : (typeof opportunity === 'object' && opportunity.description) || null;
 
+  const extractImprovements = (text) => {
+    if (!text) return [];
+    return text
+      .split(/(?:\n|•|-|–|—)/)
+      .map((item) => item.replace(/^\d+[.)]\s*/, '').trim())
+      .filter(Boolean)
+      .map((item) => item.length > 120 ? `${item.slice(0, 117)}…` : item);
+  };
+
+  const improvementSource = typeof opportunity === 'object' 
+    ? opportunity.howToImprove || ''
+    : '';
+  const improvementBullets = extractImprovements(improvementSource).slice(0, 3);
+
   const current = currentScore ? parseFloat(currentScore) : null;
   const target = targetScore ? parseFloat(targetScore) : (current ? current + 2 : 7);
   const currentPercent = current ? (current / 10) * 100 : 0;
@@ -48,28 +62,40 @@ export default function TopOpportunityCard({ opportunity, currentScore, targetSc
           </div>
         )}
 
-        <div className="topOpportunityCard__progress">
-          <div className="topOpportunityCard__progressTrack">
-            <div
-              className="topOpportunityCard__progressCurrent"
-              style={{ width: `${currentPercent}%` }}
-            />
-            <div
-              className="topOpportunityCard__progressTarget"
-              style={{ width: `${targetPercent}%` }}
-            />
+        {current && (
+          <div className="topOpportunityCard__progress topOpportunityCard__progress--meter">
+            <div className="topOpportunityCard__progressMeter">
+              <span className="topOpportunityCard__progressLabel">Now</span>
+              <span className="topOpportunityCard__progressValue">{current.toFixed(1)}</span>
+            </div>
+            <div className="topOpportunityCard__progressMeter topOpportunityCard__progressMeter--target">
+              <span className="topOpportunityCard__progressLabel">Target</span>
+              <span className="topOpportunityCard__progressValue">{target.toFixed(1)}</span>
+            </div>
           </div>
-          <div className="topOpportunityCard__progressLabels">
-            <span>{currentPercent.toFixed(0)}%</span>
-            <span>{targetPercent.toFixed(0)}%</span>
-          </div>
-        </div>
-
-        {description && (
-          <p className="topOpportunityCard__description">{description}</p>
         )}
 
-        {!description && (
+        {description && (
+          <div className="topOpportunityCard__why">
+            <span className="topOpportunityCard__tag">Why it matters</span>
+            <p className="topOpportunityCard__whyText">{description}</p>
+          </div>
+        )}
+
+        {improvementBullets.length > 0 && (
+          <div className="topOpportunityCard__improvements">
+            <span className="topOpportunityCard__tag">Focus on</span>
+            <ul className="topOpportunityCard__improvementList">
+              {improvementBullets.map((item, idx) => (
+                <li key={idx} className="topOpportunityCard__improvementItem">
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {!description && improvementBullets.length === 0 && (
           <p className="topOpportunityCard__hint">
             Improving this will help you communicate more effectively. Let's work on it together!
           </p>

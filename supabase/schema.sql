@@ -19,10 +19,31 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Journeys allow multiple personalized focuses per user
+CREATE TABLE IF NOT EXISTS user_journeys (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  focus_slug TEXT NOT NULL,
+  focus_label TEXT,
+  display_name TEXT,
+  confidence_level TEXT,
+  goal_context JSONB,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
+  is_default BOOLEAN DEFAULT false,
+  started_from TEXT DEFAULT 'onboarding',
+  last_active_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_journeys_user ON user_journeys(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_user_journeys_default ON user_journeys(user_id) WHERE is_default = true;
+
 -- Analyses table
 CREATE TABLE IF NOT EXISTS analyses (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  journey_id UUID REFERENCES user_journeys(id) ON DELETE SET NULL,
   video_filename TEXT,
   video_size BIGINT,
   mime_type TEXT,
@@ -36,6 +57,7 @@ CREATE TABLE IF NOT EXISTS analyses (
 -- Create index for faster queries
 CREATE INDEX IF NOT EXISTS idx_analyses_user_id ON analyses(user_id);
 CREATE INDEX IF NOT EXISTS idx_analyses_created_at ON analyses(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_analyses_journey ON analyses(journey_id);
 CREATE INDEX IF NOT EXISTS idx_users_subscription_type ON users(subscription_type);
 CREATE INDEX IF NOT EXISTS idx_users_clerk_user_id ON users(clerk_user_id);
 
@@ -44,6 +66,7 @@ CREATE TABLE IF NOT EXISTS communication_metrics (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   analysis_id UUID NOT NULL REFERENCES analyses(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  journey_id UUID REFERENCES user_journeys(id) ON DELETE SET NULL,
   
   -- Main category scores (calculated from sub-metrics)
   presence NUMERIC(4,1) CHECK (presence BETWEEN 0 AND 10),
@@ -105,27 +128,42 @@ CREATE TABLE IF NOT EXISTS communication_metrics (
 
 CREATE INDEX IF NOT EXISTS idx_comm_metrics_user ON communication_metrics(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_comm_metrics_analysis ON communication_metrics(analysis_id);
+CREATE INDEX IF NOT EXISTS idx_comm_metrics_journey ON communication_metrics(journey_id);
 
 -- Communication insights journal entries
 CREATE TABLE IF NOT EXISTS communication_insights (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   analysis_id UUID REFERENCES analyses(id) ON DELETE SET NULL,
+  journey_id UUID REFERENCES user_journeys(id) ON DELETE SET NULL,
   insight_type TEXT, -- e.g., 'strength', 'focus', 'trend'
   content TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_comm_insights_user ON communication_insights(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_comm_insights_journey ON communication_insights(journey_id);
 
 -- Action items table for To-Do List
 CREATE TABLE IF NOT EXISTS action_items (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   analysis_id UUID REFERENCES analyses(id) ON DELETE SET NULL,
+  journey_id UUID REFERENCES user_journeys(id) ON DELETE SET NULL,
   title TEXT NOT NULL,
   details JSONB, -- Store action details (What to do, Why it matters, Example)
   status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'completed')),
+  practice_prompt_title TEXT,
+  practice_prompt_description TEXT,
+  practice_prompt_setup TEXT,
+  practice_prompt_notice TEXT,
+  practice_prompt_tip TEXT,
+  practice_prompt_target_metric TEXT,
+  practice_prompt_difficulty TEXT,
+  practice_prompt_time TEXT,
+  practice_prompt_version INTEGER,
+  practice_prompt_source TEXT,
+  practice_prompt_generated BOOLEAN DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   completed_at TIMESTAMP WITH TIME ZONE,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -134,6 +172,7 @@ CREATE TABLE IF NOT EXISTS action_items (
 CREATE INDEX IF NOT EXISTS idx_action_items_user_id ON action_items(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_action_items_status ON action_items(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_action_items_title ON action_items(user_id, title);
+CREATE INDEX IF NOT EXISTS idx_action_items_journey ON action_items(journey_id);
 
 -- Gamification achievements catalog
 CREATE TABLE IF NOT EXISTS communication_achievements (
@@ -259,6 +298,7 @@ CREATE INDEX IF NOT EXISTS idx_global_stats_history_key ON global_stats_history(
 
 -- Enable Row Level Security
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_journeys ENABLE ROW LEVEL SECURITY;
 ALTER TABLE analyses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE communication_metrics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE communication_insights ENABLE ROW LEVEL SECURITY;
@@ -282,6 +322,11 @@ ALTER TABLE global_stats_history ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Service role can manage users"
   ON users FOR ALL
+  USING (true)
+  WITH CHECK (true);
+
+CREATE POLICY "Service role can manage user journeys"
+  ON user_journeys FOR ALL
   USING (true)
   WITH CHECK (true);
 
@@ -347,6 +392,11 @@ $$ LANGUAGE plpgsql;
 -- Trigger to auto-update updated_at
 CREATE TRIGGER update_users_updated_at
   BEFORE UPDATE ON users
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_user_journeys_updated_at
+  BEFORE UPDATE ON user_journeys
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 

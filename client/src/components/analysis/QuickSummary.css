@@ -1,36 +1,49 @@
 .quickSummary {
-  margin-bottom: 32px;
+  margin: 32px 0;
 }
 
 .quickSummary__header {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.quickSummary__headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.quickSummary__headerIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(79, 70, 229, 0.1);
+  color: #4f46e5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .quickSummary__title {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 700;
   color: #0f172a;
-  margin: 0 0 4px 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.quickSummary__title::before {
-  content: '📊';
-  font-size: 24px;
+  margin: 0;
 }
 
 .quickSummary__subtitle {
   font-size: 14px;
   color: #64748b;
-  margin: 0;
+  margin: 4px 0 0;
 }
 
 .quickSummary__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 16px;
+  align-items: flex-start;
 }
 
 .quickSummary__card {
@@ -42,6 +55,8 @@
   border: 2px solid;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   background: #ffffff;
+  flex: 1 1 260px;
+  min-width: 220px;
 }
 
 .quickSummary__card:hover {
@@ -88,27 +103,51 @@
   font-size: 15px;
   font-weight: 600;
   color: #0f172a;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   line-height: 1.4;
 }
 
-.quickSummary__cardScore {
-  font-size: 13px;
+.quickSummary__cardMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.quickSummary__cardMetric {
+  font-size: 12px;
   font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: #64748b;
 }
 
-.quickSummary__card--strength .quickSummary__cardScore {
+.quickSummary__card--strength .quickSummary__cardMetric {
   color: #10b981;
 }
 
-.quickSummary__card--opportunity .quickSummary__cardScore {
+.quickSummary__cardMetric--neutral {
+  color: #0ea5e9;
+}
+
+.quickSummary__cardMetric--opportunity {
   color: #f59e0b;
+}
+
+.quickSummary__cardDescription {
+  font-size: 13px;
+  color: #475569;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.quickSummary__cardDescription p {
+  margin: 0 0 6px;
 }
 
 @media (max-width: 768px) {
   .quickSummary__grid {
-    grid-template-columns: 1fr;
+    flex-direction: column;
   }
 }
 

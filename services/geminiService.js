@@ -4,6 +4,81 @@ import os from 'os';
 import path from 'path';
 import { GoogleGenAI } from "@google/genai";
 
+const capitalizeLabel = (value = '') => {
+  if (!value || typeof value !== 'string') return '';
+  return value.charAt(0).toUpperCase() + value.slice(1).replace(/_/g, ' ');
+};
+
+const formatTrendLine = (trends = {}) => {
+  const entries = Object.entries(trends)
+    .filter(([, value]) => typeof value === 'number')
+    .map(([key, value]) => {
+      const arrow = value > 0 ? '↑' : '↓';
+      const formatted = value > 0 ? `+${value.toFixed(1)}` : value.toFixed(1);
+      return `${capitalizeLabel(key)} ${arrow} ${formatted}`;
+    });
+  return entries.length ? `**Trend Indicators:**\n- ${entries.join('\n- ')}` : '';
+};
+
+const formatRecentAnalyses = (analyses = []) => {
+  if (!Array.isArray(analyses) || analyses.length === 0) {
+    return '';
+  }
+
+  const lines = analyses.map((session, index) => {
+    const dateLabel = session?.date ? new Date(session.date).toISOString().split('T')[0] : `Session ${index + 1}`;
+    const scores = [
+      typeof session.overallScore === 'number' ? `Overall ${session.overallScore.toFixed(1)}` : null,
+      typeof session.presence === 'number' ? `Presence ${session.presence.toFixed(1)}` : null,
+      typeof session.voice === 'number' ? `Voice ${session.voice.toFixed(1)}` : null,
+      typeof session.clarity === 'number' ? `Clarity ${session.clarity.toFixed(1)}` : null,
+      typeof session.confidence === 'number' ? `Confidence ${session.confidence.toFixed(1)}` : null
+    ].filter(Boolean).join(' • ');
+    return `- ${dateLabel}: ${scores}`;
+  });
+
+  return lines.length ? `**Recent Analyses:**\n${lines.join('\n')}` : '';
+};
+
+const formatBaselineBlock = (baseline = {}) => {
+  const entries = Object.entries(baseline)
+    .filter(([, value]) => typeof value === 'number')
+    .map(([key, value]) => `${capitalizeLabel(key)} ${value.toFixed(1)}`);
+  return entries.length ? `**Baseline Snapshot:**\n- ${entries.join(' • ')}` : '';
+};
+
+const formatActionItemsBlock = (items = []) => {
+  if (!Array.isArray(items) || items.length === 0) return '';
+  const lines = items.map((item) => {
+    const status = item.status === 'completed' ? 'completed' : 'in progress';
+    const prompt = item.practicePromptTitle ? ` • prompt: ${item.practicePromptTitle}` : '';
+    return `- ${item.title} (${status}${prompt})`;
+  });
+  return lines.length ? `**Active Focus Items:**\n${lines.join('\n')}` : '';
+};
+
+const buildHistoricalContextBlock = (historicalContext = null) => {
+  if (!historicalContext) return '';
+  const sections = [];
+  const recentAnalysesBlock = formatRecentAnalyses(historicalContext.recentAnalyses);
+  if (recentAnalysesBlock) {
+    sections.push(recentAnalysesBlock);
+  }
+  const trendBlock = formatTrendLine(historicalContext.trends);
+  if (trendBlock) {
+    sections.push(trendBlock);
+  }
+  const baselineBlock = formatBaselineBlock(historicalContext.baseline);
+  if (baselineBlock) {
+    sections.push(baselineBlock);
+  }
+  const actionItemsBlock = formatActionItemsBlock(historicalContext.recentActionItems);
+  if (actionItemsBlock) {
+    sections.push(actionItemsBlock);
+  }
+  return sections.length ? `${sections.join('\n')}\n` : '';
+};
+
 // Build dynamic prompt based on user context
 const buildPrompt = (userContext = {}) => {
   const goal = userContext.primaryGoal || 'general';
@@ -145,6 +220,41 @@ const buildPrompt = (userContext = {}) => {
   const focusArea = goalFocus[goal] || goalFocus['general'];
   const goalLabel = goal === 'general' ? 'overall improvement' : goal.replace(/-/g, ' ');
   const specificContext = getGoalSpecificContext();
+  const recordingPrompt = userContext.recordingPrompt || null;
+  const historicalContextBlock = userContext.historicalContext ? buildHistoricalContextBlock(userContext.historicalContext) : '';
+  const practiceContextReminder = `
+**Recording Context Reminder**
+- These uploads are informal practice reps, not polished productions.
+- Prioritize coaching on delivery: posture, gestures, eye contact, facial energy, voice dynamics, storytelling, transitions.
+- Keep filming/framing advice to a single short sentence and only if it blocks the viewer from reading their non-verbals.`;
+  const practiceFocusBlock = recordingPrompt?.title ? `
+**Practice Focus**
+- Action Item ID: ${recordingPrompt.actionItemId || 'baseline'}
+- Title: ${recordingPrompt.title}
+- Description: ${recordingPrompt.description || 'N/A'}
+- Setup: ${recordingPrompt.setup || 'Use your normal recording setup'}
+- What to notice: ${recordingPrompt.notice || 'Call out specific behaviors you expect to improve'}
+- Recording tip: ${recordingPrompt.tip || 'Stay relaxed and speak clearly.'}
+- Target Metric: ${recordingPrompt.targetMetric || 'overall'}
+- Difficulty: ${recordingPrompt.difficulty || 'intermediate'}
+- Estimated duration: ${recordingPrompt.estimatedTime || '2 minutes'}
+
+Assess explicitly how well the user executed this practice focus. Include detailed commentary and add a JSON object named "prompt_focus" with fields:
+{
+  "prompt_id": "${recordingPrompt.actionItemId || 'baseline'}",
+  "score": 7.5,
+  "feedback": "Short explanation of what worked/what to adjust",
+  "target_metric": "${recordingPrompt.targetMetric || 'overall'}"
+}
+When reporting prompt_focus, use the action item ID above as prompt_id so the backend can mark completion when the score is >= 7.
+` : '';
+
+  const actionPlanRequirements = `
+**Action Plan Requirements**
+- Provide 1-3 action items.
+- Each item must include: "Instant Tip" (what to do differently in the next real conversation) and "Optional Micro Practice" (≤60 seconds, no upload required).
+- Tips should be concrete behavioral cues (e.g., "Hold eye contact to the lens for the first sentence" or "Match your gestures to anchor each bullet").
+- Optional practice should feel casual and doable at home.`;
 
   // Adjust tone based on confidence level
   const getToneGuidance = () => {
@@ -157,7 +267,8 @@ const buildPrompt = (userContext = {}) => {
     }
   };
 
-  return `You are an expert body language coach specializing in helping professionals improve their presence and impact.
+  return `You are an expert body language coach specializing in helping professionals improve their presence, communication, and impact.
+  Your role is to analyze videos of users speaking and provide constructive, professional, and encouraging feedback.
 
 **User Context:**
 - Primary Goal: ${goalLabel}
@@ -167,6 +278,12 @@ ${specificContext ? specificContext : ''}
 
 **Tone Guidance:**
 ${getToneGuidance()}
+
+${practiceContextReminder}
+
+${historicalContextBlock}
+${practiceFocusBlock}
+${actionPlanRequirements}
 
 Analyze the following video with these goals and context in mind, and provide a concise, encouraging analysis that directly supports the user's objectives.
 Note: DO NOT include emojis in your response.
@@ -213,6 +330,12 @@ Note: DO NOT include emojis in your response.
       "vocal_stability": 6.5,
       "comfort_level": 7.0
     }
+  },
+  "prompt_focus": {
+    "prompt_id": "${recordingPrompt?.actionItemId || 'baseline'}",
+    "score": 7.2,
+    "feedback": "Brief evaluation of the focused practice prompt",
+    "target_metric": "${recordingPrompt?.targetMetric || 'overall'}"
   },
   "final_scores": {
     "voice": 7.0,
@@ -371,19 +494,32 @@ Do NOT sugarcoat problems - be honest and constructive.
 Do NOT use emojis in section headers - use plain text only.
 
 **Action Plan**  
-Start with a brief introduction (1-2 sentences) if helpful, then provide 3–4 personalized, practical steps.
+Start with a brief introduction (1-2 sentences) if helpful, then provide EXACTLY 3–4 personalized, practical steps.
 
-**IMPORTANT:** 
-- Each action item MUST start with "Action:" followed by the action title. Only lines starting with "Action:" will be displayed as actionable items with checkboxes.
+**CRITICAL FORMATTING REQUIREMENTS:**
+- You MUST provide 3-4 action items. Not 1, not 2, not 5. Exactly 3-4.
+- Each action item MUST start with "Action:" followed by the action title on the SAME line.
+- Example: "Action: The Vocal Amplifier" (not "Action:\nThe Vocal Amplifier")
+- Only lines starting with "Action:" will be displayed as actionable items with checkboxes.
 - Do NOT use emojis in section headers - use plain text only.
 - Format each action clearly with "What to do:", "Why it matters:", and "Example:" subsections.
 
-Format:
-- Brief intro text (optional, will be displayed as regular text)
+Format (REPEAT THIS FOR EACH OF THE 3-4 ACTIONS):
 - **Action: [Action Title]** (e.g., "Action: The '3-Point Map'")
-  - **What to do**: Specific instructions (indented)
+  - **What to do**: Specific instructions (indented with 2 spaces or a dash)
   - **Why it matters**: Link to "${goalLabel}"${specificContext ? ` and context` : ''} (indented)
   - **Example**: Specific, real-world situation (indented)
+
+Example of correct format:
+Action: The Vocal Amplifier
+  - What to do: Practice reading a short text out loud twice - first normally, then with 50% more energy
+  - Why it matters: What feels overly energetic to you often comes across as perfectly engaging to an audience
+  - Example: Take the first sentence of your video and say it normally, then say it again as if trying to get attention across a busy room
+
+Action: The 3-Point Map
+  - What to do: For any topic, identify three key messages and state them upfront
+  - Why it matters: This gives your presentation a clear roadmap and makes it easy for the audience to follow
+  - Example: For a product pitch: 1) It solves a problem, 2) It's affordable, 3) It's easy to use
 
 Do NOT use "Action:" for regular descriptive text. Only use it for actual actionable steps that users can check off.
 
@@ -405,6 +541,21 @@ Speak like a real coach: clear, human, and growth-oriented.
 };
 
 
+const DEFAULT_GENERATION_CONFIG = {
+  temperature: 0.15,
+  topP: 0.2,
+  topK: 16,
+  candidateCount: 1,
+  maxOutputTokens: 2048
+};
+
+const sanitizeGenerationConfig = (overrides = {}) => {
+  return {
+    ...DEFAULT_GENERATION_CONFIG,
+    ...overrides
+  };
+};
+
 export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) => {
     const API_KEY = process.env.API_KEY;
     if (!API_KEY) {
@@ -418,6 +569,7 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
     // Build dynamic prompt based on user context
     const userContext = options.userContext || {};
     const PROMPT = buildPrompt(userContext);
+    const generationConfig = sanitizeGenerationConfig(options.generationConfig);
 
     const videoMetadata = {};
     if (options.startOffset) videoMetadata.startOffset = options.startOffset; // e.g., '40s'
@@ -468,6 +620,7 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
           const tryModel = modelName;
           return await ai.models.generateContent({
             model: tryModel,
+            generationConfig,
             contents: [
               {
                 parts: [
@@ -493,6 +646,7 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
             if (attempt >= 1 && shouldRetry(err) && canFallback) {
               return await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
+                generationConfig,
                 contents: [
                   {
                     parts: [
@@ -531,6 +685,7 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
       const exec = async () => {
         return await ai.models.generateContent({
           model: modelName,
+          generationConfig,
           contents: [
             {
               parts: [
@@ -549,6 +704,7 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
           if (attempt >= 1 && shouldRetry(err) && canFallback) {
             return await ai.models.generateContent({
               model: 'gemini-2.5-flash',
+              generationConfig,
               contents: [
                 {
                   parts: [
@@ -596,6 +752,9 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
             analysis: parsed.analysis || {},
             validation: parsed.validation || {}
           };
+          if (parsed.prompt_focus) {
+            metrics.prompt_focus = parsed.prompt_focus;
+          }
         } else if (parsed.metrics && parsed.overall_score !== undefined) {
           // Old format (backward compatibility)
           metrics = {
@@ -624,4 +783,124 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
       text: parsedText,
       metrics: metrics
     };
+};
+
+export const generatePracticePromptFromAction = async ({
+  title,
+  details = {},
+  userContext = {},
+  targetMetric = 'overall',
+  difficulty = 'intermediate',
+  estimatedTime = '2 minutes',
+  previousTitles = []
+}) => {
+  if (!process.env.API_KEY) {
+    console.warn('Cannot generate practice prompt: API_KEY missing');
+    return null;
+  }
+
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const fallbackModel = 'gemini-2.5-flash';
+  const modelName = process.env.GEMINI_PRACTICE_MODEL || 'gemini-2.5-flash';
+  const goal = userContext.primaryGoal || 'general';
+  const confidence = userContext.confidenceLevel || 'medium';
+  const detailText = [
+    details.what_to_do ? `What to do: ${details.what_to_do}` : null,
+    details.why_it_matters ? `Why it matters: ${details.why_it_matters}` : null,
+    details.example ? `Example: ${details.example}` : null,
+  ].filter(Boolean).join('\n');
+
+  const priorList = previousTitles && previousTitles.length > 0
+    ? `Previous drills already used for this user:\n${previousTitles.map(t => `- ${t}`).join('\n')}\n`
+    : '';
+
+  const prompt = `You are an expert body language coach designing recorded practice drills that users can film on their phone in a single take.
+
+Goal/Context: ${goal}
+User confidence: ${confidence}
+Target metric to improve: ${targetMetric}
+Recommended difficulty: ${difficulty}
+Recommended duration: ${estimatedTime}
+${priorList}
+
+Action Item to reinforce:
+Title: ${title}
+${detailText}
+
+Please respond ONLY with valid JSON (no markdown) in the format:
+{
+  "title": "Short punchy drill name (unique, not in prior list)",
+  "description": "Exact instructions for what to record (<=2 sentences)",
+  "setup": "How to position camera/body/environment",
+  "what_to_notice": "What behaviors to watch during recording",
+  "recording_tip": "A concrete tip (breathing, pacing, gesture, etc.)",
+  "target_metric": "presence|voice_expression|clarity|authenticity|impact|confidence|overall",
+  "difficulty": "beginner|intermediate|advanced",
+  "estimated_time": "e.g. 2 minutes total",
+  "version": 2
+}
+Requirements:
+- description must mention video length and theme to talk about.
+- setup/what_to_notice/recording_tip must be specific and observable.
+- Use the supplied difficulty/target metric unless you have a strong reason to adjust (then explain briefly inside recording_tip).
+- Ensure the drill is distinct from prior ones if provided.`;
+
+  const runGeneration = async (model) => {
+    const response = await ai.models.generateContent({
+      model,
+      contents: [{ parts: [{ text: prompt }] }],
+    });
+    return typeof response.text === 'function' ? await response.text() : (response.text ?? response.response?.text);
+  };
+
+  try {
+    let text = await runGeneration(modelName);
+    if (!text && modelName !== fallbackModel) {
+      text = await runGeneration(fallbackModel);
+    }
+    if (!text) return null;
+    const cleaned = text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(cleaned);
+    if (!parsed?.title || !parsed?.description) {
+      return null;
+    }
+    return normalizePracticePrompt(parsed);
+  } catch (err) {
+    if (modelName !== fallbackModel) {
+      try {
+        const text = await runGeneration(fallbackModel);
+        if (!text) return null;
+        const cleaned = text.replace(/```json|```/g, '').trim();
+        const parsed = JSON.parse(cleaned);
+        if (!parsed?.title || !parsed?.description) {
+          return null;
+        }
+        return normalizePracticePrompt(parsed);
+      } catch (fallbackErr) {
+        console.error('Failed to generate practice prompt (fallback):', fallbackErr.message || fallbackErr);
+        return null;
+      }
+    }
+    console.error('Failed to generate practice prompt:', err.message || err);
+    return null;
+  }
+};
+
+const normalizePracticePrompt = (parsed) => {
+  if (!parsed?.title || !parsed?.description) {
+    return null;
+  }
+
+  return {
+    title: parsed.title.trim(),
+    description: parsed.description.trim(),
+    setup: parsed.setup?.trim?.() || null,
+    whatToNotice: parsed.what_to_notice?.trim?.() || null,
+    recordingTip: parsed.recording_tip?.trim?.() || null,
+    targetMetric: parsed.target_metric || 'overall',
+    difficulty: parsed.difficulty || null,
+    estimatedTime: parsed.estimated_time || null,
+    version: typeof parsed.version === 'number' ? parsed.version : null,
+    source: parsed.source || 'ai'
+  };
 };

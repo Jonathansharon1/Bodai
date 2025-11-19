@@ -12,6 +12,9 @@
   --accent-tertiary: #FF8C64;   /* Warm accent */
   --neutral-light: #F2F7FA;
   --shadow-card: 0 16px 32px rgba(0, 78, 100, 0.08);
+  --font-sans: 'Space Grotesk', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --font-display: 'Space Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 }
 
 * {
@@ -28,7 +31,7 @@ body {
   margin: 0;
   background: var(--bg-900);
   color: var(--text-dark);
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  font-family: var(--font-sans);
   font-weight: 400;
   letter-spacing: 0;
   line-height: 1.5;
@@ -117,26 +120,17 @@ a:hover {
 }
 
 .nav__link {
-  color: rgba(255, 255, 255, 0.9);
+  color: #ffffff;
   text-decoration: none;
-  font-weight: 600;
-  font-size: 13px;
-  letter-spacing: 0.02em;
+  font-weight: 500;
+  font-size: 0.48em;
+  letter-spacing: 0.14em;
+  opacity: 0.9;
   transition: color 0.2s ease, opacity 0.2s ease;
 }
 
 .nav__link:hover {
   color: #ffffff;
-  opacity: 1;
-}
-
-.siteHeader--light .nav__link {
-  color: var(--text-dark);
-  opacity: 0.8;
-}
-
-.siteHeader--light .nav__link:hover {
-  color: var(--accent);
   opacity: 1;
 }
 
@@ -148,26 +142,17 @@ a:hover {
 }
 
 .nav__login {
-  color: rgba(255, 255, 255, 0.9);
+  color: #ffffff;
   text-decoration: none;
-  font-weight: 600;
-  font-size: 13px;
-  letter-spacing: 0.02em;
+  font-weight: 400;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  opacity: 0.9;
   transition: color 0.2s ease, opacity 0.2s ease;
 }
 
 .nav__login:hover {
   color: #ffffff;
-  opacity: 1;
-}
-
-.siteHeader--light .nav__login {
-  color: var(--text-dark);
-  opacity: 0.8;
-}
-
-.siteHeader--light .nav__login:hover {
-  color: var(--accent);
   opacity: 1;
 }
 
@@ -324,6 +309,7 @@ a:hover {
   gap: 10px;
   text-shadow: 0 6px 24px rgba(0, 26, 35, 0.35), 0 3px 12px rgba(0, 26, 35, 0.25);
   animation: fadeInUp 0.7s ease-out;
+  font-family: var(--font-display);
 }
 
 .hero__titleLine1,
@@ -371,6 +357,7 @@ a:hover {
   margin: 0 0 18px;
   font-weight: 500;
   letter-spacing: 0;
+  font-family: var(--font-display);
 }
 
 .hero__actions {
@@ -411,6 +398,7 @@ a:hover {
   letter-spacing: -0.015em;
   margin: 0 0 12px;
   color: var(--text-dark);
+  font-family: var(--font-display);
 }
 
 .subtitle {
@@ -868,6 +856,7 @@ a:hover {
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--text-dark);
+  font-family: var(--font-display);
 }
 
 .results h1 {
@@ -886,7 +875,7 @@ a:hover {
 
 .results pre,
 .results code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-family: var(--font-mono);
 }
 
 .results p {
@@ -926,7 +915,12 @@ a:hover {
   margin-bottom: 16px;
 }
 .dropZone__icon { font-size: 26px; color: var(--text-muted); }
-.dropZone__title { font-weight: 600; letter-spacing: -0.01em; color: var(--text-dark); }
+.dropZone__title {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-dark);
+  font-family: var(--font-display);
+}
 .dropZone__or { color: var(--text-muted); font-size: 13px; }
 .dropZone__meta { color: var(--text-muted); font-size: 12px; }
 .dropZone:hover { box-shadow: 0 10px 24px rgba(0, 78, 100, 0.12); }
@@ -965,6 +959,14 @@ a:hover {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  font-family: var(--font-display);
+}
+
+.loadingView__subtitle {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-muted);
+  max-width: 520px;
 }
 
 .loadingView__progressWrapper {
@@ -1155,6 +1157,10 @@ a:hover {
     font-size: 1.75rem;
   }
   
+  .loadingView__subtitle {
+    font-size: 0.95rem;
+  }
+  
   .loadingView__factCard {
     padding: 2rem 1.5rem;
     border-radius: 16px;
@@ -1178,6 +1184,10 @@ a:hover {
 @media (max-width: 480px) {
   .loadingView__mainTitle {
     font-size: 1.5rem;
+  }
+  
+  .loadingView__subtitle {
+    font-size: 0.9rem;
   }
   
   .loadingView__factCard {

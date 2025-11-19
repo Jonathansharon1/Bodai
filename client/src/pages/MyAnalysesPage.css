@@ -1,7 +1,25 @@
+.myAnalysesPage__journeyTabs {
+  margin-bottom: 1rem;
+}
+
 .myAnalysesPage {
   padding: 32px;
   max-width: 1200px;
   margin: 0 auto;
+}
+
+.myAnalysesPage__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+}
+
+.myAnalysesPage__headerContent {
+  flex: 1;
+  min-width: 0;
 }
 
 .myAnalysesPage__title {
@@ -10,12 +28,21 @@
   color: #0f172a;
   margin: 0 0 8px 0;
   letter-spacing: -0.02em;
+  font-family: var(--font-display);
 }
 
 .myAnalysesPage__subtitle {
   font-size: 16px;
   color: #64748b;
-  margin: 0 0 32px 0;
+  margin: 0;
+}
+
+.myAnalysesPage__newButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .myAnalysesPage__loading {
@@ -35,141 +62,128 @@
 }
 
 .myAnalysesPage__list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
 }
 
-/* Reuse analysis card styles from Dashboard.css */
 .analysisCard {
   background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  transition: all 0.2s ease;
+  border-radius: 20px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .analysisCard:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  border-color: #cbd5e1;
+  transform: translateY(-4px);
+  box-shadow: 0 32px 50px rgba(15, 23, 42, 0.12);
 }
 
-.analysisCard__header {
-  padding: 20px 24px;
+.analysisCard__media--static {
+  background: #0f172a;
+}
+
+.analysisCard__media--static video {
+  width: 100%;
+  display: block;
+  object-fit: contain;
+  max-height: 220px;
+  background: #000;
+}
+
+.analysisCard__mediaPlaceholder {
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+  gap: 8px;
+  background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+  border-top: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.analysisCard__mediaIcon {
+  font-size: 32px;
+}
+
+.analysisCard__details {
+  padding: 20px 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.analysisCard__metaRow {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-
-.analysisCard__header:hover {
-  background: #f8fafc;
-}
-
-.analysisCard__info {
-  flex: 1;
-  min-width: 0;
-}
-
-.analysisCard__meta {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 8px;
-  flex-wrap: wrap;
-}
-
-.analysisCard__date {
+  align-items: center;
+  gap: 10px;
   font-size: 13px;
   color: #64748b;
-  font-weight: 500;
+  font-family: var(--font-mono);
 }
 
-.analysisCard__goal {
-  display: flex;
+.analysisCard__goalChip {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
-  color: #475569;
-  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+  color: #1d4ed8;
+  font-weight: 600;
+  text-transform: capitalize;
+  font-family: var(--font-display);
 }
 
-.analysisCard__goalIcon {
-  color: #3b82f6;
+.analysisCard__goalChip svg {
+  color: inherit;
 }
 
 .analysisCard__filename {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 17px;
+  font-weight: 700;
   color: #0f172a;
-  margin-bottom: 8px;
-  word-break: break-word;
-}
-
-.analysisCard__preview {
-  font-size: 14px;
-  color: #64748b;
-  line-height: 1.5;
-  margin-top: 8px;
-}
-
-.analysisCard__toggle {
-  flex-shrink: 0;
-  color: #64748b;
-  transition: transform 0.2s ease;
-}
-
-.analysisCard__content {
-  padding: 0 24px 24px;
-  border-top: 1px solid #e2e8f0;
-  margin-top: 16px;
-  padding-top: 24px;
-}
-
-.insightSection {
-  margin-bottom: 24px;
-}
-
-.insightSection__title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  color: #0f172a;
-  margin: 0 0 12px 0;
-}
-
-.insightSection__icon {
-  color: #3b82f6;
-}
-
-.insightSection__list {
-  list-style: none;
-  padding: 0;
   margin: 0;
+  line-height: 1.4;
+  font-family: var(--font-display);
 }
 
-.insightSection__list li {
-  padding: 8px 0 8px 24px;
-  position: relative;
+.analysisCard__promptSnippet {
+  margin-top: 4px;
+  padding: 10px 12px;
+  background: rgba(15, 23, 42, 0.03);
+  border-radius: 12px;
   color: #475569;
-  line-height: 1.6;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
-.insightSection__list li::before {
-  content: '•';
-  position: absolute;
-  left: 8px;
-  color: #3b82f6;
-  font-weight: bold;
+.analysisCard__promptSnippet strong {
+  display: block;
+  color: #0f172a;
+  margin-bottom: 4px;
+  font-size: 13px;
+  text-transform: capitalize;
+  font-family: var(--font-display);
 }
 
-.analysisCard__actions {
-  margin-top: 24px;
-  padding-top: 24px;
-  border-top: 1px solid #e2e8f0;
+.analysisCard__viewButton {
+  align-self: flex-start;
+  margin-top: 4px;
+  border-radius: 999px;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.15);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.analysisCard__viewButton:hover {
+  box-shadow: 0 16px 28px rgba(15, 23, 42, 0.18);
+  transform: translateY(-2px);
 }
 
 @media (max-width: 768px) {
@@ -177,30 +191,23 @@
     padding: 24px 16px;
   }
 
+  .myAnalysesPage__header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .myAnalysesPage__newButton {
+    width: 100%;
+    justify-content: center;
+  }
+
   .myAnalysesPage__title {
     font-size: 28px;
   }
 
-  .analysisCard__header {
-    padding: 16px 20px;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-  }
-
-  .analysisCard__meta {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .analysisCard__toggle {
-    align-self: flex-end;
-    margin-left: 0;
-  }
-
-  .analysisCard__content {
-    padding: 0 20px 20px;
+  .myAnalysesPage__list {
+    grid-template-columns: 1fr;
   }
 }
 
