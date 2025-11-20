@@ -10,12 +10,14 @@ import {
   Video,
   Sun,
   Timer,
-  Eye
+  Eye,
+  Trash2
 } from 'lucide-react';
 import Logo from '../components/Logo';
 import UploadVideo from '../components/UploadVideo';
 import VideoPlayer from '../components/VideoPlayer';
 import AnalysisResult from '../components/AnalysisResult';
+import ReflectionPrompt from '../components/ReflectionPrompt';
 import LoadingView from '../components/LoadingView';
 import './AnalysisPage.css';
 import { getPromptById } from '../config/recordingPrompts';
@@ -92,6 +94,7 @@ export default function AnalysisPage({
   const { user } = useUser();
   const { id } = useParams();
   const navigate = useNavigate();
+  const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
   const [videoUrl, setVideoUrl] = useState(null);
   const [loadedAnalysis, setLoadedAnalysis] = useState(null);
   const [recentActionItems, setRecentActionItems] = useState([]);
@@ -125,23 +128,56 @@ export default function AnalysisPage({
     };
   }, [recentActionItems, currentAnalysisData]);
   const [selectedPrompt, setSelectedPrompt] = useState(null);
+  const [practiceAcknowledged, setPracticeAcknowledged] = useState(false);
+  const [practiceAckTouched, setPracticeAckTouched] = useState(false);
 
   useEffect(() => {
     if (currentAnalysisData) return;
     if (actionPromptOption) {
       setSelectedPrompt(actionPromptOption);
+      setPracticeAcknowledged(false);
+      setPracticeAckTouched(false);
     } else {
       setSelectedPrompt(null);
+      setPracticeAcknowledged(true);
     }
   }, [actionPromptOption, currentAnalysisData]);
 
   const handleAnalyzeClick = () => {
+    if (actionPromptOption && !practiceAcknowledged) {
+      setPracticeAckTouched(true);
+      return;
+    }
     onAnalyze({ recordingPrompt: selectedPrompt });
   };
 
   const handleDismissCompletionNotices = () => {
     if (onDismissPracticeNotices) {
       onDismissPracticeNotices();
+    }
+  };
+
+  const handleDeleteAnalysis = async (analysisIdToDelete) => {
+    if (!analysisIdToDelete || !user?.id) return;
+    const confirmed = window.confirm('Delete this analysis and its data? This cannot be undone.');
+    if (!confirmed) return;
+    try {
+      const res = await fetch(`${apiBase}/api/analyses/${analysisIdToDelete}`, {
+        method: 'DELETE',
+        headers: {
+          'X-Clerk-User-Id': user.id,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (res.ok) {
+        if (onBackToDashboard) {
+          onBackToDashboard();
+        } else {
+          navigate('/dashboard');
+        }
+      }
+    } catch (err) {
+      console.error('Failed to delete analysis:', err);
     }
   };
 
@@ -436,6 +472,18 @@ export default function AnalysisPage({
                     analysisId={currentAnalysisData.id}
                     viewingAnalysis={currentAnalysisData}
                   />
+                  {currentAnalysisData.id && (
+                    <div className="analysisPage__actions analysisPage__actions--inline">
+                      <button
+                        type="button"
+                        className="btn btn--ghost"
+                        onClick={() => handleDeleteAnalysis(currentAnalysisData.id)}
+                      >
+                        <Trash2 size={16} />
+                        <span>Delete analysis</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -617,6 +665,25 @@ export default function AnalysisPage({
                       Need a reminder? Use this prompt to guide your next recording.
                     </p>
 
+                    {actionPromptOption && (
+                      <div className={`practiceAck ${practiceAckTouched && !practiceAcknowledged ? 'practiceAck--error' : ''}`}>
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={practiceAcknowledged}
+                            onChange={(event) => {
+                              setPracticeAcknowledged(event.target.checked);
+                              setPracticeAckTouched(true);
+                            }}
+                          />
+                          <span>I ran this drill before analyzing this session.</span>
+                        </label>
+                        {practiceAckTouched && !practiceAcknowledged && (
+                          <p className="practiceAck__error">Check this once you've attempted the drill.</p>
+                        )}
+                      </div>
+                    )}
+
                     <div className="analysisPage__upload analysisPage__uploadCard">
                       <UploadVideo file={file} onSelect={onSelect} onClear={onRemove} />
                     </div>
@@ -731,6 +798,12 @@ export default function AnalysisPage({
                         loading={false}
                         analysisId={currentAnalysisId}
                       />
+                      {currentAnalysisId && (
+                        <ReflectionPrompt
+                          analysisId={currentAnalysisId}
+                          journeyId={activeJourneyId}
+                        />
+                      )}
                     </div>
                   </div>
                 </div>
@@ -752,6 +825,16 @@ export default function AnalysisPage({
                     <Plus size={18} />
                     <span>New Analysis</span>
                   </button>
+          {currentAnalysisId && (
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() => handleDeleteAnalysis(currentAnalysisId)}
+            >
+              <Trash2 size={16} />
+              <span>Delete session</span>
+            </button>
+          )}
                 </div>
               </>
             )}

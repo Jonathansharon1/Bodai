@@ -1,0 +1,102 @@
+.practiceCommitmentAlert {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  background: linear-gradient(135deg, #fff5e6 0%, #ffe8cc 100%);
+  border: 1px solid #ffd89b;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(255, 193, 7, 0.15);
+}
+
+.practiceCommitmentAlert__icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #ff9800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.practiceCommitmentAlert__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.practiceCommitmentAlert__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #e65100;
+}
+
+.practiceCommitmentAlert__message {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #5d4037;
+}
+
+.practiceCommitmentAlert__progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.practiceCommitmentAlert__progressText {
+  font-size: 12px;
+  font-weight: 500;
+  color: #bf360c;
+}
+
+.practiceCommitmentAlert__progressBar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 152, 0, 0.2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.practiceCommitmentAlert__progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff9800 0%, #f57c00 100%);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.practiceCommitmentAlert__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #bf360c;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+  border-radius: 4px;
+}
+
+.practiceCommitmentAlert__close:hover {
+  opacity: 1;
+  background: rgba(191, 54, 12, 0.1);
+}
+
+.practiceCommitmentAlert__close:active {
+  transform: scale(0.95);
+}
+

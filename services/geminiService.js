@@ -256,40 +256,7 @@ When reporting prompt_focus, use the action item ID above as prompt_id so the ba
 - Tips should be concrete behavioral cues (e.g., "Hold eye contact to the lens for the first sentence" or "Match your gestures to anchor each bullet").
 - Optional practice should feel casual and doable at home.`;
 
-  // Adjust tone based on confidence level
-  const getToneGuidance = () => {
-    if (confidence === 'very-low' || confidence === 'low') {
-      return 'Use a gentle, encouraging, and supportive tone. This user is already self-aware and may be sensitive. Focus on building them up, highlighting existing strengths, and providing small, manageable steps. Avoid overwhelming them with too many changes at once.';
-    } else if (confidence === 'medium') {
-      return 'Use a balanced, encouraging tone. Provide constructive feedback while acknowledging their self-awareness. Offer clear, actionable steps.';
-    } else {
-      return 'Use a professional, direct tone. This user is confident and ready for advanced feedback. Provide specific, detailed recommendations.';
-    }
-  };
-
-  return `You are an expert body language coach specializing in helping professionals improve their presence, communication, and impact.
-  Your role is to analyze videos of users speaking and provide constructive, professional, and encouraging feedback.
-
-**User Context:**
-- Primary Goal: ${goalLabel}
-- Current Confidence Level: ${confidence}
-- Focus Area: ${focusArea}
-${specificContext ? specificContext : ''}
-
-**Tone Guidance:**
-${getToneGuidance()}
-
-${practiceContextReminder}
-
-${historicalContextBlock}
-${practiceFocusBlock}
-${actionPlanRequirements}
-
-Analyze the following video with these goals and context in mind, and provide a concise, encouraging analysis that directly supports the user's objectives.
-Note: DO NOT include emojis in your response.
-**IMPORTANT: At the end of your response, include a structured metrics section in JSON format with detailed sub-scores:**
-
-\`\`\`json
+  const metricsJsonInstruction = String.raw`\`\`\`json
 {
   "sub_scores": {
     "voice": {
@@ -354,6 +321,12 @@ Note: DO NOT include emojis in your response.
     "action_items": "Actionable steps",
     "personal_insight": "Personalized insight based on user context"
   },
+  "delivery_metrics": {
+    "speaking_rate_wpm": 142,
+    "filler_word_count": 4,
+    "sentiment": "positive",
+    "posture_flag": "open"
+  },
   "validation": {
     "jump_detected": false,
     "jump_explanation": "",
@@ -365,9 +338,16 @@ Note: DO NOT include emojis in your response.
     "Your natural gestures complement your words well, showing authenticity."
   ]
 }
-\`\`\`
+\`\`\``;
 
+  const scoringRulesBlock = String.raw`
 **CRITICAL SCORING RULES - YOU MUST FOLLOW STRICTLY:**
+
+**Delivery Metrics (include in delivery_metrics)**
+- speaking_rate_wpm: Words per minute (between 90-190). Estimate from clip length and vocal pacing.
+- filler_word_count: Count how many fillers like "um", "uh", "like" you heard (integer).
+- sentiment: Overall vibe of delivery (\`positive\`, \`neutral\`, \`tense\`).
+- posture_flag: \`open\`, \`closed\`, \`leaning\`, or \`dynamic\` based on body language cues.
 
 **Sub-Metric Scoring Definitions (0-10 scale):**
 - **0-3 (Weak)**: Clear issues, needs significant improvement, noticeable problems
@@ -478,22 +458,22 @@ Structure your main response as follows:
 **Overall Impression**
 (A short emotional summary of how they come across overall)
 
-**Key Strengths**  
-2–3 main strengths directly supporting "${goalLabel}".  
+**Key Strengths**
+2–3 main strengths directly supporting "${goalLabel}".
 Explain *why each matters* in their "${specificContext}" if relevant.
 Do NOT use emojis in section headers - use plain text only.
 
-**Focus Areas**    
+**Focus Areas**
 2–3 areas that need improvement. Be HONEST and DIRECT about actual problems you observed.
 - If eye contact is poor → mention it directly
-- If speech is monotone → mention it directly  
+- If speech is monotone → mention it directly
 - If there are many mistakes → mention them directly
 - If energy is low → mention it directly
-Explain each problem clearly + why improving it will help achieve "${goalLabel}".
+Explain each problem clearly + why improving it will help achieve "${goalLabel}"${specificContext ? ` and context` : ''}.
 Do NOT sugarcoat problems - be honest and constructive.
 Do NOT use emojis in section headers - use plain text only.
 
-**Action Plan**  
+**Action Plan**
 Start with a brief introduction (1-2 sentences) if helpful, then provide EXACTLY 3–4 personalized, practical steps.
 
 **CRITICAL FORMATTING REQUIREMENTS:**
@@ -523,14 +503,57 @@ Action: The 3-Point Map
 
 Do NOT use "Action:" for regular descriptive text. Only use it for actual actionable steps that users can check off.
 
-**Quick Wins**  
+**Quick Wins**
 1–2 simple, immediate actions that make visible impact.
 Do NOT use emojis in section headers - use plain text only.
 
-
-Keep tone: ${confidence === 'very-low' || confidence === 'low' ? 'Gentle, supportive, and empowering' : 'Warm, professional, and actionable'}.  
+Keep tone: ${confidence === 'very-low' || confidence === 'low' ? 'Gentle, supportive, and empowering' : 'Warm, professional, and actionable'}.
 Speak like a real coach: clear, human, and growth-oriented.
 
+**REMEMBER:**
+- Be STRICT with scoring - only give high scores for genuinely strong performance
+- Be HONEST about problems - if you see issues, mention them in Focus Areas
+- Be CONSISTENT - the same video should get the same scores every time
+- Pay attention to DETAILS - count filler words, measure eye contact, observe actual behavior
+- Do NOT inflate scores or hide problems - users need honest feedback to improve
+`;
+
+  // Adjust tone based on confidence level
+  const getToneGuidance = () => {
+    if (confidence === 'very-low' || confidence === 'low') {
+      return 'Use a gentle, encouraging, and supportive tone. This user is already self-aware and may be sensitive. Focus on building them up, highlighting existing strengths, and providing small, manageable steps. Avoid overwhelming them with too many changes at once.';
+    } else if (confidence === 'medium') {
+      return 'Use a balanced, encouraging tone. Provide constructive feedback while acknowledging their self-awareness. Offer clear, actionable steps.';
+    } else {
+      return 'Use a professional, direct tone. This user is confident and ready for advanced feedback. Provide specific, detailed recommendations.';
+    }
+  };
+
+  return `You are an expert body language coach specializing in helping professionals improve their presence, communication, and impact.
+  Your role is to analyze videos of users speaking and provide constructive, professional, and encouraging feedback.
+
+**User Context:**
+- Primary Goal: ${goalLabel}
+- Current Confidence Level: ${confidence}
+- Focus Area: ${focusArea}
+${specificContext ? specificContext : ''}
+
+**Tone Guidance:**
+${getToneGuidance()}
+
+${practiceContextReminder}
+
+${historicalContextBlock}
+${practiceFocusBlock}
+${actionPlanRequirements}
+
+Analyze the following video with these goals and context in mind, and provide a concise, encouraging analysis that directly supports the user's objectives.
+Note: DO NOT include emojis in your response.
+**IMPORTANT: At the end of your response, include a structured metrics section in JSON format with detailed sub-scores:**
+
+${metricsJsonInstruction}
+
+${scoringRulesBlock}
 **REMEMBER:**
 - Be STRICT with scoring - only give high scores for genuinely strong performance
 - Be HONEST about problems - if you see issues, mention them in Focus Areas
@@ -548,6 +571,8 @@ const DEFAULT_GENERATION_CONFIG = {
   candidateCount: 1,
   maxOutputTokens: 2048
 };
+
+const DEFAULT_METRICS_SCHEMA_VERSION = 'metrics.schema.v1';
 
 const sanitizeGenerationConfig = (overrides = {}) => {
   return {
@@ -726,6 +751,8 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
     // Parse structured metrics from the response
     let metrics = null;
     let parsedText = text || '';
+    let rawMetricsPayload = null;
+    let metricsVersion = DEFAULT_METRICS_SCHEMA_VERSION;
     
     // Try to extract JSON metrics block
     const jsonMatch = text?.match(/```json\s*([\s\S]*?)\s*```/) || text?.match(/```\s*([\s\S]*?)\s*```/);
@@ -733,6 +760,8 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
       try {
         const jsonContent = jsonMatch[1].trim();
         const parsed = JSON.parse(jsonContent);
+        rawMetricsPayload = parsed;
+        metricsVersion = parsed.schema_version || parsed.version || DEFAULT_METRICS_SCHEMA_VERSION;
         
         // Support both old format (metrics) and new format (sub_scores + final_scores)
         if (parsed.sub_scores && parsed.final_scores) {
@@ -771,6 +800,9 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
         }
         
         if (metrics) {
+          if (parsed.delivery_metrics) {
+            metrics.delivery = parsed.delivery_metrics;
+          }
           // Remove the JSON block from the text response
           parsedText = text.replace(jsonMatch[0], '').trim();
         }
@@ -781,7 +813,10 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
     
     return {
       text: parsedText,
-      metrics: metrics
+      metrics: metrics,
+      rawMetrics: rawMetricsPayload,
+      metricsVersion,
+      modelVersion: modelName
     };
 };
 

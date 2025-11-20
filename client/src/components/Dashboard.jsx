@@ -32,6 +32,7 @@ import {
 import OnboardingQuestions from './OnboardingQuestions';
 import './Dashboard.css';
 import JourneySwitcher from './JourneySwitcher';
+import PracticeCommitmentAlert from './PracticeCommitmentAlert';
 function ExpandableDashboardText({ text, collapsedLines = 2 }) {
   const [expanded, setExpanded] = useState(false);
   if (!text) return null;
@@ -413,6 +414,9 @@ function ExpandableDashboardText({ text, collapsedLines = 2 }) {
         onSelectJourney={onSelectJourney}
         onAddJourney={onStartJourney ? () => setJourneyModalOpen(true) : undefined}
       />
+
+      {/* Practice Commitment Alert */}
+      <PracticeCommitmentAlert journeyId={activeJourneyId} />
 
       {/* Header */}
       <div className="dashboard__header">

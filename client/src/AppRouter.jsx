@@ -12,6 +12,11 @@ import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
 import Hero from './components/hero/Hero';
 import UpgradeModal from './components/UpgradeModal';
+import FeaturesSection from './components/homepage/FeaturesSection';
+import HowItWorksSection from './components/homepage/HowItWorksSection';
+import SocialProofSection from './components/homepage/SocialProofSection';
+import TrustSection from './components/homepage/TrustSection';
+import CTASection from './components/homepage/CTASection';
 import { SignInButton, SignedOut } from '@clerk/clerk-react';
 
 // Protected Route Component
@@ -230,6 +235,12 @@ export default function AppRouter() {
   }, [fetchJourneys]);
 
   useEffect(() => {
+    if (!journeysLoading && user?.id && journeys.length === 0 && location.pathname !== '/onboarding') {
+      navigate('/onboarding');
+    }
+  }, [journeysLoading, journeys.length, user?.id, navigate, location.pathname]);
+
+  useEffect(() => {
     if (!user?.id || hasCompletedAnalysis) return;
 
     const controller = new AbortController();
@@ -282,6 +293,12 @@ export default function AppRouter() {
       primaryGoal: answers?.primaryGoal || 'general',
       confidenceLevel: answers?.confidenceLevel || 'medium',
       goalSpecificContext: answers?.goalSpecificContext || {},
+      templateId: answers?.journeyTemplateId || answers?.templateId,
+      difficultyBaseline: answers?.difficultyBaseline || null,
+      commitmentLevel: answers?.commitmentLevel || answers?.practiceCommitment || null,
+      practiceCommitment: answers?.practiceCommitment || answers?.commitmentLevel || null,
+      consentVersion: answers?.consent?.version || null,
+      consentAcceptedAt: answers?.consent?.acceptedAt || null,
       setDefault: true
     };
 
@@ -346,6 +363,15 @@ export default function AppRouter() {
     try {
       const form = new FormData();
       form.append('video', file);
+      if (file?.bodaiMeta?.durationSeconds) {
+        form.append('video_duration_seconds', file.bodaiMeta.durationSeconds);
+      }
+      if (file?.bodaiMeta?.width) {
+        form.append('video_width', file.bodaiMeta.width);
+      }
+      if (file?.bodaiMeta?.height) {
+        form.append('video_height', file.bodaiMeta.height);
+      }
       if (options.recordingPrompt) {
         const prompt = options.recordingPrompt;
         if (prompt.id) form.append('recording_prompt_id', prompt.id);
@@ -452,49 +478,12 @@ export default function AppRouter() {
         <>
           <Header />
           <Hero />
-          <div className="container">
-            <header className="header" id="try">
-              <h1 className="title">Upload Your Video for Body Language Analysis</h1>
-              <p className="subtitle">Get AI-powered analysis and practical coaching tips.</p>
-            </header>
-            <SignedOut>
-              <div className="card">
-                <div className="welcomeOptions">
-                  <div className="welcomeOptions__header">
-                    <h2 className="welcomeOptions__title">Welcome to BodAI</h2>
-                    <p className="welcomeOptions__subtitle">
-                      Choose how you'd like to get started
-                    </p>
-                  </div>
-                  <div className="welcomeOptions__grid">
-                    <div className="welcomeOption">
-                      <div className="welcomeOption__icon">🎥</div>
-                      <h3 className="welcomeOption__title">Free Video Analysis</h3>
-                      <p className="welcomeOption__description">
-                        Upload a video and get instant AI-powered body language analysis with personalized feedback
-                      </p>
-                      <SignInButton mode="modal">
-                        <button className="btn btn--primary welcomeOption__button">
-                          Start Free Analysis
-                        </button>
-                      </SignInButton>
-                    </div>
-                    <div className="welcomeOption">
-                      <div className="welcomeOption__icon">📚</div>
-                      <h3 className="welcomeOption__title">Personalized Courses</h3>
-                      <p className="welcomeOption__description">
-                        Access structured courses tailored to your goals: interviews, presentations, confidence building, and more
-                      </p>
-                      <SignInButton mode="modal">
-                        <button className="btn btn--ghost welcomeOption__button">
-                          Explore Courses
-                        </button>
-                      </SignInButton>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </SignedOut>
+          <div id="try">
+            <FeaturesSection />
+            <HowItWorksSection />
+            <SocialProofSection />
+            <TrustSection />
+            <CTASection />
           </div>
         </>
       } />

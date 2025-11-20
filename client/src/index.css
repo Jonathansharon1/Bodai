@@ -21,6 +21,10 @@
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 html,
 body,
 #root {
@@ -370,13 +374,106 @@ a:hover {
   animation: fadeInUp 0.7s ease-out 0.2s both;
 }
 
+.hero__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50px;
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin-bottom: 24px;
+  animation: fadeInUp 0.7s ease-out 0.05s both;
+}
+
+.hero__badge svg {
+  color: rgba(255, 255, 255, 0.9);
+  flex-shrink: 0;
+}
+
 .hero__micro {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 14px;
   font-weight: 500;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 32px;
   animation: fadeInUp 0.7s ease-out 0.3s both;
+}
+
+.hero__benefits {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 40px;
+  padding-top: 32px;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  animation: fadeInUp 0.7s ease-out 0.4s both;
+}
+
+.hero__benefit {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 15px;
+  font-weight: 500;
+  padding: 12px 20px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.hero__benefit:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+}
+
+.hero__benefitIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.95);
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.hero__benefit:hover .hero__benefitIcon {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+@media (max-width: 768px) {
+  .hero__benefits {
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 32px;
+    padding-top: 24px;
+  }
+
+  .hero__benefit {
+    width: 100%;
+    justify-content: center;
+    padding: 14px 20px;
+  }
+
+  .hero__badge {
+    font-size: 13px;
+    padding: 8px 16px;
+  }
 }
 
 .hero__visual { display: none; }
@@ -611,6 +708,259 @@ a:hover {
   margin-bottom: 20px;
 }
 
+.onboardingQuestions__options--compact {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.onboardingQuestions__step--preview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 360px);
+  gap: 24px;
+  align-items: stretch;
+}
+
+.onboardingQuestions__customizer {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--border-light);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 8px 32px rgba(15, 18, 37, 0.05);
+}
+
+.onboardingQuestions__preview {
+  background: linear-gradient(180deg, rgba(15, 18, 37, 0.9), rgba(15, 18, 37, 0.8));
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 12px 32px rgba(7, 12, 30, 0.35);
+}
+
+.onboardingQuestions__consent {
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 16px 18px;
+  background: rgba(0, 78, 100, 0.02);
+  margin-top: 20px;
+}
+
+.onboardingQuestions__consent.error {
+  border-color: #f87171;
+  background: rgba(248, 113, 113, 0.08);
+}
+
+.onboardingQuestions__consent label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--text-dark);
+  font-weight: 500;
+}
+
+.onboardingQuestions__consent input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin-top: 4px;
+}
+
+.onboardingQuestions__consent ul {
+  margin: 12px 0 0 28px;
+  padding: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.onboardingQuestions__summaryRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.onboardingQuestions__summaryCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(0, 78, 100, 0.06);
+  color: var(--text-dark);
+}
+
+.onboardingQuestions__summaryCard svg {
+  color: var(--accent);
+}
+
+.journeyPreview {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  color: #f8fafc;
+  height: 100%;
+}
+
+.journeyPreview__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.journeyPreview__eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  margin: 0 0 6px;
+  color: rgba(248, 250, 252, 0.7);
+}
+
+.journeyPreview__title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.journeyPreview__subtitle {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: rgba(248, 250, 252, 0.75);
+}
+
+.journeyPreview__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(72, 221, 181, 0.15);
+  font-size: 12px;
+  font-weight: 600;
+  color: #48ddb5;
+}
+
+.journeyPreview__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.journeyPreview__panel {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.journeyPreview__panelHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(248, 250, 252, 0.7);
+  margin-bottom: 10px;
+}
+
+.journeyPreview__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.journeyPreview__chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.2);
+  font-size: 12px;
+  color: rgba(248, 250, 252, 0.85);
+}
+
+.journeyPreview__panelBody {
+  font-size: 13px;
+  color: rgba(248, 250, 252, 0.8);
+  line-height: 1.4;
+}
+
+.journeyPreview__timeline {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.journeyPreview__timeline li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  font-size: 13px;
+}
+
+.journeyPreview__timeline strong {
+  color: #f8fafc;
+  font-weight: 600;
+}
+
+.journeyPreview__timeline span {
+  color: rgba(248, 250, 252, 0.75);
+}
+
+.journeyPreview__footer {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+
+.journeyPreview__meta {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.journeyPreview__metaLabel {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(248, 250, 252, 0.6);
+}
+
+.journeyPreview__metaValue {
+  font-size: 14px;
+  color: rgba(248, 250, 252, 0.9);
+  line-height: 1.4;
+}
+
+.journeyPreview__meta--highlight {
+  flex-direction: row;
+  gap: 8px;
+  align-items: center;
+  color: #48ddb5;
+  border-color: rgba(72, 221, 181, 0.35);
+}
+
+@media (max-width: 900px) {
+  .onboardingQuestions__step--preview {
+    grid-template-columns: 1fr;
+  }
+
+  .onboardingQuestions__preview {
+    order: -1;
+  }
+}
+
 .onboardingQuestions__option {
   display: flex;
   align-items: flex-start;
@@ -654,6 +1004,19 @@ a:hover {
 .onboardingQuestions__option:hover .onboardingQuestions__icon {
   color: var(--accent-secondary);
   transform: scale(1.1);
+}
+
+.onboardingQuestions__icon--compact {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.onboardingQuestions__optionBody {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .onboardingQuestions__option.active .onboardingQuestions__icon {

@@ -1,0 +1,197 @@
+.socialProofSection {
+  padding: 80px 24px;
+  background: var(--bg-800);
+  position: relative;
+}
+
+.socialProofSection__container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.socialProofSection__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 48px;
+  margin-bottom: 80px;
+}
+
+.socialProofSection__stat {
+  text-align: center;
+  opacity: 0;
+  transform: translateY(30px);
+  animation: fadeInUp 0.6s ease-out var(--delay, 0s) forwards;
+}
+
+.socialProofSection--visible .socialProofSection__stat {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.socialProofSection__statIcon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--icon-color, var(--accent)) 0%, rgba(70, 181, 209, 0.8) 100%);
+  border-radius: 16px;
+  color: #ffffff;
+  transition: transform 0.3s ease;
+}
+
+.socialProofSection__stat:hover .socialProofSection__statIcon {
+  transform: scale(1.1) rotate(5deg);
+}
+
+.socialProofSection__statValue {
+  font-size: clamp(40px, 5vw, 56px);
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text-dark);
+  margin-bottom: 12px;
+  font-family: var(--font-mono);
+  letter-spacing: -0.02em;
+}
+
+.socialProofSection__statLabel {
+  font-size: 16px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  max-width: 240px;
+  margin: 0 auto;
+}
+
+.socialProofSection__testimonials {
+  margin-top: 80px;
+}
+
+.socialProofSection__testimonialsHeader {
+  text-align: center;
+  margin-bottom: 48px;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+}
+
+.socialProofSection--visible .socialProofSection__testimonialsHeader {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.socialProofSection__quoteIcon {
+  color: var(--accent-secondary);
+  margin-bottom: 16px;
+  opacity: 0.6;
+}
+
+.socialProofSection__testimonialsTitle {
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0;
+  color: var(--text-dark);
+  font-family: var(--font-display);
+}
+
+.socialProofSection__testimonialsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 32px;
+}
+
+.socialProofSection__testimonial {
+  background: var(--surface);
+  border: 2px solid rgba(0, 78, 100, 0.08);
+  border-radius: 20px;
+  padding: 32px;
+  position: relative;
+  opacity: 0;
+  transform: translateY(30px);
+  animation: fadeInUp 0.6s ease-out var(--delay, 0s) forwards;
+  transition: all 0.3s ease;
+}
+
+.socialProofSection--visible .socialProofSection__testimonial {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.socialProofSection__testimonial:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent-secondary);
+  box-shadow: 0 12px 32px rgba(0, 78, 100, 0.12);
+}
+
+.socialProofSection__testimonialQuote {
+  color: var(--accent-secondary);
+  opacity: 0.3;
+  margin-bottom: 16px;
+  position: absolute;
+  top: 24px;
+  right: 24px;
+}
+
+.socialProofSection__testimonialText {
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--text-dark);
+  margin: 0 0 24px 0;
+  font-style: italic;
+}
+
+.socialProofSection__testimonialAuthor {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0, 78, 100, 0.08);
+}
+
+.socialProofSection__testimonialAuthor strong {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+.socialProofSection__testimonialAuthor span {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .socialProofSection {
+    padding: 60px 20px;
+  }
+
+  .socialProofSection__stats {
+    gap: 32px;
+    margin-bottom: 60px;
+  }
+
+  .socialProofSection__testimonials {
+    margin-top: 60px;
+  }
+
+  .socialProofSection__testimonialsGrid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .socialProofSection__testimonial {
+    padding: 24px;
+  }
+}
+

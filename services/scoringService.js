@@ -3,6 +3,8 @@
  * Handles all scoring logic: normalization, baseline comparison, anti-jump validation, etc.
  */
 
+export const METRICS_PROCESSOR_VERSION = 'processor.v2025.01';
+
 import {
   DEFAULT_WEIGHTS,
   getWeightsForGoal,
@@ -392,7 +394,8 @@ export const processAnalysisMetrics = ({
     categoryScores,
     overallScore,
     stageTitle,
-    validationResults
+    validationResults,
+    processingVersion: METRICS_PROCESSOR_VERSION
   };
 };
 

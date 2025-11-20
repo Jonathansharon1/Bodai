@@ -1,10 +1,67 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 
+const MAX_UPLOAD_MB = 250;
+
+const extractVideoMetadata = (file) => {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.src = url;
+    video.onloadedmetadata = () => {
+      const metadata = {
+        durationSeconds: Number.isFinite(video.duration) ? video.duration : null,
+        width: video.videoWidth || null,
+        height: video.videoHeight || null
+      };
+      URL.revokeObjectURL(url);
+      resolve(metadata);
+    };
+    video.onerror = (err) => {
+      URL.revokeObjectURL(url);
+      reject(err);
+    };
+  });
+};
+
 export default function UploadVideo({ file, onSelect, onClear }) {
   const inputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  const attachMetadataAndSelect = useCallback(async (selectedFile) => {
+    if (!selectedFile) {
+      onSelect(null);
+      return;
+    }
+    try {
+      const metadata = await extractVideoMetadata(selectedFile);
+      selectedFile.bodaiMeta = {
+        durationSeconds: metadata.durationSeconds ? Math.round(metadata.durationSeconds) : null,
+        width: metadata.width,
+        height: metadata.height
+      };
+    } catch (err) {
+      console.warn('Failed to read video metadata:', err);
+      selectedFile.bodaiMeta = null;
+    }
+    if (!mountedRef.current) return;
+    onSelect(selectedFile);
+    setShowSuccess(true);
+    setTimeout(() => {
+      if (mountedRef.current) {
+        setShowSuccess(false);
+      }
+    }, 3000);
+  }, [onSelect]);
 
   const onPick = (e) => {
     if (e) {
@@ -16,17 +73,10 @@ export default function UploadVideo({ file, onSelect, onClear }) {
   const onChange = (e) => {
     const f = e.target.files?.[0];
     if (f) {
-      onSelect(f);
-      // Show success message
-      setShowSuccess(true);
-      // Hide after 3 seconds
-      setTimeout(() => {
-        setShowSuccess(false);
-      }, 3000);
+      attachMetadataAndSelect(f);
     } else {
       onSelect(null);
     }
-    // Reset input value so the same file can be selected again
     if (inputRef.current) {
       inputRef.current.value = '';
     }
@@ -52,15 +102,9 @@ export default function UploadVideo({ file, onSelect, onClear }) {
     if (!dt || !dt.files || dt.files.length === 0) return;
     const f = dt.files[0];
     if (f && f.type?.startsWith('video/')) {
-      onSelect(f);
-      // Show success message
-      setShowSuccess(true);
-      // Hide after 3 seconds
-      setTimeout(() => {
-        setShowSuccess(false);
-      }, 3000);
+      attachMetadataAndSelect(f);
     }
-  }, [onSelect]);
+  }, [attachMetadataAndSelect]);
 
   // Hide success message when file is removed
   useEffect(() => {
@@ -107,7 +151,7 @@ export default function UploadVideo({ file, onSelect, onClear }) {
         >
           Upload Video
         </button>
-        <div className="dropZone__meta">Accepted: MP4, MOV, WebM · Max 200MB</div>
+        <div className="dropZone__meta">Accepted: MP4, MOV, WebM · Max {MAX_UPLOAD_MB}MB</div>
       </div>
 
       <div className="uploadRow" style={{ marginBottom: 12 }}>

@@ -30,19 +30,42 @@ import {
   saveActionItems,
   getUserActionItems,
   updateActionItemStatus,
+  saveSelfReflection,
+  getSelfReflections,
+  getReflectionForAnalysis,
   getUserJourneys,
   createUserJourney,
   updateUserJourney,
   getJourneyForUser,
-  getDefaultJourneyForUser
+  getDefaultJourneyForUser,
+  findAnalysisByVideoHash,
+  deleteAnalysisForUser,
+  checkPracticeCommitmentStatus,
+  getWeeklyPracticeCount
 } from './services/supabaseService.js';
-import { processAnalysisMetrics } from './services/scoringService.js';
+import { processAnalysisMetrics, METRICS_PROCESSOR_VERSION } from './services/scoringService.js';
 import { uploadVideoToS3, getVideoUrl } from './services/s3Service.js';
 import { parseActionItems } from './services/parseActionItems.js';
 import { buildAnalysisCacheKey, getCachedAnalysis, setCachedAnalysis } from './services/analysisCache.js';
+import { notifyAnalysisGate, notifyJourneyEnrollment, notifyAnalysisStored } from './services/notificationService.js';
 
 const app = express();
 const port = process.env.PORT || 5000;
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-pro';
+const MAX_VIDEO_SIZE_MB = Number(process.env.MAX_VIDEO_SIZE_MB || 250);
+const MAX_VIDEO_SIZE_BYTES = MAX_VIDEO_SIZE_MB * 1024 * 1024;
+const MIN_VIDEO_DURATION_SECONDS = Number(process.env.MIN_VIDEO_DURATION_SECONDS || 20);
+const MAX_VIDEO_DURATION_SECONDS = Number(process.env.MAX_VIDEO_DURATION_SECONDS || 600);
+const METRICS_VERSION = process.env.METRICS_VERSION || 'metrics.v2025.01';
+
+const logAnalysisGate = (reason, details = {}) => {
+  const payload = {
+    ...details,
+    timestamp: new Date().toISOString()
+  };
+  console.warn(`[ANALYSIS_GATE][${reason}]`, payload);
+  notifyAnalysisGate(reason, payload).catch(() => {});
+};
 
 // CORS for development: allows the React dev server (port 3000) to call this API.
 // Change CLIENT_ORIGIN in .env if your frontend runs elsewhere.
@@ -56,7 +79,7 @@ app.use(cors({
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 200 * 1024 * 1024, // 200MB max, adjust as needed
+    fileSize: MAX_VIDEO_SIZE_BYTES,
   },
 });
 
@@ -91,6 +114,14 @@ const formatISODate = (value) => {
   }
 };
 
+const parseNumber = (value) => {
+  if (value === undefined || value === null || value === '') {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
 const computeTrendDeltas = (metrics = []) => {
   if (!Array.isArray(metrics) || metrics.length < 2) return null;
   const first = metrics[0];
@@ -116,6 +147,24 @@ const computeTrendDeltas = (metrics = []) => {
     }
   });
   return Object.keys(deltas).length ? deltas : null;
+};
+
+const CORE_METRIC_KEYS = ['presence', 'voice_expression', 'clarity', 'authenticity', 'impact', 'confidence'];
+
+const determineWeakestMetricKey = (metricPayload = {}) => {
+  const values = CORE_METRIC_KEYS
+    .map((key) => {
+      const value = parseFloat(metricPayload[key]);
+      return { key, value };
+    })
+    .filter((entry) => Number.isFinite(entry.value));
+
+  if (!values.length) {
+    return 'overall';
+  }
+
+  values.sort((a, b) => a.value - b.value);
+  return values[0].key;
 };
 
 const extractBaselineSummary = (baseline) => {
@@ -258,15 +307,70 @@ app.post('/api/analyze-video', upload.single('video'), async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ error: 'No video file uploaded' });
     }
+
+  const fileSizeBytes = req.file.size || 0;
+  if (fileSizeBytes > MAX_VIDEO_SIZE_BYTES) {
+    logAnalysisGate('video_too_large', {
+      clerkUserId: req.headers['x-clerk-user-id'] || null,
+      sizeMB: Number((fileSizeBytes / 1024 / 1024).toFixed(2)),
+      limitMB: MAX_VIDEO_SIZE_MB
+    });
+    return res.status(400).json({
+      error: `Video is too large. Please keep uploads under ${MAX_VIDEO_SIZE_MB}MB.`,
+      reason: 'video_too_large'
+    });
+  }
     
     const videoBuffer = req.file.buffer; // Node.js Buffer holding the video bytes
     const mimeType = req.file.mimetype;  // e.g., 'video/mp4'
     const clerkUserId = getClerkUserId(req);
+  const durationSeconds = parseNumber(req.body?.video_duration_seconds ?? req.body?.videoDurationSeconds);
+  const videoWidth = parseNumber(req.body?.video_width ?? req.body?.videoWidth);
+  const videoHeight = parseNumber(req.body?.video_height ?? req.body?.videoHeight);
+
+  if (!durationSeconds || durationSeconds <= 0) {
+    logAnalysisGate('missing_duration_meta', {
+      clerkUserId,
+      provided: req.body?.video_duration_seconds ?? req.body?.videoDurationSeconds
+    });
+    return res.status(400).json({
+      error: 'We could not read your video duration. Please re-upload the clip using the latest app.',
+      reason: 'invalid_duration_metadata'
+    });
+  }
+
+  if (durationSeconds < MIN_VIDEO_DURATION_SECONDS) {
+    logAnalysisGate('video_too_short', {
+      clerkUserId,
+      durationSeconds,
+      minSeconds: MIN_VIDEO_DURATION_SECONDS
+    });
+    return res.status(400).json({
+      error: `Video is too short. Record at least ${MIN_VIDEO_DURATION_SECONDS} seconds to capture usable signal.`,
+      reason: 'video_too_short'
+    });
+  }
+
+  if (durationSeconds > MAX_VIDEO_DURATION_SECONDS) {
+    logAnalysisGate('video_too_long', {
+      clerkUserId,
+      durationSeconds,
+      maxSeconds: MAX_VIDEO_DURATION_SECONDS
+    });
+    return res.status(400).json({
+      error: `Video is too long. Keep practice reps under ${MAX_VIDEO_DURATION_SECONDS / 60} minutes.`,
+      reason: 'video_too_long'
+    });
+  }
 
     // Check if user can upload analysis (subscription limits)
     if (clerkUserId) {
       const canUpload = await canUserUploadAnalysis(clerkUserId);
       if (!canUpload.allowed) {
+        logAnalysisGate('subscription_blocked', {
+          clerkUserId,
+          reason: canUpload.reason
+        });
         return res.status(403).json({ 
           error: canUpload.message || 'Upload not allowed',
           reason: canUpload.reason,
@@ -327,6 +431,31 @@ app.post('/api/analyze-video', upload.single('video'), async (req, res) => {
     });
     const contextHash = crypto.createHash('sha1').update(contextHashSource).digest('hex');
     const cacheKey = buildAnalysisCacheKey({ videoHash, contextHash });
+    const normalizedVideoMeta = {
+      durationSeconds,
+      width: videoWidth ? Math.round(videoWidth) : null,
+      height: videoHeight ? Math.round(videoHeight) : null
+    };
+
+    if (clerkUserId) {
+      try {
+        const duplicateAnalysis = await findAnalysisByVideoHash(clerkUserId, videoHash);
+        if (duplicateAnalysis) {
+          logAnalysisGate('duplicate_video', {
+            clerkUserId,
+            analysisId: duplicateAnalysis.id,
+            videoHash
+          });
+          return res.status(409).json({
+            error: 'Looks like this exact clip was already analyzed. Record a fresh take to unlock new insights.',
+            reason: 'duplicate_video',
+            analysisId: duplicateAnalysis.id
+          });
+        }
+      } catch (dupError) {
+        console.warn('Duplicate hash check failed, continuing:', dupError);
+      }
+    }
 
     // Get or create user first (required for saving analysis)
     let userId = null;
@@ -411,6 +540,7 @@ app.post('/api/analyze-video', upload.single('video'), async (req, res) => {
     if (!analysisResult) {
       analysisResult = await analyzeBodyLanguage(videoBuffer, mimeType, { 
         userContext,
+        model: GEMINI_MODEL,
         generationConfig: {
           temperature: 0.15,
           topP: 0.2,
@@ -450,6 +580,13 @@ app.post('/api/analyze-video', upload.single('video'), async (req, res) => {
           s3Key: s3Key, // Store S3 key in database (can be null if S3 not configured)
           userContext: userContext,
           analysisResult: resultMarkdown,
+          videoHash,
+          videoDurationSeconds: normalizedVideoMeta.durationSeconds,
+          videoWidth: normalizedVideoMeta.width,
+          videoHeight: normalizedVideoMeta.height,
+          aiModelVersion: analysisResult.modelVersion || GEMINI_MODEL,
+          metricsVersion: analysisResult.metricsVersion || METRICS_VERSION,
+          rawMetrics: analysisResult.rawMetrics || null,
           recordingPrompt: recordingPromptPayload,
           journeyId: journeyId
         });
@@ -463,6 +600,12 @@ app.post('/api/analyze-video', upload.single('video'), async (req, res) => {
         if (saved) {
           analysisId = saved.id;
           console.log(`Analysis saved successfully with ID: ${analysisId}`);
+          notifyAnalysisStored({
+            clerkUserId,
+            analysisId,
+            metricsVersion: analysisResult.metricsVersion || METRICS_VERSION,
+            aiModelVersion: analysisResult.modelVersion || GEMINI_MODEL
+          }).catch(() => {});
           
           // Process and save communication metrics if available
           if (metrics) {
@@ -504,6 +647,9 @@ app.post('/api/analyze-video', upload.single('video'), async (req, res) => {
                   .catch(err => console.error('Failed to update journey activity timestamp:', err));
               }
               
+              const modelVersion = analysisResult.modelVersion || GEMINI_MODEL;
+              const processorVersion = processedMetrics?.processingVersion || METRICS_PROCESSOR_VERSION;
+              
               // Prepare metrics for saving
               const metricsToSave = processedMetrics ? {
                 // Use processed scores
@@ -517,7 +663,10 @@ app.post('/api/analyze-video', upload.single('video'), async (req, res) => {
                 stage_title: processedMetrics.stageTitle,
                 subScores: processedMetrics.subScores,
                 subScoreEvidence: metrics.validation || {},
-                validationMetadata: processedMetrics.validationResults || {}
+                validationMetadata: processedMetrics.validationResults || {},
+                delivery: metrics.delivery || null,
+                modelVersion,
+                processorVersion
               } : {
                 // Fall back to LLM's scores (backward compatibility)
                 presence: metrics.presence,
@@ -530,8 +679,12 @@ app.post('/api/analyze-video', upload.single('video'), async (req, res) => {
                 stage_title: metrics.stage_title,
                 subScores: metrics.subScores || null,
                 subScoreEvidence: metrics.validation || null,
-                validationMetadata: null
+                validationMetadata: null,
+                delivery: metrics.delivery || null,
+                modelVersion,
+                processorVersion: METRICS_PROCESSOR_VERSION
               };
+              const focusMetricKey = determineWeakestMetricKey(metricsToSave);
               
               // Save metrics
               await saveCommunicationMetrics(userId, analysisId, metricsToSave, journeyId);
@@ -554,7 +707,8 @@ app.post('/api/analyze-video', upload.single('video'), async (req, res) => {
                       userContext, 
                       journeyId,
                       maxActionItems: 1,
-                      generatePracticePrompts: true
+                      generatePracticePrompts: true,
+                      focusMetricKey
                     });
                     console.log(`Saved ${savedActionItems.length} action items to database`);
                     if (savedActionItems.length === 0 && actionItems.length > 0) {
@@ -705,6 +859,41 @@ app.get('/api/analyses', async (req, res) => {
   }
 });
 
+// Get practice commitment status
+app.get('/api/practice-commitment/status', async (req, res) => {
+  try {
+    const clerkUserId = getClerkUserId(req);
+    if (!clerkUserId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const journeyId = req.query.journeyId || null;
+    const status = await checkPracticeCommitmentStatus(clerkUserId, journeyId);
+    return res.json(status);
+  } catch (err) {
+    console.error('Error checking practice commitment status:', err);
+    return res.status(500).json({ error: 'Failed to check practice commitment status' });
+  }
+});
+
+app.delete('/api/analyses/:id', async (req, res) => {
+  try {
+    const clerkUserId = getClerkUserId(req);
+    if (!clerkUserId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+    const analysisId = req.params.id;
+    const deleted = await deleteAnalysisForUser(clerkUserId, analysisId);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Analysis not found' });
+    }
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('Error deleting analysis:', err);
+    return res.status(500).json({ error: 'Failed to delete analysis' });
+  }
+});
+
 // Get single analysis by ID
 app.get('/api/analyses/:id', async (req, res) => {
   try {
@@ -780,12 +969,7 @@ app.post('/api/user/onboarding', async (req, res) => {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    const { primaryGoal, confidenceLevel, goalSpecificContext } = req.body;
-    await saveOnboardingAnswers(clerkUserId, { 
-      primaryGoal, 
-      confidenceLevel,
-      goalSpecificContext 
-    });
+    await saveOnboardingAnswers(clerkUserId, req.body || {});
     
     return res.json({ success: true });
   } catch (err) {
@@ -822,7 +1006,13 @@ app.post('/api/journeys', async (req, res) => {
       confidenceLevel,
       goalSpecificContext,
       displayName,
-      setDefault = true
+      setDefault = true,
+      templateId,
+      difficultyBaseline,
+      commitmentLevel,
+      practiceCommitment,
+      consentVersion,
+      consentAcceptedAt
     } = req.body || {};
 
     if (!primaryGoal) {
@@ -834,9 +1024,21 @@ app.post('/api/journeys', async (req, res) => {
       confidenceLevel,
       goalSpecificContext,
       displayName,
+      templateId,
+      difficultyBaseline,
+      commitmentLevel,
+      practiceCommitment,
+      consentVersion,
+      consentAcceptedAt,
       isDefault: setDefault,
       startedFrom: 'dashboard'
     });
+
+    notifyJourneyEnrollment({
+      clerkUserId,
+      journey,
+      templateId
+    }).catch(() => {});
 
     return res.json({ journey });
   } catch (err) {
@@ -872,6 +1074,24 @@ app.patch('/api/journeys/:id', async (req, res) => {
     if (req.body?.goalSpecificContext) {
       updates.goalSpecificContext = req.body.goalSpecificContext;
     }
+  if (req.body?.templateId) {
+    updates.templateId = req.body.templateId;
+  }
+  if (req.body?.difficultyBaseline) {
+    updates.difficultyBaseline = req.body.difficultyBaseline;
+  }
+  if (req.body?.commitmentLevel) {
+    updates.commitmentLevel = req.body.commitmentLevel;
+  }
+  if (req.body?.practiceCommitment) {
+    updates.practiceCommitment = req.body.practiceCommitment;
+  }
+  if (req.body?.consentVersion) {
+    updates.consentVersion = req.body.consentVersion;
+  }
+  if (req.body?.consentAcceptedAt) {
+    updates.consentAcceptedAt = req.body.consentAcceptedAt;
+  }
 
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'No updates provided' });
@@ -1058,6 +1278,61 @@ app.patch('/api/action-items/:id/status', async (req, res) => {
   } catch (err) {
     console.error('Error updating action item status:', err);
     return res.status(500).json({ error: 'Failed to update action item status' });
+  }
+});
+
+app.post('/api/reflections', async (req, res) => {
+  try {
+    const clerkUserId = getClerkUserId(req);
+    if (!clerkUserId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const { confidenceRating, mood, notes, analysisId, journeyId } = req.body || {};
+    if (!confidenceRating || Number.isNaN(Number(confidenceRating))) {
+      return res.status(400).json({ error: 'confidenceRating (1-5) is required' });
+    }
+
+    const payload = await saveSelfReflection(clerkUserId, {
+      confidenceRating: Math.max(1, Math.min(5, Number(confidenceRating))),
+      mood,
+      notes,
+      analysisId,
+      journeyId
+    });
+
+    if (!payload) {
+      return res.status(500).json({ error: 'Failed to save reflection' });
+    }
+
+    return res.json({ reflection: payload });
+  } catch (err) {
+    console.error('Error saving reflection:', err);
+    return res.status(500).json({ error: 'Failed to save reflection' });
+  }
+});
+
+app.get('/api/reflections', async (req, res) => {
+  try {
+    const clerkUserId = getClerkUserId(req);
+    if (!clerkUserId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const { analysisId } = req.query;
+    const journeyId = req.query.journeyId || null;
+    const limit = parseInt(req.query.limit) || 20;
+
+    if (analysisId) {
+      const reflection = await getReflectionForAnalysis(clerkUserId, analysisId);
+      return res.json({ reflection });
+    }
+
+    const reflections = await getSelfReflections(clerkUserId, limit, journeyId);
+    return res.json({ reflections });
+  } catch (err) {
+    console.error('Error fetching reflections:', err);
+    return res.status(500).json({ error: 'Failed to fetch reflections' });
   }
 });
 

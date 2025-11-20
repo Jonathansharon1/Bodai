@@ -92,6 +92,10 @@ const GOAL_LABELS = {
 
 const buildJourneyPayload = (userId, journeyData = {}) => {
   const focusSlug = journeyData.focusSlug || journeyData.primaryGoal || 'general';
+  const consentVersion = journeyData.consentVersion || journeyData.consent?.version || null;
+  const consentAcceptedAt = journeyData.consentAcceptedAt || journeyData.consent?.acceptedAt || null;
+  const commitmentLevel = journeyData.commitmentLevel || journeyData.practiceCommitment || null;
+
   return {
     user_id: userId,
     focus_slug: focusSlug,
@@ -99,11 +103,29 @@ const buildJourneyPayload = (userId, journeyData = {}) => {
     display_name: journeyData.displayName || null,
     confidence_level: journeyData.confidenceLevel || journeyData.confidence || 'medium',
     goal_context: journeyData.goalSpecificContext || journeyData.goalContext || null,
+    template_id: journeyData.templateId || journeyData.template_id || null,
+    difficulty_baseline: journeyData.difficultyBaseline || journeyData.difficulty_baseline || null,
+    commitment_level: commitmentLevel,
+    practice_commitment: journeyData.practiceCommitment || journeyData.practice_commitment || commitmentLevel,
+    consent_version: consentVersion,
+    consent_accepted_at: consentAcceptedAt,
     status: journeyData.status || 'active',
     is_default: journeyData.isDefault || false,
     started_from: journeyData.startedFrom || 'dashboard',
     last_active_at: journeyData.lastActiveAt || new Date().toISOString()
   };
+};
+
+const coerceNumber = (value) => {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const coerceInteger = (value) => {
+  const parsed = coerceNumber(value);
+  if (parsed === null) return null;
+  return Math.round(parsed);
 };
 
 export const getUserJourneys = async (clerkUserId) => {
@@ -220,6 +242,36 @@ export const updateUserJourney = async (clerkUserId, journeyId, updates = {}) =>
     delete updatePayload.confidenceLevel;
   }
 
+  if (updates.templateId) {
+    updatePayload.template_id = updates.templateId;
+    delete updatePayload.templateId;
+  }
+
+  if (updates.difficultyBaseline) {
+    updatePayload.difficulty_baseline = updates.difficultyBaseline;
+    delete updatePayload.difficultyBaseline;
+  }
+
+  if (updates.commitmentLevel) {
+    updatePayload.commitment_level = updates.commitmentLevel;
+    delete updatePayload.commitmentLevel;
+  }
+
+  if (updates.practiceCommitment) {
+    updatePayload.practice_commitment = updates.practiceCommitment;
+    delete updatePayload.practiceCommitment;
+  }
+
+  if (updates.consentVersion) {
+    updatePayload.consent_version = updates.consentVersion;
+    delete updatePayload.consentVersion;
+  }
+
+  if (updates.consentAcceptedAt) {
+    updatePayload.consent_accepted_at = updates.consentAcceptedAt;
+    delete updatePayload.consentAcceptedAt;
+  }
+
   if (updates.is_default === true) {
     await supabase
       .from('user_journeys')
@@ -263,7 +315,13 @@ export const ensureDefaultJourney = async (clerkUserId, journeyData = {}) => {
       focusSlug: journeyData.primaryGoal || journeyData.focusSlug || existingDefault.focus_slug,
       focusLabel: journeyData.focusLabel,
       confidenceLevel: journeyData.confidenceLevel || existingDefault.confidence_level,
-      goalSpecificContext: journeyData.goalSpecificContext || existingDefault.goal_context
+      goalSpecificContext: journeyData.goalSpecificContext || existingDefault.goal_context,
+      templateId: journeyData.templateId || existingDefault.template_id,
+      difficultyBaseline: journeyData.difficultyBaseline || existingDefault.difficulty_baseline,
+      commitmentLevel: journeyData.commitmentLevel || existingDefault.commitment_level,
+      practiceCommitment: journeyData.practiceCommitment || existingDefault.practice_commitment,
+      consentVersion: journeyData.consentVersion || existingDefault.consent_version,
+      consentAcceptedAt: journeyData.consentAcceptedAt || existingDefault.consent_accepted_at
     });
     return updated || existingDefault;
   }
@@ -462,6 +520,14 @@ export const saveOnboardingAnswers = async (clerkUserId, answers) => {
     onboarding_completed_at: new Date().toISOString()
   };
 
+  if (answers?.consent?.version) {
+    updateData.consent_version = answers.consent.version;
+  }
+
+  if (answers?.consent?.acceptedAt) {
+    updateData.consent_accepted_at = answers.consent.acceptedAt;
+  }
+
   // Add goal-specific context if provided (store as JSONB)
   if (answers.goalSpecificContext) {
     updateData.goal_specific_context = answers.goalSpecificContext;
@@ -503,18 +569,18 @@ export const getUserWithOnboarding = async (clerkUserId) => {
   }
 
   // Try to fetch with goal_specific_context first
-  let { data, error } = await supabase
-    .from('users')
-    .select('id, primary_goal, confidence_level, goal_specific_context, onboarding_completed_at, subscription_type, subscription_status, free_analysis_used')
-    .eq('clerk_user_id', clerkUserId)
-    .single();
+let { data, error } = await supabase
+  .from('users')
+  .select('id, primary_goal, confidence_level, goal_specific_context, onboarding_completed_at, subscription_type, subscription_status, free_analysis_used, consent_version, consent_accepted_at')
+  .eq('clerk_user_id', clerkUserId)
+  .single();
 
   // If column doesn't exist, retry without it
   if (error && error.code === '42703' && error.message?.includes('goal_specific_context')) {
     console.warn('goal_specific_context column does not exist, fetching without it. Please run migration.');
     const retryResult = await supabase
       .from('users')
-      .select('id, primary_goal, confidence_level, onboarding_completed_at, subscription_type, subscription_status, free_analysis_used')
+      .select('id, primary_goal, confidence_level, onboarding_completed_at, subscription_type, subscription_status, free_analysis_used, consent_version, consent_accepted_at')
       .eq('clerk_user_id', clerkUserId)
       .single();
     
@@ -564,6 +630,34 @@ export const saveAnalysis = async (userId, analysisData) => {
     insertData.journey_id = analysisData.journeyId;
   }
 
+if (analysisData.videoHash) {
+  insertData.video_hash = analysisData.videoHash;
+}
+
+if (analysisData.videoDurationSeconds !== undefined) {
+  insertData.video_duration_seconds = analysisData.videoDurationSeconds;
+}
+
+if (analysisData.videoWidth !== undefined) {
+  insertData.video_width = analysisData.videoWidth;
+}
+
+if (analysisData.videoHeight !== undefined) {
+  insertData.video_height = analysisData.videoHeight;
+}
+
+if (analysisData.aiModelVersion) {
+  insertData.ai_model_version = analysisData.aiModelVersion;
+}
+
+if (analysisData.metricsVersion) {
+  insertData.metrics_version = analysisData.metricsVersion;
+}
+
+if (analysisData.rawMetrics) {
+  insertData.raw_metrics = analysisData.rawMetrics;
+}
+
   if (analysisData.recordingPrompt) {
     insertData.recording_prompt_id = analysisData.recordingPrompt.id || null;
     insertData.recording_prompt_title = analysisData.recordingPrompt.title || null;
@@ -586,7 +680,14 @@ export const saveAnalysis = async (userId, analysisData) => {
     'recording_prompt_description',
     'recording_prompt_target_metric',
     'recording_action_item_id',
-    's3_key'
+    's3_key',
+    'video_hash',
+    'video_duration_seconds',
+    'video_width',
+    'video_height',
+    'ai_model_version',
+    'metrics_version',
+    'raw_metrics'
   ];
 
   let attemptData = { ...insertData };
@@ -683,6 +784,30 @@ export const getAnalysisById = async (analysisId, clerkUserId) => {
   return data;
 };
 
+export const findAnalysisByVideoHash = async (clerkUserId, videoHash) => {
+  if (!supabase || !clerkUserId || !videoHash) {
+    return null;
+  }
+
+  const userId = await getOrCreateUser(clerkUserId);
+
+  const { data, error } = await supabase
+    .from('analyses')
+    .select('id, created_at, video_filename')
+    .eq('user_id', userId)
+    .eq('video_hash', videoHash)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error && error.code !== 'PGRST116') {
+    console.error('Error checking duplicate video hash:', error);
+    return null;
+  }
+
+  return data || null;
+};
+
 /**
  * Save communication metrics for an analysis (with sub-metrics)
  */
@@ -710,6 +835,14 @@ export const saveCommunicationMetrics = async (userId, analysisId, metrics, jour
     sub_score_evidence: metrics.subScoreEvidence || null,
     validation_metadata: metrics.validationMetadata || null
   };
+
+  if (metrics.modelVersion) {
+    insertData.model_version = metrics.modelVersion;
+  }
+
+  if (metrics.processorVersion) {
+    insertData.processor_version = metrics.processorVersion;
+  }
 
   // Add sub-metrics if provided
   if (metrics.subScores) {
@@ -766,6 +899,34 @@ export const saveCommunicationMetrics = async (userId, analysisId, metrics, jour
 
   if (journeyId) {
     insertData.journey_id = journeyId;
+  }
+
+  if (metrics.delivery) {
+    const delivery = metrics.delivery;
+    const speakingRate = coerceNumber(
+      delivery.speaking_rate_wpm ??
+      delivery.speakingRate ??
+      delivery.speaking_rate
+    );
+    if (speakingRate !== null) {
+      insertData.speaking_rate_wpm = Math.round(speakingRate);
+    }
+    const fillerWords = coerceInteger(
+      delivery.filler_word_count ??
+      delivery.fillerCount ??
+      delivery.filler_words
+    );
+    if (fillerWords !== null) {
+      insertData.filler_word_count = fillerWords;
+    }
+    const sentiment = delivery.sentiment_label || delivery.sentiment || null;
+    if (sentiment) {
+      insertData.sentiment_label = sentiment;
+    }
+    const posture = delivery.posture_flag || delivery.posture || null;
+    if (posture) {
+      insertData.posture_flag = posture;
+    }
   }
 
   const { data, error } = await supabase
@@ -882,6 +1043,7 @@ export const saveActionItems = async (userId, analysisId, actionItems, options =
     }
 
     const inferredMetric = inferTargetMetricFromTitle(title);
+    const targetMetric = options.focusMetricKey || inferredMetric;
 
     const insertPayload = {
       user_id: userId,
@@ -894,7 +1056,7 @@ export const saveActionItems = async (userId, analysisId, actionItems, options =
       practice_prompt_setup: null,
       practice_prompt_notice: null,
       practice_prompt_tip: null,
-      practice_prompt_target_metric: inferredMetric,
+      practice_prompt_target_metric: targetMetric,
       practice_prompt_difficulty: null,
       practice_prompt_time: null,
       practice_prompt_version: null,
@@ -967,7 +1129,7 @@ export const saveActionItems = async (userId, analysisId, actionItems, options =
           title,
           details,
           userContext: options.userContext || null,
-          targetMetric: inferredMetric
+          targetMetric
         });
       }
     } else {
@@ -1151,6 +1313,85 @@ export const getUserActionItems = async (clerkUserId, status = null, journeyId =
   return data || [];
 };
 
+export const saveSelfReflection = async (clerkUserId, reflection = {}) => {
+  if (!supabase || !clerkUserId) {
+    return null;
+  }
+
+  const userId = await getOrCreateUser(clerkUserId);
+  const insertPayload = {
+    user_id: userId,
+    confidence_rating: reflection.confidenceRating || reflection.confidence_rating || null,
+    mood_label: reflection.mood || reflection.mood_label || null,
+    notes: reflection.notes || null,
+    analysis_id: reflection.analysisId || reflection.analysis_id || null,
+    journey_id: reflection.journeyId || reflection.journey_id || null
+  };
+
+  const { data, error } = await supabase
+    .from('self_reflections')
+    .insert(insertPayload)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error saving self reflection:', error);
+    return null;
+  }
+
+  return data;
+};
+
+export const getSelfReflections = async (clerkUserId, limit = 20, journeyId = null) => {
+  if (!supabase || !clerkUserId) {
+    return [];
+  }
+
+  const userId = await getOrCreateUser(clerkUserId);
+  let query = supabase
+    .from('self_reflections')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (journeyId) {
+    query = query.eq('journey_id', journeyId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('Error fetching self reflections:', error);
+    return [];
+  }
+
+  return data || [];
+};
+
+export const getReflectionForAnalysis = async (clerkUserId, analysisId) => {
+  if (!supabase || !clerkUserId || !analysisId) {
+    return null;
+  }
+
+  const userId = await getOrCreateUser(clerkUserId);
+  const { data, error } = await supabase
+    .from('self_reflections')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('analysis_id', analysisId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error && error.code !== 'PGRST116') {
+    console.error('Error fetching analysis reflection:', error);
+    return null;
+  }
+
+  return data || null;
+};
+
 /**
  * Update action item status
  */
@@ -1314,6 +1555,31 @@ export const getUserCommunicationMetrics = async (clerkUserId, limit = 20, journ
   }
 
   return data || [];
+};
+
+export const deleteAnalysisForUser = async (clerkUserId, analysisId) => {
+  if (!supabase || !analysisId) {
+    return false;
+  }
+
+  const userId = await getOrCreateUser(clerkUserId);
+
+  await supabase.from('communication_metrics').delete().eq('analysis_id', analysisId).eq('user_id', userId);
+  await supabase.from('communication_insights').delete().eq('analysis_id', analysisId).eq('user_id', userId);
+  await supabase.from('action_items').delete().eq('analysis_id', analysisId).eq('user_id', userId);
+
+  const { error } = await supabase
+    .from('analyses')
+    .delete()
+    .eq('id', analysisId)
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('Failed to delete analysis:', error);
+    return false;
+  }
+
+  return true;
 };
 
 /**
@@ -1843,5 +2109,118 @@ export const getUserPreviousMetrics = async (clerkUserId, limit = 3) => {
   }
 
   return (data || []).reverse(); // Return in chronological order
+};
+
+/**
+ * Get weekly practice count for a user
+ * Returns count of analyses in the current week (Monday-Sunday)
+ */
+export const getWeeklyPracticeCount = async (clerkUserId, journeyId = null) => {
+  if (!supabase) {
+    return { count: 0, weekStart: null, weekEnd: null };
+  }
+
+  const userId = await getOrCreateUser(clerkUserId);
+  if (!userId) {
+    return { count: 0, weekStart: null, weekEnd: null };
+  }
+
+  // Calculate current week (Monday to Sunday)
+  const now = new Date();
+  const day = now.getDay();
+  const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+  const weekStart = new Date(now.setDate(diff));
+  weekStart.setHours(0, 0, 0, 0);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 6);
+  weekEnd.setHours(23, 59, 59, 999);
+
+  let query = supabase
+    .from('analyses')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .gte('created_at', weekStart.toISOString())
+    .lte('created_at', weekEnd.toISOString());
+
+  if (journeyId) {
+    query = query.eq('journey_id', journeyId);
+  }
+
+  const { count, error } = await query;
+
+  if (error) {
+    console.error('Error counting weekly practices:', error);
+    return { count: 0, weekStart: weekStart.toISOString(), weekEnd: weekEnd.toISOString() };
+  }
+
+  return {
+    count: count || 0,
+    weekStart: weekStart.toISOString(),
+    weekEnd: weekEnd.toISOString()
+  };
+};
+
+/**
+ * Check if user is behind on their practice commitment
+ * Returns status with recommendation
+ */
+export const checkPracticeCommitmentStatus = async (clerkUserId, journeyId = null) => {
+  if (!supabase) {
+    return { isBehind: false, message: null, currentCount: 0, targetCount: 0 };
+  }
+
+  // Get user's journey to find commitment level
+  const journey = journeyId 
+    ? await getJourneyForUser(clerkUserId, journeyId)
+    : await getDefaultJourneyForUser(clerkUserId);
+
+  if (!journey || !journey.practice_commitment) {
+    return { isBehind: false, message: null, currentCount: 0, targetCount: 0 };
+  }
+
+  const commitment = journey.practice_commitment;
+  
+  // Map commitment to target count per week
+  const commitmentTargets = {
+    'light': 1,
+    'standard': 2,
+    'intense': 3
+  };
+
+  const targetCount = commitmentTargets[commitment] || 0;
+  
+  if (targetCount === 0) {
+    return { isBehind: false, message: null, currentCount: 0, targetCount: 0 };
+  }
+
+  // Get current week's practice count
+  const weeklyCount = await getWeeklyPracticeCount(clerkUserId, journeyId);
+  const currentCount = weeklyCount.count;
+
+  // Check if behind (only alert if we're past mid-week and behind)
+  const now = new Date();
+  const weekStart = new Date(weeklyCount.weekStart);
+  const daysIntoWeek = Math.floor((now - weekStart) / (1000 * 60 * 60 * 24));
+  
+  // Only show alert if we're past Wednesday (day 3) and behind
+  const isBehind = daysIntoWeek >= 3 && currentCount < targetCount;
+  
+  let message = null;
+  if (isBehind) {
+    const remaining = targetCount - currentCount;
+    const commitmentLabel = commitment === 'standard' ? '2 sessions' : commitment === 'intense' ? '3 sessions' : '1 session';
+    message = `You committed to ${commitmentLabel} per week, but you've only completed ${currentCount} this week. ${remaining} more ${remaining === 1 ? 'session' : 'sessions'} ${remaining === 1 ? 'is' : 'are'} needed to stay on track!`;
+  }
+
+  return {
+    isBehind,
+    message,
+    currentCount,
+    targetCount,
+    commitment,
+    daysIntoWeek,
+    weekStart: weeklyCount.weekStart,
+    weekEnd: weeklyCount.weekEnd
+  };
 };
 

@@ -1,28 +1,73 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { 
-  Dumbbell, 
   Briefcase, 
-  Mic, 
-  MessageCircle, 
   Award, 
-  Heart, 
-  Users,
+  Dumbbell, 
+  Mic,
   TrendingUp,
   Smile,
   Meh,
   Frown,
-  AlertCircle
+  AlertCircle,
+  Zap,
+  Clock3,
+  Target,
+  CalendarCheck2,
+  Users,
+  Heart,
+  MessageCircle,
+  Globe,
+  Star,
+  Shield,
+  Sparkles
 } from 'lucide-react';
+import JourneyPreviewCard from './onboarding/JourneyPreviewCard';
+
+const ACTIVE_GOALS = ['interview', 'leadership', 'confidence', 'presentation'];
 
 const GOALS = [
-  { id: 'confidence', label: 'Build Self-Confidence', icon: Dumbbell, description: 'Feel more confident in your daily interactions' },
-  { id: 'interview', label: 'Job Interview Preparation', icon: Briefcase, description: 'Excel in job interviews and make a strong impression' },
-  { id: 'presentation', label: 'Improve Presentations & Speeches', icon: Mic, description: 'Deliver engaging presentations and public speeches' },
-  { id: 'communication', label: 'Better Interpersonal Communication', icon: MessageCircle, description: 'Improve your communication skills in conversations' },
-  { id: 'leadership', label: 'Develop Leadership Presence', icon: Award, description: 'Command respect and inspire as a leader' },
-  { id: 'dating', label: 'Dating & Romantic Situations', icon: Heart, description: 'Make a positive impression in romantic situations' },
-  { id: 'social', label: 'Social Confidence', icon: Users, description: 'Feel comfortable and confident in social settings' },
+  { id: 'interview', label: 'Interview Fast-Track', icon: Briefcase, description: 'Land the role with confident answers and body language' },
+  { id: 'leadership', label: 'Executive Presence', icon: Award, description: 'Command every room with clear intent and gravitas' },
+  { id: 'confidence', label: 'Confidence Accelerator', icon: Dumbbell, description: 'Raise your day-to-day confidence and personal presence' },
+  { id: 'presentation', label: 'Presentation Mastery', icon: Mic, description: 'Deliver talks with structure, energy, and confident Q&A' },
 ];
+
+const OPTION_ICON_MAP = {
+  confidence: {
+    question1: {
+      work: { icon: Briefcase, color: '#2563eb' },
+      social: { icon: Users, color: '#f97316' },
+      dating: { icon: Heart, color: '#ec4899' },
+      speaking: { icon: Mic, color: '#8b5cf6' },
+      'new-people': { icon: MessageCircle, color: '#10b981' },
+      general: { icon: Globe, color: '#0ea5e9' },
+    },
+    question2: {
+      comfort: { icon: Smile, color: '#22c55e' },
+      impression: { icon: Star, color: '#fcd34d' },
+      'overcome-fear': { icon: Shield, color: '#f87171' },
+      'self-assurance': { icon: TrendingUp, color: '#38bdf8' },
+    }
+  },
+  presentation: {
+    question1: {
+      'small-team': { icon: Users, color: '#0ea5e9' },
+      'large-conference': { icon: Mic, color: '#a855f7' },
+      online: { icon: MessageCircle, color: '#14b8a6' },
+      mixed: { icon: Globe, color: '#f97316' },
+    },
+    question2: {
+      'stage-fright': { icon: Heart, color: '#f87171' },
+      engaging: { icon: Sparkles, color: '#facc15' },
+      qa: { icon: Target, color: '#22d3ee' },
+      structure: { icon: Briefcase, color: '#94a3b8' },
+    }
+  }
+};
+
+const getOptionIcon = (goalId, questionKey, optionId) => {
+  return OPTION_ICON_MAP[goalId]?.[questionKey]?.[optionId] || null;
+};
 
 const CONFIDENCE_LEVELS = [
   { 
@@ -60,6 +105,196 @@ const CONFIDENCE_LEVELS = [
     description: 'I struggle with confidence',
     color: '#EF4444' // Red
   },
+];
+
+const JOURNEY_TEMPLATES = {
+  interview: {
+    id: 'interview-fast-track',
+    title: 'Interview Fast-Track',
+    tagline: 'Answer with clarity, posture and executive confidence.',
+    durationLabel: '4-week sprint',
+    focusPhrase: 'Each drill targets confidence under pressure, structured storytelling and clear vocal delivery.',
+    kpis: ['Confidence', 'Clarity', 'Presence'],
+    cadence: '2 guided drills / week',
+    milestones: [
+      { label: 'Week 1', detail: 'Baseline recording + clarity primer' },
+      { label: 'Week 2', detail: 'Body language and filler reduction' },
+      { label: 'Week 3', detail: 'Panel-style challenges' },
+      { label: 'Week 4', detail: 'Mock final interview' }
+    ],
+    baselineCopy: {
+      starter: 'We’ll reinforce foundational posture cues + reduce filler words.',
+      steady: 'We’ll stress-test high-signal questions & refine closing stories.',
+      trailblazer: 'We’ll simulate exec panels with harder timing and cross-questions.'
+    },
+    commitmentCopy: {
+      light: '1 deep practice per week (15 min).',
+      standard: '2 drills/week + async feedback nudges.',
+      intense: '3+ drills/week + optional stretch prompts.'
+    },
+    promise: 'Expect sharper answers and calmer presence by week 3.'
+  },
+  leadership: {
+    id: 'executive-presence',
+    title: 'Executive Presence Lab',
+    tagline: 'Project authority, warmth and clarity in every leadership moment.',
+    durationLabel: '6-week progression',
+    focusPhrase: 'We rotate between high-stakes updates, tough conversations and stakeholder Q&A.',
+    kpis: ['Presence', 'Authenticity', 'Voice'],
+    cadence: '1 leadership scenario / week',
+    milestones: [
+      { label: 'Week 1', detail: 'Presence baseline + goals' },
+      { label: 'Week 2', detail: 'Commanding openings' },
+      { label: 'Week 3', detail: 'Influence & storytelling' },
+      { label: 'Week 4', detail: 'Handling conflict' },
+      { label: 'Week 5', detail: 'Executive Q&A gym' },
+      { label: 'Week 6', detail: 'Summit demo + plan' }
+    ],
+    baselineCopy: {
+      starter: 'We’ll cement eye contact, posture, and intentional pauses.',
+      steady: 'We’ll refine framing, structure, and key leadership stories.',
+      trailblazer: 'We’ll stress-test you with stretch board updates and investor-style scrutiny.'
+    },
+    commitmentCopy: {
+      light: 'Weekly scenario with guided cues.',
+      standard: 'Weekly scenario + mid-week quick drill.',
+      intense: 'Twice-weekly scenario swaps + coach challenges.'
+    },
+    promise: 'By week 6 you can articulate any strategy with presence.'
+  },
+  confidence: {
+    id: 'confidence-accelerator',
+    title: 'Confidence Accelerator',
+    tagline: 'Rebuild your internal hype loop with short, repeatable wins.',
+    durationLabel: '3-week reset',
+    focusPhrase: 'We combine micro-practices, positive feedback loops and reflection prompts.',
+    kpis: ['Confidence', 'Authenticity', 'Voice'],
+    cadence: 'Daily 5-min reps',
+    milestones: [
+      { label: 'Week 1', detail: 'Baseline + social warmups' },
+      { label: 'Week 2', detail: 'Storytelling + body activation' },
+      { label: 'Week 3', detail: 'Stretch conversations + recap' }
+    ],
+    baselineCopy: {
+      starter: 'We’ll build comfort speaking on camera + celebrate micro wins.',
+      steady: 'We’ll experiment with tone range, gestures, and authentic energy.',
+      trailblazer: 'We’ll push into playful challenges + real-life scenario practice.'
+    },
+    commitmentCopy: {
+      light: 'Quick check-ins 3x per week.',
+      standard: 'Daily 5-minute drills.',
+      intense: 'Daily drills + optional social challenges.'
+    },
+    promise: 'You’ll feel a measurable confidence lift in 10 days.'
+  },
+  presentation: {
+    id: 'presentation-mastery',
+    title: 'Presentation Mastery Lab',
+    tagline: 'Design and deliver talks that land every single time.',
+    durationLabel: '4-week arc',
+    focusPhrase: 'We cycle through story design, vocal energy, gesture mapping, and fearless Q&A.',
+    kpis: ['Clarity', 'Impact', 'Confidence'],
+    cadence: '2 talk reps / week',
+    milestones: [
+      { label: 'Week 1', detail: 'Message spine + story hook' },
+      { label: 'Week 2', detail: 'Gesture + visual anchors' },
+      { label: 'Week 3', detail: 'Slide sync + pacing' },
+      { label: 'Week 4', detail: 'Q&A gauntlet + polish run' }
+    ],
+    baselineCopy: {
+      starter: 'We’ll lock a clean outline and get comfortable speaking to camera.',
+      steady: 'We’ll dial in energy, visuals, and vocal variety for tougher rooms.',
+      trailblazer: 'We’ll simulate exec briefings with hot-seat Q&A and timed stretch drills.'
+    },
+    commitmentCopy: {
+      light: 'Weekly rehearsal run + async notes.',
+      standard: 'Two runs/week with targeted feedback.',
+      intense: 'Three runs/week plus live Q&A prompts.'
+    },
+    promise: 'Expect calmer delivery, stronger story beats, and confident Q&A within a month.'
+  }
+};
+
+const BASELINE_LEVELS = [
+  {
+    id: 'starter',
+    label: 'Just getting started',
+    description: 'I’m new to video practice or returning after a break.'
+  },
+  {
+    id: 'steady',
+    label: 'Comfortable but inconsistent',
+    description: 'I can hold my own but want sharper delivery.'
+  },
+  {
+    id: 'trailblazer',
+    label: 'Ready for stretch drills',
+    description: 'I want the toughest prompts and feedback.'
+  }
+];
+
+const COMMITMENT_LEVELS = [
+  {
+    id: 'light',
+    label: 'Light rhythm',
+    cadence: '1 session/week',
+    description: '15 focused minutes to keep momentum'
+  },
+  {
+    id: 'standard',
+    label: 'Pro cadence',
+    cadence: '2 sessions/week',
+    description: 'Recommended for steady compounding'
+  },
+  {
+    id: 'intense',
+    label: 'Accelerator',
+    cadence: '3 sessions/week',
+    description: 'You want fast gains and accountability'
+  }
+];
+
+const COACH_ARCHETYPES = [
+  {
+    id: 'strategist',
+    label: 'Strategist',
+    description: 'You thrive with tight frameworks and clear scoring.'
+  },
+  {
+    id: 'storyteller',
+    label: 'Storyteller',
+    description: 'You want prompts that unlock emotion and narrative.'
+  },
+  {
+    id: 'closer',
+    label: 'Closer',
+    description: 'You crave high-pressure reps to stay sharp.'
+  }
+];
+
+const WEEKLY_PROMISES = [
+  {
+    id: 'one-rep',
+    label: '1 filmed rep / week',
+    description: 'Minimum cadence—keeps the muscles awake.'
+  },
+  {
+    id: 'two-reps',
+    label: '2 filmed reps / week',
+    description: 'Recommended pace for steady compounding.'
+  },
+  {
+    id: 'three-reps',
+    label: '3 filmed reps / week',
+    description: 'Sprint mode with accountability nudges.'
+  }
+];
+
+const CONSENT_VERSION = '2025-01';
+const CONSENT_POINTS = [
+  'Your uploads are analyzed only for coaching feedback.',
+  'You can delete analyses anytime from Dashboard > History.',
+  'We never share raw videos without your explicit permission.'
 ];
 
 // Goal-specific questions configuration
@@ -220,79 +455,193 @@ export default function OnboardingQuestions({ onComplete }) {
   const [confidence, setConfidence] = useState('');
   const [goalSpecificAnswer1, setGoalSpecificAnswer1] = useState('');
   const [goalSpecificAnswer2, setGoalSpecificAnswer2] = useState('');
+  const [difficultyBaseline, setDifficultyBaseline] = useState('');
+  const [practiceCommitment, setPracticeCommitment] = useState('');
+  const [consentAccepted, setConsentAccepted] = useState(false);
+  const [consentTouched, setConsentTouched] = useState(false);
+  const [coachArchetype, setCoachArchetype] = useState('');
+  const [weeklyPromise, setWeeklyPromise] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const filteredGoals = useMemo(() => GOALS.filter(goalOption => ACTIVE_GOALS.includes(goalOption.id)), []);
+  const selectedTemplate = useMemo(() => JOURNEY_TEMPLATES[goal] || null, [goal]);
+  const selectedArchetype = useMemo(() => COACH_ARCHETYPES.find(option => option.id === coachArchetype) || null, [coachArchetype]);
+  const selectedPromise = useMemo(() => WEEKLY_PROMISES.find(option => option.id === weeklyPromise) || null, [weeklyPromise]);
+  const hasSecondQuestion = goal ? Boolean(GOAL_SPECIFIC_QUESTIONS[goal]?.question2) : false;
+  const customizationStep = hasSecondQuestion ? 5 : 4;
+  const isCustomizationStep = goal && step === customizationStep;
 
   const handleGoalSelect = (goalId) => {
     setGoal(goalId);
-    // Reset goal-specific answers when goal changes
     setGoalSpecificAnswer1('');
     setGoalSpecificAnswer2('');
+    setDifficultyBaseline('');
+    setPracticeCommitment('');
+    setConsentAccepted(false);
+    setConsentTouched(false);
+    setCoachArchetype('');
+    setWeeklyPromise('');
+    setSubmitting(false);
   };
+
+  const renderGoalSpecificOptions = (questionKey, selectedValue, onSelect) => {
+    const questionConfig = GOAL_SPECIFIC_QUESTIONS[goal]?.[questionKey];
+    if (!questionConfig) return null;
+
+    return questionConfig.options.map((option) => {
+      const isActive = selectedValue === option.id;
+      const iconConfig = getOptionIcon(goal, questionKey, option.id);
+      const IconComponent = iconConfig?.icon;
+      return (
+        <button
+          key={option.id}
+          type="button"
+          className={`onboardingQuestions__option ${isActive ? 'active' : ''}`}
+          onClick={() => onSelect(option.id)}
+        >
+          <div className="onboardingQuestions__optionBody">
+            {IconComponent && (
+              <div
+                className="onboardingQuestions__icon onboardingQuestions__icon--compact"
+                style={{
+                  backgroundColor: `${iconConfig.color}1f`,
+                  color: iconConfig.color
+                }}
+              >
+                <IconComponent size={18} />
+              </div>
+            )}
+            <div className="onboardingQuestions__optionContent">
+              <span className="onboardingQuestions__optionLabel">{option.label}</span>
+            </div>
+          </div>
+        </button>
+      );
+    });
+  };
+
 
   const handleContinue = () => {
     if (step === 1 && !goal) return;
     if (step === 2 && !confidence) return;
     if (step === 3 && !goalSpecificAnswer1) return;
-    if (step === 4 && !goalSpecificAnswer2) return;
-    
+    if (hasSecondQuestion && step === 4 && !goalSpecificAnswer2) return;
+    if (isCustomizationStep && (!difficultyBaseline || !practiceCommitment || !coachArchetype || !weeklyPromise || !consentAccepted)) return;
+
     if (step === 1) {
       setStep(2);
-    } else if (step === 2) {
+      return;
+    }
+
+    if (step === 2) {
       setStep(3);
-    } else if (step === 3) {
-      // Check if there's a second question for this goal
-      const goalQuestions = GOAL_SPECIFIC_QUESTIONS[goal];
-      if (goalQuestions?.question2) {
-        setStep(4);
-      } else {
-        // No second question, complete onboarding
-        const answers = {
-          primaryGoal: goal,
-          confidenceLevel: confidence,
-          goalSpecificContext: {
-            question1: goalSpecificAnswer1,
-          }
-        };
-        onComplete(answers);
+      return;
+    }
+
+    if (step === 3) {
+      setStep(hasSecondQuestion ? 4 : customizationStep);
+      return;
+    }
+
+    if (hasSecondQuestion && step === 4) {
+      setStep(5);
+      return;
+    }
+
+    if (isCustomizationStep) {
+      if (submitting) {
+        return;
       }
-    } else {
-      // Step 4 - complete onboarding
+      setSubmitting(true);
+      const consentPayload = {
+        accepted: consentAccepted,
+        version: CONSENT_VERSION,
+        acceptedAt: new Date().toISOString()
+      };
+
+      const goalSpecificContext = {
+        question1: goalSpecificAnswer1
+      };
+      if (hasSecondQuestion) {
+        goalSpecificContext.question2 = goalSpecificAnswer2;
+      }
+
       const answers = {
         primaryGoal: goal,
         confidenceLevel: confidence,
-        goalSpecificContext: {
-          question1: goalSpecificAnswer1,
-          question2: goalSpecificAnswer2,
-        }
+        goalSpecificContext,
+        journeyTemplateId: selectedTemplate?.id || null,
+        templateId: selectedTemplate?.id || null,
+        difficultyBaseline,
+        practiceCommitment,
+        commitmentLevel: practiceCommitment,
+        coachArchetype,
+        coachArchetypeLabel: selectedArchetype?.label || null,
+        weeklyPromise,
+        weeklyPromiseLabel: selectedPromise?.label || null,
+        consent: consentPayload,
+        identityCommitment: {
+          archetype: coachArchetype,
+          archetypeLabel: selectedArchetype?.label || null,
+          weeklyPromise,
+          weeklyPromiseLabel: selectedPromise?.label || null
+        },
+        journeyPreview: selectedTemplate ? {
+          templateId: selectedTemplate.id,
+          cadence: selectedTemplate.cadence,
+          milestones: selectedTemplate.milestones,
+          coachArchetype: selectedArchetype?.label || null,
+          weeklyPromise: selectedPromise?.label || null
+        } : null
       };
-      onComplete(answers);
+
+      try {
+        const maybePromise = onComplete(answers);
+        if (maybePromise && typeof maybePromise.then === 'function') {
+          maybePromise.finally(() => setSubmitting(false));
+        } else {
+          setSubmitting(false);
+        }
+      } catch (error) {
+        setSubmitting(false);
+        throw error;
+      }
     }
   };
 
+  const isContinueDisabled =
+    (step === 1 && !goal) ||
+    (step === 2 && !confidence) ||
+    (step === 3 && !goalSpecificAnswer1) ||
+    (hasSecondQuestion && step === 4 && !goalSpecificAnswer2) ||
+    (isCustomizationStep && (!difficultyBaseline || !practiceCommitment || !coachArchetype || !weeklyPromise || !consentAccepted));
+
+  const baseButtonLabel = isCustomizationStep ? 'Start journey' : 'Continue';
+  const buttonLabel = submitting ? 'Creating journey...' : baseButtonLabel;
+
   return (
     <div className="onboardingQuestions">
-
-
       {step === 1 && (
         <div className="onboardingQuestions__step">
           <label className="onboardingQuestions__label">
-            What's your main goal? <span className="required">*</span>
+            What’s your focus for the next few weeks? <span className="required">*</span>
           </label>
           <div className="onboardingQuestions__options">
-            {GOALS.map((g) => {
-              const IconComponent = g.icon;
+            {filteredGoals.map((goalOption) => {
+              const IconComponent = goalOption.icon;
               return (
                 <button
-                  key={g.id}
+                  key={goalOption.id}
                   type="button"
-                  className={`onboardingQuestions__option ${goal === g.id ? 'active' : ''}`}
-                  onClick={() => handleGoalSelect(g.id)}
+                  className={`onboardingQuestions__option ${goal === goalOption.id ? 'active' : ''}`}
+                  onClick={() => handleGoalSelect(goalOption.id)}
                 >
                   <div className="onboardingQuestions__icon">
                     <IconComponent size={32} />
                   </div>
                   <div className="onboardingQuestions__optionContent">
-                    <span className="onboardingQuestions__optionLabel">{g.label}</span>
-                    <span className="onboardingQuestions__optionDescription">{g.description}</span>
+                    <span className="onboardingQuestions__optionLabel">{goalOption.label}</span>
+                    <span className="onboardingQuestions__optionDescription">{goalOption.description}</span>
                   </div>
                 </button>
               );
@@ -344,18 +693,7 @@ export default function OnboardingQuestions({ onComplete }) {
             <span className="required"> *</span>
           </label>
           <div className="onboardingQuestions__options">
-            {GOAL_SPECIFIC_QUESTIONS[goal].question1.options.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                className={`onboardingQuestions__option ${goalSpecificAnswer1 === option.id ? 'active' : ''}`}
-                onClick={() => setGoalSpecificAnswer1(option.id)}
-              >
-                <div className="onboardingQuestions__optionContent">
-                  <span className="onboardingQuestions__optionLabel">{option.label}</span>
-                </div>
-              </button>
-            ))}
+            {renderGoalSpecificOptions('question1', goalSpecificAnswer1, setGoalSpecificAnswer1)}
           </div>
         </div>
       )}
@@ -367,18 +705,156 @@ export default function OnboardingQuestions({ onComplete }) {
             <span className="required"> *</span>
           </label>
           <div className="onboardingQuestions__options">
-            {GOAL_SPECIFIC_QUESTIONS[goal].question2.options.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                className={`onboardingQuestions__option ${goalSpecificAnswer2 === option.id ? 'active' : ''}`}
-                onClick={() => setGoalSpecificAnswer2(option.id)}
-              >
-                <div className="onboardingQuestions__optionContent">
-                  <span className="onboardingQuestions__optionLabel">{option.label}</span>
+            {renderGoalSpecificOptions('question2', goalSpecificAnswer2, setGoalSpecificAnswer2)}
+          </div>
+        </div>
+      )}
+
+      {isCustomizationStep && (
+        <div className="onboardingQuestions__step onboardingQuestions__step--preview">
+          <div className="onboardingQuestions__customizer">
+            <label className="onboardingQuestions__label">
+              Where are you starting from today?
+              <span className="required"> *</span>
+            </label>
+            <div className="onboardingQuestions__options onboardingQuestions__options--compact">
+              {BASELINE_LEVELS.map((baseline) => (
+                <button
+                  key={baseline.id}
+                  type="button"
+                  className={`onboardingQuestions__option ${difficultyBaseline === baseline.id ? 'active' : ''}`}
+                  onClick={() => setDifficultyBaseline(baseline.id)}
+                >
+                  <div className="onboardingQuestions__optionContent">
+                    <span className="onboardingQuestions__optionLabel">{baseline.label}</span>
+                    <span className="onboardingQuestions__optionDescription">{baseline.description}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <label className="onboardingQuestions__label">
+              How much practice cadence keeps you honest?
+              <span className="required"> *</span>
+            </label>
+            <div className="onboardingQuestions__options onboardingQuestions__options--compact">
+              {COMMITMENT_LEVELS.map((commitment) => (
+                <button
+                  key={commitment.id}
+                  type="button"
+                  className={`onboardingQuestions__option ${practiceCommitment === commitment.id ? 'active' : ''}`}
+                  onClick={() => setPracticeCommitment(commitment.id)}
+                >
+                  <div className="onboardingQuestions__optionContent">
+                    <span className="onboardingQuestions__optionLabel">{commitment.label}</span>
+                    <span className="onboardingQuestions__optionDescription">
+                      {commitment.cadence} · {commitment.description}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <label className="onboardingQuestions__label">
+              Choose the coach archetype that fits you
+              <span className="required"> *</span>
+            </label>
+            <div className="onboardingQuestions__options onboardingQuestions__options--compact">
+              {COACH_ARCHETYPES.map((archetype) => (
+                <button
+                  key={archetype.id}
+                  type="button"
+                  className={`onboardingQuestions__option ${coachArchetype === archetype.id ? 'active' : ''}`}
+                  onClick={() => setCoachArchetype(archetype.id)}
+                >
+                  <div className="onboardingQuestions__optionContent">
+                    <span className="onboardingQuestions__optionLabel">{archetype.label}</span>
+                    <span className="onboardingQuestions__optionDescription">{archetype.description}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <label className="onboardingQuestions__label">
+              What weekly promise should we hold you to?
+              <span className="required"> *</span>
+            </label>
+            <div className="onboardingQuestions__options onboardingQuestions__options--compact">
+              {WEEKLY_PROMISES.map((promise) => (
+                <button
+                  key={promise.id}
+                  type="button"
+                  className={`onboardingQuestions__option ${weeklyPromise === promise.id ? 'active' : ''}`}
+                  onClick={() => setWeeklyPromise(promise.id)}
+                >
+                  <div className="onboardingQuestions__optionContent">
+                    <span className="onboardingQuestions__optionLabel">{promise.label}</span>
+                    <span className="onboardingQuestions__optionDescription">{promise.description}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <div className={`onboardingQuestions__consent ${consentTouched && !consentAccepted ? 'error' : ''}`}>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={consentAccepted}
+                  onChange={(event) => {
+                    setConsentTouched(true);
+                    setConsentAccepted(event.target.checked);
+                  }}
+                />
+                <span>
+                  I consent to BodAI analyzing my recordings with AI to deliver coaching insights (v{CONSENT_VERSION}).
+                </span>
+              </label>
+              <ul>
+                {CONSENT_POINTS.map((point) => (
+                  <li key={point}>{point}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="onboardingQuestions__summaryRow">
+              <div className="onboardingQuestions__summaryCard">
+                <Zap size={16} />
+                <div>
+                  <p>Goal</p>
+                  <strong>{selectedTemplate?.title || 'Select a journey'}</strong>
                 </div>
-              </button>
-            ))}
+              </div>
+              <div className="onboardingQuestions__summaryCard">
+                <Clock3 size={16} />
+                <div>
+                  <p>Cadence</p>
+                  <strong>{selectedTemplate?.cadence || 'Choose commitment'}</strong>
+                </div>
+              </div>
+              <div className="onboardingQuestions__summaryCard">
+                <Target size={16} />
+                <div>
+                  <p>Archetype</p>
+                  <strong>{selectedArchetype?.label || 'Pick your vibe'}</strong>
+                </div>
+              </div>
+              <div className="onboardingQuestions__summaryCard">
+                <CalendarCheck2 size={16} />
+                <div>
+                  <p>Weekly promise</p>
+                  <strong>{selectedPromise?.label || 'Set your promise'}</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="onboardingQuestions__preview">
+            <JourneyPreviewCard
+              template={selectedTemplate}
+              difficultyBaseline={difficultyBaseline}
+              practiceCommitment={practiceCommitment}
+              coachArchetypeLabel={selectedArchetype?.label || null}
+              weeklyPromiseLabel={selectedPromise?.label || null}
+            />
           </div>
         </div>
       )}
@@ -388,7 +864,7 @@ export default function OnboardingQuestions({ onComplete }) {
           <button
             type="button"
             className="btn btn--ghost"
-            onClick={() => setStep(step - 1)}
+            onClick={() => setStep(Math.max(1, step - 1))}
           >
             Back
           </button>
@@ -397,16 +873,9 @@ export default function OnboardingQuestions({ onComplete }) {
           type="button"
           className="btn btn--primary"
           onClick={handleContinue}
-          disabled={
-            (step === 1 && !goal) || 
-            (step === 2 && !confidence) || 
-            (step === 3 && !goalSpecificAnswer1) ||
-            (step === 4 && !goalSpecificAnswer2)
-          }
+          disabled={isContinueDisabled || submitting}
         >
-          {step === 4 || (step === 3 && !GOAL_SPECIFIC_QUESTIONS[goal]?.question2) 
-            ? 'Continue to Dashboard' 
-            : 'Continue'}
+          {buttonLabel}
         </button>
       </div>
     </div>

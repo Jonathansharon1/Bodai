@@ -21,8 +21,26 @@ import {
 } from 'lucide-react';
 import './MyProgressPage.css';
 import JourneySwitcher from '../components/JourneySwitcher';
+import PracticeCommitmentAlert from '../components/PracticeCommitmentAlert';
 
 // All 25 parameters organized by category
+const KPI_FIELDS = [
+  { key: 'overall_score', label: 'Overall Score', description: 'Composite communication score', accent: '#0ea5e9' },
+  { key: 'presence', label: 'Presence', description: 'Body language & eye contact', accent: '#10b981' },
+  { key: 'voice_expression', label: 'Voice', description: 'Tone range & pace', accent: '#3b82f6' },
+  { key: 'clarity', label: 'Clarity', description: 'Structure & flow', accent: '#f97316' }
+];
+
+const PRACTICE_METRIC_LABELS = {
+  presence: 'Presence',
+  voice_expression: 'Voice',
+  clarity: 'Clarity',
+  authenticity: 'Authenticity',
+  impact: 'Impact',
+  confidence: 'Confidence',
+  overall: 'Overall'
+};
+
 const PARAMETER_CATEGORIES = {
   voice: {
     name: 'Voice Expression',
@@ -166,6 +184,76 @@ const generateWeaknessNarrative = (param, current, trend) => {
   return narrative;
 };
 
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+const STREAK_BREAK_WINDOW_DAYS = 7;
+
+const computeWeekStart = (date) => {
+  const clone = new Date(date);
+  clone.setHours(0, 0, 0, 0);
+  const day = clone.getDay();
+  const diff = (day + 6) % 7; // treat Monday as week start
+  clone.setDate(clone.getDate() - diff);
+  return clone.getTime();
+};
+
+const computeStreakInfo = (entries, getTimestamp) => {
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return { weeks: 0, daysSinceLast: null, daysUntilBreak: null, warning: false };
+  }
+
+  const orderedDates = entries
+    .map((entry) => {
+      const ts = getTimestamp(entry);
+      const date = ts ? new Date(ts) : null;
+      return date && !Number.isNaN(date.getTime()) ? date : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => b - a);
+
+  if (!orderedDates.length) {
+    return { weeks: 0, daysSinceLast: null, daysUntilBreak: null, warning: false };
+  }
+
+  const weekBuckets = [];
+  orderedDates.forEach((date) => {
+    const weekStart = computeWeekStart(date);
+    if (!weekBuckets.includes(weekStart)) {
+      weekBuckets.push(weekStart);
+    }
+  });
+
+  let streak = 0;
+  let anchor = null;
+  weekBuckets.forEach((weekStart, index) => {
+    if (index === 0) {
+      streak = 1;
+      anchor = weekStart;
+      return;
+    }
+    const diffDays = (anchor - weekStart) / DAY_IN_MS;
+    if (diffDays <= STREAK_BREAK_WINDOW_DAYS) {
+      streak += 1;
+      anchor = weekStart;
+    }
+  });
+
+  const lastDate = orderedDates[0];
+  const daysSinceLast = (Date.now() - lastDate.getTime()) / DAY_IN_MS;
+  const daysUntilBreak = Math.max(0, STREAK_BREAK_WINDOW_DAYS - daysSinceLast);
+
+  return {
+    weeks: streak,
+    daysSinceLast,
+    daysUntilBreak,
+    warning: daysUntilBreak <= 2
+  };
+};
+
+const computeCohortPercentile = (score) => {
+  if (typeof score !== 'number' || Number.isNaN(score)) return null;
+  return Math.min(95, Math.max(5, Math.round((score / 10) * 100)));
+};
+
 export default function MyProgressPage({
   journeys = [],
   journeysLoading = false,
@@ -183,12 +271,15 @@ export default function MyProgressPage({
     complete: false
   });
   const [expandedFocusCards, setExpandedFocusCards] = useState({});
+  const [nextDrill, setNextDrill] = useState(null);
+  const [reflections, setReflections] = useState([]);
 
   const activeJourney = useMemo(
     () => journeys.find(journey => journey.id === activeJourneyId) || null,
     [journeys, activeJourneyId]
   );
   const focusLabel = activeJourney?.display_name || activeJourney?.focus_label || activeJourney?.focus_slug;
+  const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
     if (user) {
@@ -197,6 +288,53 @@ export default function MyProgressPage({
       setLoading(false);
     }
   }, [user, activeJourneyId]);
+
+  const fetchNextDrill = async (headers) => {
+    try {
+      const actionParams = new URLSearchParams();
+      actionParams.append('status', 'pending');
+      if (activeJourneyId) {
+        actionParams.append('journeyId', activeJourneyId);
+      }
+      const actionRes = await fetch(
+        `${apiBase}/api/action-items?${actionParams.toString()}`,
+        { headers }
+      );
+
+      if (actionRes.ok) {
+        const actionData = await actionRes.json();
+        const pendingItems = (actionData.actionItems || []).filter(item => item.status !== 'completed');
+        setNextDrill(pendingItems[0] || null);
+      } else {
+        setNextDrill(null);
+      }
+    } catch (err) {
+      console.error('Failed to fetch next drill:', err);
+      setNextDrill(null);
+    }
+  };
+
+  const fetchReflections = async (headers) => {
+    try {
+      const params = new URLSearchParams({ limit: 10 });
+      if (activeJourneyId) {
+        params.append('journeyId', activeJourneyId);
+      }
+      const res = await fetch(
+        `${apiBase}/api/reflections?${params.toString()}`,
+        { headers }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setReflections(Array.isArray(data.reflections) ? data.reflections : []);
+      } else {
+        setReflections([]);
+      }
+    } catch (err) {
+      console.error('Failed to fetch reflections:', err);
+      setReflections([]);
+    }
+  };
 
   const fetchProgressData = async () => {
     if (!user) return;
@@ -207,24 +345,52 @@ export default function MyProgressPage({
       if (activeJourneyId) {
         params.append('journeyId', activeJourneyId);
       }
+      const headers = {
+        'X-Clerk-User-Id': user.id,
+        'Content-Type': 'application/json'
+      };
       const metricsRes = await fetch(
-        `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/communication/metrics?${params.toString()}`,
-        {
-          headers: {
-            'X-Clerk-User-Id': user.id,
-            'Content-Type': 'application/json'
-          }
-        }
+        `${apiBase}/api/communication/metrics?${params.toString()}`,
+        { headers }
       );
 
       if (metricsRes.ok) {
         const metricsData = await metricsRes.json();
         setMetrics(metricsData.metrics || []);
+      } else {
+        setMetrics([]);
       }
+
+      await fetchNextDrill(headers);
+      await fetchReflections(headers);
     } catch (err) {
       console.error('Failed to fetch progress data:', err);
+      setNextDrill(null);
+      setReflections([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCompleteNextDrill = async () => {
+    if (!user || !nextDrill) return;
+    try {
+      const res = await fetch(`${apiBase}/api/action-items/${nextDrill.id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'X-Clerk-User-Id': user.id,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: 'completed' })
+      });
+      if (res.ok) {
+        await fetchNextDrill({
+          'X-Clerk-User-Id': user.id,
+          'Content-Type': 'application/json'
+        });
+      }
+    } catch (err) {
+      console.error('Failed to mark drill complete:', err);
     }
   };
 
@@ -414,6 +580,96 @@ export default function MyProgressPage({
     }));
   };
 
+  const parseScore = (value) => {
+    const parsed = typeof value === 'number' ? value : parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
+  const formatDateLabel = (timestamp) => {
+    if (!timestamp) return '—';
+    const date = new Date(timestamp);
+    if (Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  };
+
+  const getMetricTimestamp = (metric) => metric?.analyses?.created_at || metric?.created_at;
+
+  const formatPracticeMetric = (metric) => {
+    if (!metric) return 'Overall';
+    return PRACTICE_METRIC_LABELS[metric] || metric.replace(/_/g, ' ');
+  };
+
+  const latestMetrics = metrics.length > 0 ? metrics[metrics.length - 1] : null;
+  const previousMetricsEntry = metrics.length > 1 ? metrics[metrics.length - 2] : null;
+
+  const kpiCards = useMemo(() => {
+    if (!latestMetrics) return [];
+    return KPI_FIELDS.map(field => {
+      const value = parseScore(latestMetrics[field.key]);
+      const prevValue = previousMetricsEntry ? parseScore(previousMetricsEntry[field.key]) : null;
+      const delta = value !== null && prevValue !== null ? value - prevValue : null;
+      return {
+        ...field,
+        value,
+        delta
+      };
+    });
+  }, [latestMetrics, previousMetricsEntry]);
+
+  const deliverySnapshot = useMemo(() => {
+    if (!latestMetrics) {
+      return {
+        speakingRate: null,
+        fillerWords: null,
+        sentiment: null,
+        posture: null
+      };
+    }
+    const fillerValue = parseScore(latestMetrics.filler_word_count);
+    return {
+      speakingRate: parseScore(latestMetrics.speaking_rate_wpm),
+      fillerWords: fillerValue,
+      sentiment: latestMetrics.sentiment_label || null,
+      posture: latestMetrics.posture_flag || null
+    };
+  }, [latestMetrics]);
+
+  const trendRows = useMemo(() => {
+    const lastFive = metrics.slice(-5);
+    return lastFive
+      .map((entry, idx) => ({
+        metric: entry,
+        previous: idx > 0 ? lastFive[idx - 1] : null
+      }))
+      .reverse();
+  }, [metrics]);
+
+  const latestReflection = reflections[0] || null;
+  const reflectionScore = latestReflection
+    ? Number(latestReflection.confidence_rating ?? latestReflection.confidenceRating)
+    : null;
+
+  const aiOverallScore = useMemo(() => parseScore(latestMetrics?.overall_score), [latestMetrics]);
+
+  const reflectionDelta = useMemo(() => {
+    if (!latestReflection || !Number.isFinite(aiOverallScore) || !Number.isFinite(reflectionScore)) {
+      return null;
+    }
+    return Number((aiOverallScore - reflectionScore).toFixed(1));
+  }, [latestReflection, aiOverallScore, reflectionScore]);
+
+  const streakInfo = useMemo(() => computeStreakInfo(metrics, getMetricTimestamp), [metrics]);
+
+  const cohortPercentile = useMemo(() => {
+    return computeCohortPercentile(aiOverallScore);
+  }, [aiOverallScore]);
+
+  const masteryUnlocked = useMemo(() => {
+    if (metrics.length < 3) return false;
+    const recent = metrics.slice(-3);
+    return recent.every(entry => parseScore(entry.overall_score) >= 8);
+  }, [metrics]);
+
   if (loading) {
     return (
       <div className="myProgressPage">
@@ -456,8 +712,6 @@ export default function MyProgressPage({
     );
   }
 
-  const latestMetrics = metrics[metrics.length - 1];
-
   return (
     <div className="myProgressPage">
       {/* Header */}
@@ -476,6 +730,9 @@ export default function MyProgressPage({
             : `Your communication evolution across ${metrics.length} ${metrics.length === 1 ? 'session' : 'sessions'}`}
         </p>
       </div>
+
+      {/* Practice Commitment Alert */}
+      <PracticeCommitmentAlert journeyId={activeJourneyId} />
 
       {/* How to Read This - Expandable Guide */}
       <div className="myProgressPage__section myProgressPage__section--guide">
@@ -596,6 +853,244 @@ export default function MyProgressPage({
                 {heroInsight.change}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {(streakInfo.weeks > 0 || cohortPercentile) && (
+        <div className="momentumRow">
+          {streakInfo.weeks > 0 && (
+            <div className={`momentumCard ${streakInfo.warning ? 'momentumCard--warning' : ''}`}>
+              <div className="momentumCard__label">Weekly streak</div>
+              <div className="momentumCard__value">
+                {streakInfo.weeks}
+                <span>weeks</span>
+              </div>
+              <p>
+                {streakInfo.daysUntilBreak !== null
+                  ? `Record within ${Math.ceil(streakInfo.daysUntilBreak)}d to keep it alive`
+                  : 'Upload weekly to extend your streak'}
+              </p>
+            </div>
+          )}
+          {cohortPercentile && (
+            <div className="momentumCard momentumCard--cohort">
+              <div className="momentumCard__label">Cohort percentile</div>
+              <div className="momentumCard__value">
+                {cohortPercentile}
+                <span>%</span>
+              </div>
+              <p>
+                {focusLabel
+                  ? `Ahead of ${cohortPercentile}% of ${focusLabel} cohort`
+                  : 'Great momentum vs other communicators'}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* KPI Grid */}
+      {kpiCards.length > 0 && (
+        <div className="progressKpis">
+          {kpiCards.map((card) => (
+            <div key={card.key} className="progressKpiCard">
+              <div className="progressKpiCard__label">{card.label}</div>
+              <div className="progressKpiCard__valueWrapper">
+                <span className="progressKpiCard__value">{card.value !== null ? card.value.toFixed(1) : '—'}</span>
+                <span className="progressKpiCard__unit">/ 10</span>
+              </div>
+              {card.delta !== null && (
+                <div className={`progressKpiCard__delta progressKpiCard__delta--${card.delta >= 0 ? 'up' : 'down'}`}>
+                  {card.delta >= 0 ? '+' : ''}{card.delta.toFixed(1)}
+                </div>
+              )}
+              <p className="progressKpiCard__hint">{card.description}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Delivery Metrics */}
+      <div className="deliveryStats">
+        <div className="deliveryStats__card">
+          <div className="deliveryStats__label">Speaking Rate</div>
+          <div className="deliveryStats__value">
+            {deliverySnapshot.speakingRate ? `${Math.round(deliverySnapshot.speakingRate)} wpm` : '—'}
+          </div>
+          <p className="deliveryStats__hint">Target 120–150 wpm</p>
+        </div>
+        <div className="deliveryStats__card">
+          <div className="deliveryStats__label">Filler Words</div>
+          <div className="deliveryStats__value">
+            {deliverySnapshot.fillerWords !== null ? Math.round(deliverySnapshot.fillerWords) : '—'}
+          </div>
+          <p className="deliveryStats__hint">Aim for fewer than 5 per session</p>
+        </div>
+        <div className="deliveryStats__card">
+          <div className="deliveryStats__label">Sentiment</div>
+          <div className="deliveryStats__value deliveryStats__value--pill">
+            {deliverySnapshot.sentiment
+              ? deliverySnapshot.sentiment.charAt(0).toUpperCase() + deliverySnapshot.sentiment.slice(1)
+              : '—'}
+          </div>
+          <p className="deliveryStats__hint">Overall room energy</p>
+        </div>
+        <div className="deliveryStats__card">
+          <div className="deliveryStats__label">Posture</div>
+          <div className="deliveryStats__value deliveryStats__value--pill">
+            {deliverySnapshot.posture
+              ? deliverySnapshot.posture.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
+              : '—'}
+          </div>
+          <p className="deliveryStats__hint">Camera-read posture signal</p>
+        </div>
+      </div>
+
+      {/* Trend list */}
+      {trendRows.length > 0 && (
+        <div className="myProgressPage__section trendSection">
+          <div className="progressSection__header">
+            <TrendingUp size={24} className="progressSection__icon progressSection__icon--trend" />
+            <div>
+              <h2 className="progressSection__title">Recent Sessions</h2>
+              <p className="progressSection__subtitle">Overall score, speaking rate, and filler control</p>
+            </div>
+          </div>
+          <div className="trendList">
+            {trendRows.map(({ metric, previous }, idx) => {
+              const overall = parseScore(metric.overall_score);
+              const prevOverall = previous ? parseScore(previous.overall_score) : null;
+              const delta = overall !== null && prevOverall !== null ? overall - prevOverall : null;
+              const speakingRate = parseScore(metric.speaking_rate_wpm);
+              const fillerWords = parseScore(metric.filler_word_count);
+              const timestamp = getMetricTimestamp(metric);
+
+              return (
+                <div key={`trend-${idx}`} className="trendRow">
+                  <div className="trendRow__meta">
+                    <span className="trendRow__date">{formatDateLabel(timestamp)}</span>
+                    <span className="trendRow__stage">{metric.stage_title || 'Session'}</span>
+                  </div>
+                  <div className="trendRow__metrics">
+                    <div className="trendRow__metric">
+                      <span className="trendRow__metricLabel">Overall</span>
+                      <strong>{overall !== null ? overall.toFixed(1) : '—'}</strong>
+                      {delta !== null && (
+                        <span className={`trendRow__delta trendRow__delta--${delta >= 0 ? 'up' : 'down'}`}>
+                          {delta >= 0 ? '+' : ''}{delta.toFixed(1)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="trendRow__metric">
+                      <span className="trendRow__metricLabel">Speaking Rate</span>
+                      <strong>{speakingRate ? `${Math.round(speakingRate)} wpm` : '—'}</strong>
+                    </div>
+                    <div className="trendRow__metric">
+                      <span className="trendRow__metricLabel">Filler Words</span>
+                      <strong>{fillerWords !== null ? Math.round(fillerWords) : '—'}</strong>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Next Drill */}
+      {nextDrill && (
+        <div className="myProgressPage__section nextDrillSection">
+          <div className="nextDrillCard">
+            <div className="nextDrillCard__meta">
+              <span className="nextDrillCard__badge">{formatPracticeMetric(nextDrill.practice_prompt_target_metric)}</span>
+              <span className="nextDrillCard__status">Next Drill</span>
+            </div>
+            <h3 className="nextDrillCard__title">
+              {nextDrill.practice_prompt_title || nextDrill.title}
+            </h3>
+            <p className="nextDrillCard__description">
+              {nextDrill.practice_prompt_description ||
+                nextDrill.details?.what_to_do ||
+                nextDrill.details?.all_details?.[0] ||
+                'Use this drill to reinforce your weakest metric before recording the next session.'}
+            </p>
+            <div className="nextDrillCard__cta">
+              <button type="button" className="btn btn--primary" onClick={() => navigate('/new-analysis')}>
+                Launch Drill
+              </button>
+              <button type="button" className="btn btn--ghost" onClick={handleCompleteNextDrill}>
+                Mark Completed
+              </button>
+              {nextDrill.practice_prompt_time && (
+                <span className="nextDrillCard__time">{nextDrill.practice_prompt_time}</span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {latestReflection && latestMetrics && (
+        <div className="myProgressPage__section reflectionSection">
+          <div className="reflectionCard">
+            <div className="reflectionCard__header">
+              <Sparkles size={20} />
+              <div>
+                <h3>Self perception vs AI</h3>
+                <p>Logged {new Date(latestReflection.created_at).toLocaleDateString()}</p>
+              </div>
+            </div>
+            <div className="reflectionCard__scores">
+              <div>
+                <span>Self rating</span>
+                <strong>{Number.isFinite(reflectionScore) ? reflectionScore.toFixed(1) : '—'}</strong>
+                <small>/ 5</small>
+              </div>
+              <div>
+                <span>AI overall</span>
+                <strong>{Number.isFinite(aiOverallScore) ? aiOverallScore.toFixed(1) : '—'}</strong>
+                <small>/ 10</small>
+              </div>
+              {reflectionDelta !== null && (
+                <div>
+                  <span>Delta</span>
+                  <strong className={reflectionDelta >= 0 ? 'delta--positive' : 'delta--negative'}>
+                    {reflectionDelta >= 0 ? '+' : ''}{reflectionDelta.toFixed(1)}
+                  </strong>
+                  <small>AI vs you</small>
+                </div>
+              )}
+            </div>
+            {latestReflection.mood_label && (
+              <div className="reflectionCard__mood">
+                Mood check-in: {latestReflection.mood_label}
+              </div>
+            )}
+            {latestReflection.notes && (
+              <p className="reflectionCard__notes">“{latestReflection.notes}”</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {masteryUnlocked && (
+        <div className="myProgressPage__section masterySection">
+          <div className="masteryCard">
+            <div>
+              <p className="masteryCard__eyebrow">Milestone unlocked</p>
+              <h3>Ready for the Advanced {focusLabel || 'Presence'} Drill</h3>
+              <p>
+                Three consecutive sessions above 8.0 unlocked a tougher practice set. 
+                Run the advanced drill to keep compounding gains.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={() => navigate('/new-analysis')}
+            >
+              Launch advanced drill
+            </button>
           </div>
         </div>
       )}
