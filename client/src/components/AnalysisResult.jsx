@@ -349,6 +349,79 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
   const [viewMode, setViewMode] = useState('summary');
 
   const sections = parseAnalysisText(markdown);
+  const [actionItemsFromDB, setActionItemsFromDB] = useState([]);
+
+  // Fetch action items from database if not in markdown
+  useEffect(() => {
+    if (!user?.id || !analysisId) return;
+    
+    const fetchActionItems = async () => {
+      try {
+        const res = await fetch(
+          `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/action-items?analysisId=${analysisId}`,
+          {
+            headers: {
+              'X-Clerk-User-Id': user.id,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (data.actionItems && data.actionItems.length > 0) {
+            // Convert DB action items to display format
+            const formatted = data.actionItems.map(item => {
+              let details = {};
+              try {
+                details = typeof item.details === 'string' 
+                  ? JSON.parse(item.details || '{}') 
+                  : (item.details || {});
+              } catch (e) {
+                console.warn('Failed to parse action item details:', e);
+              }
+              
+              // Convert details object to array format expected by component
+              // Include all_details if available, otherwise build from structured fields
+              const detailsArray = [];
+              
+              // First, try to use all_details if it's an array
+              if (Array.isArray(details.all_details) && details.all_details.length > 0) {
+                detailsArray.push(...details.all_details);
+              } else {
+                // Fall back to structured fields
+                if (details.what_to_do) detailsArray.push(details.what_to_do);
+                if (details.why_it_matters) detailsArray.push(details.why_it_matters);
+                if (details.example) detailsArray.push(details.example);
+              }
+              
+              // If still no details, use a default message
+              if (detailsArray.length === 0) {
+                detailsArray.push('Keep this focus in mind for your next recording.');
+              }
+              
+              console.log('[AnalysisResult] Formatted action item:', {
+                title: item.title,
+                detailsCount: detailsArray.length,
+                hasAllDetails: Array.isArray(details.all_details)
+              });
+              
+              return {
+                title: item.title,
+                details: detailsArray,
+                isIntro: false
+              };
+            });
+            setActionItemsFromDB(formatted);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching action items:', error);
+      }
+    };
+    
+    // Always fetch from DB as fallback
+    fetchActionItems();
+  }, [user?.id, analysisId, markdown]);
 
   // Fetch metrics and comparison data
   useEffect(() => {
@@ -672,7 +745,7 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
           )}
 
           {/* Action Plan */}
-          {sections.actionPlan && sections.actionPlan.length > 0 && (
+          {((sections.actionPlan && sections.actionPlan.length > 0) || actionItemsFromDB.length > 0) && (
             <AccordionSection
               id="action"
               icon={<Rocket size={20} />}
@@ -681,7 +754,7 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
               onToggle={() => toggleSection('action')}
             >
               <div className="analysisResult__actionPlan">
-                {sections.actionPlan.map((action, actionIndex) => {
+                {(sections.actionPlan || actionItemsFromDB).map((action, actionIndex) => {
                   const actionTitle = typeof action === 'string' ? action : action.title;
                   const actionDetails = typeof action === 'string' ? [] : (action.details || []);
                   const isIntro = action.isIntro || false;

@@ -40,8 +40,16 @@ export const supabase = supabaseUrl && supabaseServiceKey
 
 /**
  * Get or create user by Clerk user ID
+ * @param {string} clerkUserId - Clerk user ID
+ * @param {Object} userProfile - Optional user profile data from Clerk
+ * @param {string} userProfile.email - User email
+ * @param {string} userProfile.firstName - User first name
+ * @param {string} userProfile.lastName - User last name
+ * @param {string} userProfile.phoneNumber - User phone number
+ * @param {string} userProfile.imageUrl - User profile image URL
+ * @returns {Promise<string>} User ID (UUID)
  */
-export const getOrCreateUser = async (clerkUserId, email = null) => {
+export const getOrCreateUser = async (clerkUserId, userProfile = {}) => {
   if (!supabase) {
     throw new Error('Supabase is not configured');
   }
@@ -54,15 +62,29 @@ export const getOrCreateUser = async (clerkUserId, email = null) => {
     .single();
 
   if (existingUser) {
+    // Update user profile if provided (for syncing Clerk data)
+    if (Object.keys(userProfile).length > 0) {
+      await syncUserProfile(clerkUserId, userProfile);
+    }
     return existingUser.id;
   }
+
+  // Build full name from first and last name
+  const fullName = userProfile.firstName && userProfile.lastName
+    ? `${userProfile.firstName} ${userProfile.lastName}`.trim()
+    : userProfile.firstName || userProfile.lastName || null;
 
   // Create new user if not found (default: free subscription)
   const { data: newUser, error: createError } = await supabase
     .from('users')
     .insert({
       clerk_user_id: clerkUserId,
-      email: email,
+      email: userProfile.email || null,
+      first_name: userProfile.firstName || null,
+      last_name: userProfile.lastName || null,
+      full_name: fullName,
+      phone: userProfile.phoneNumber || null,
+      profile_image_url: userProfile.imageUrl || null,
       subscription_type: 'free',
       subscription_status: 'active',
       free_analysis_used: false,
@@ -77,6 +99,83 @@ export const getOrCreateUser = async (clerkUserId, email = null) => {
   }
 
   return newUser.id;
+};
+
+/**
+ * Sync user profile data from Clerk
+ * Updates user profile fields if they're missing or if new data is provided
+ */
+export const syncUserProfile = async (clerkUserId, userProfile = {}) => {
+  if (!supabase || !clerkUserId || Object.keys(userProfile).length === 0) {
+    return null;
+  }
+
+  try {
+    // Get existing user
+    const { data: existingUser, error: fetchError } = await supabase
+      .from('users')
+      .select('id, first_name, last_name, email, phone, profile_image_url')
+      .eq('clerk_user_id', clerkUserId)
+      .single();
+
+    if (fetchError || !existingUser) {
+      console.warn('[syncUserProfile] User not found:', clerkUserId);
+      return null;
+    }
+
+    // Build update object - only update if field is missing or new data provided
+    const updates = {};
+    
+    if (userProfile.email && !existingUser.email) {
+      updates.email = userProfile.email;
+    }
+    if (userProfile.firstName && !existingUser.first_name) {
+      updates.first_name = userProfile.firstName;
+    }
+    if (userProfile.lastName && !existingUser.last_name) {
+      updates.last_name = userProfile.lastName;
+    }
+    if (userProfile.phoneNumber && !existingUser.phone) {
+      updates.phone = userProfile.phoneNumber;
+    }
+    if (userProfile.imageUrl && !existingUser.profile_image_url) {
+      updates.profile_image_url = userProfile.imageUrl;
+    }
+
+    // Update full_name if we have first or last name
+    if (updates.first_name || updates.last_name) {
+      const firstName = updates.first_name || existingUser.first_name;
+      const lastName = updates.last_name || existingUser.last_name;
+      if (firstName && lastName) {
+        updates.full_name = `${firstName} ${lastName}`.trim();
+      } else {
+        updates.full_name = firstName || lastName || null;
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return existingUser; // No updates needed
+    }
+
+    updates.updated_at = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('id', existingUser.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[syncUserProfile] Error updating user:', error);
+      return null;
+    }
+
+    return data;
+  } catch (err) {
+    console.error('[syncUserProfile] Exception:', err);
+    return null;
+  }
 };
 
 const GOAL_LABELS = {
@@ -571,7 +670,7 @@ export const getUserWithOnboarding = async (clerkUserId) => {
   // Try to fetch with goal_specific_context first
 let { data, error } = await supabase
   .from('users')
-  .select('id, primary_goal, confidence_level, goal_specific_context, onboarding_completed_at, subscription_type, subscription_status, free_analysis_used, consent_version, consent_accepted_at')
+  .select('id, email, first_name, last_name, full_name, phone, profile_image_url, primary_goal, confidence_level, goal_specific_context, onboarding_completed_at, subscription_type, subscription_status, free_analysis_used, consent_version, consent_accepted_at')
   .eq('clerk_user_id', clerkUserId)
   .single();
 
@@ -580,7 +679,7 @@ let { data, error } = await supabase
     console.warn('goal_specific_context column does not exist, fetching without it. Please run migration.');
     const retryResult = await supabase
       .from('users')
-      .select('id, primary_goal, confidence_level, onboarding_completed_at, subscription_type, subscription_status, free_analysis_used, consent_version, consent_accepted_at')
+      .select('id, email, first_name, last_name, full_name, phone, profile_image_url, primary_goal, confidence_level, onboarding_completed_at, subscription_type, subscription_status, free_analysis_used, consent_version, consent_accepted_at')
       .eq('clerk_user_id', clerkUserId)
       .single();
     
@@ -628,6 +727,9 @@ export const saveAnalysis = async (userId, analysisData) => {
 
   if (analysisData.journeyId) {
     insertData.journey_id = analysisData.journeyId;
+    console.log('[saveAnalysis] Saving analysis with journeyId:', analysisData.journeyId);
+  } else {
+    console.log('[saveAnalysis] No journeyId provided for analysis');
   }
 
 if (analysisData.videoHash) {
@@ -899,6 +1001,9 @@ export const saveCommunicationMetrics = async (userId, analysisId, metrics, jour
 
   if (journeyId) {
     insertData.journey_id = journeyId;
+    console.log('[saveCommunicationMetrics] Saving metrics with journeyId:', journeyId);
+  } else {
+    console.log('[saveCommunicationMetrics] No journeyId provided for metrics');
   }
 
   if (metrics.delivery) {
@@ -929,18 +1034,100 @@ export const saveCommunicationMetrics = async (userId, analysisId, metrics, jour
     }
   }
 
-  const { data, error } = await supabase
-    .from('communication_metrics')
-    .insert(insertData)
-    .select()
-    .single();
+  // Try to save delivery metrics first - they might exist in the database
+  // Only remove columns that definitely don't exist (model_version, processor_version)
+  const definitelyRemovableColumns = [
+    'model_version',
+    'processor_version'
+  ];
+  
+  // Try inserting with delivery metrics first
+  let attemptPayload = { ...insertData };
+  definitelyRemovableColumns.forEach(col => {
+    if (attemptPayload.hasOwnProperty(col)) {
+      delete attemptPayload[col];
+    }
+  });
 
-  if (error) {
-    console.error('Error saving communication metrics:', error);
+  console.log(`[saveCommunicationMetrics] Inserting metrics with ${Object.keys(attemptPayload).length} fields`);
+  console.log(`[saveCommunicationMetrics] journeyId in payload: ${attemptPayload.journey_id || 'NULL'}`);
+
+  try {
+    let { data, error } = await supabase
+      .from('communication_metrics')
+      .insert(attemptPayload)
+      .select()
+      .single();
+
+    // If error is due to missing delivery metric columns, remove them and retry
+    if (error && error.code === 'PGRST204') {
+      const errorMsg = (error.message || '').toLowerCase();
+      const deliveryColumns = ['speaking_rate_wpm', 'filler_word_count', 'sentiment_label', 'posture_flag'];
+      const missingDeliveryColumn = deliveryColumns.find(col => errorMsg.includes(col.toLowerCase()));
+      
+      if (missingDeliveryColumn) {
+        console.warn(`[saveCommunicationMetrics] ${missingDeliveryColumn} column missing, removing delivery metrics and retrying`);
+        deliveryColumns.forEach(col => {
+          if (attemptPayload.hasOwnProperty(col)) {
+            delete attemptPayload[col];
+          }
+        });
+        
+        // Retry without delivery metrics
+        const retryResult = await supabase
+          .from('communication_metrics')
+          .insert(attemptPayload)
+          .select()
+          .single();
+        
+        if (retryResult.error) {
+          console.error('[saveCommunicationMetrics] ❌ ERROR saving communication metrics after retry:', {
+            code: retryResult.error.code,
+            message: retryResult.error.message
+          });
+          return null;
+        }
+        
+        data = retryResult.data;
+        error = null;
+      } else {
+        console.error('[saveCommunicationMetrics] ❌ ERROR saving communication metrics:', {
+          code: error.code,
+          message: error.message,
+          hint: error.hint,
+          details: error.details
+        });
+        return null;
+      }
+    } else if (error) {
+      console.error('[saveCommunicationMetrics] ❌ ERROR saving communication metrics:', {
+        code: error.code,
+        message: error.message,
+        hint: error.hint,
+        details: error.details
+      });
+      return null;
+    }
+
+    if (!data) {
+      console.error('[saveCommunicationMetrics] ❌ Insert succeeded but no data returned');
+      return null;
+    }
+
+    console.log('[saveCommunicationMetrics] ✅ Successfully saved communication metrics:', {
+      id: data.id,
+      analysis_id: data.analysis_id,
+      journey_id: data.journey_id || 'NULL',
+      overall_score: data.overall_score,
+      user_id: data.user_id
+    });
+
+    return data;
+  } catch (err) {
+    console.error('[saveCommunicationMetrics] ❌ EXCEPTION while saving metrics:', err);
+    console.error('[saveCommunicationMetrics] Exception stack:', err.stack);
     return null;
   }
-
-  return data;
 };
 
 /**
@@ -1021,26 +1208,47 @@ export const saveActionItems = async (userId, analysisId, actionItems, options =
     // Allow same action items from different analyses - they might be relevant for different videos
 
     // Prepare details object
+    // Prepare details object - preserve all details
     const details = {
       what_to_do: null,
       why_it_matters: null,
       example: null,
-      all_details: action.details || []
+      all_details: Array.isArray(action.details) ? action.details : (action.details ? [action.details] : [])
     };
 
     // Try to parse details if they exist
-    if (action.details && action.details.length > 0) {
-      action.details.forEach((detail, idx) => {
-        const lowerDetail = detail.toLowerCase();
-        if (lowerDetail.includes('what to do') || idx === 0) {
-          details.what_to_do = detail;
-        } else if (lowerDetail.includes('why it matters') || lowerDetail.includes('why')) {
-          details.why_it_matters = detail;
-        } else if (lowerDetail.includes('example')) {
-          details.example = detail;
+    if (action.details && Array.isArray(action.details) && action.details.length > 0) {
+      action.details.forEach((detail) => {
+        if (!detail || typeof detail !== 'string') return;
+        const lowerDetail = detail.toLowerCase().trim();
+        const cleanDetail = detail.trim();
+        
+        if ((lowerDetail.includes('what to do') || lowerDetail.includes('what to practice')) && !details.what_to_do) {
+          details.what_to_do = cleanDetail.replace(/^(what to do|what to practice)[:\s-]+/i, '').trim();
+        } else if ((lowerDetail.includes('why it matters') || (lowerDetail.includes('why') && lowerDetail.length > 10)) && !details.why_it_matters) {
+          details.why_it_matters = cleanDetail.replace(/^(why it matters|why)[:\s-]+/i, '').trim();
+        } else if (lowerDetail.includes('example') && !details.example) {
+          details.example = cleanDetail.replace(/^example[:\s-]+/i, '').trim();
         }
       });
+      
+      // If we didn't parse anything, use first detail as what_to_do
+      if (!details.what_to_do && !details.why_it_matters && !details.example && details.all_details.length > 0) {
+        details.what_to_do = details.all_details[0];
+      }
+    } else if (action.details && typeof action.details === 'string') {
+      details.what_to_do = action.details.trim();
+      details.all_details = [action.details.trim()];
     }
+    
+    console.log('[saveActionItems] Saving action item with details:', {
+      title: title,
+      hasDetails: action.details && action.details.length > 0,
+      detailsCount: action.details?.length || 0,
+      what_to_do: details.what_to_do,
+      why_it_matters: details.why_it_matters,
+      all_details_count: details.all_details.length
+    });
 
     const inferredMetric = inferTargetMetricFromTitle(title);
     const targetMetric = options.focusMetricKey || inferredMetric;
@@ -1264,7 +1472,7 @@ const deriveDifficultyFromContext = (userContext) => {
 /**
  * Get user's action items (To-Do List)
  */
-export const getUserActionItems = async (clerkUserId, status = null, journeyId = null) => {
+export const getUserActionItems = async (clerkUserId, status = null, journeyId = null, analysisId = null) => {
   if (!supabase) {
     return [];
   }
@@ -1291,6 +1499,10 @@ export const getUserActionItems = async (clerkUserId, status = null, journeyId =
     query = query.eq('journey_id', journeyId);
   }
 
+  if (analysisId) {
+    query = query.eq('analysis_id', analysisId);
+  }
+
   const { data, error } = await query
     .order('created_at', { ascending: false });
 
@@ -1305,7 +1517,7 @@ export const getUserActionItems = async (clerkUserId, status = null, journeyId =
     return [];
   }
 
-  console.log(`getUserActionItems: Found ${data?.length || 0} action items for user ${clerkUserId} (status: ${status || 'all'})`);
+  console.log(`getUserActionItems: Found ${data?.length || 0} action items for user ${clerkUserId} (status: ${status || 'all'}, analysisId: ${analysisId || 'all'})`);
   if (data && data.length > 0) {
     console.log('Action items titles:', data.map(item => item.title));
   }
@@ -1315,6 +1527,7 @@ export const getUserActionItems = async (clerkUserId, status = null, journeyId =
 
 export const saveSelfReflection = async (clerkUserId, reflection = {}) => {
   if (!supabase || !clerkUserId) {
+    console.error('[saveSelfReflection] Missing supabase or clerkUserId');
     return null;
   }
 
@@ -1328,6 +1541,59 @@ export const saveSelfReflection = async (clerkUserId, reflection = {}) => {
     journey_id: reflection.journeyId || reflection.journey_id || null
   };
 
+  console.log('[saveSelfReflection] Saving reflection:', {
+    userId,
+    analysis_id: insertPayload.analysis_id,
+    journey_id: insertPayload.journey_id,
+    confidence_rating: insertPayload.confidence_rating
+  });
+
+  // Check if reflection already exists
+  if (insertPayload.analysis_id) {
+    const { data: existing, error: checkError } = await supabase
+      .from('self_reflections')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('analysis_id', insertPayload.analysis_id)
+      .maybeSingle();
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      console.error('[saveSelfReflection] Error checking for existing reflection:', checkError);
+    }
+
+    if (existing) {
+      console.log('[saveSelfReflection] Updating existing reflection:', existing.id);
+      // Update existing reflection
+      const { data, error } = await supabase
+        .from('self_reflections')
+        .update({
+          confidence_rating: insertPayload.confidence_rating,
+          mood_label: insertPayload.mood_label,
+          notes: insertPayload.notes,
+          journey_id: insertPayload.journey_id,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existing.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('[saveSelfReflection] Error updating self reflection:', error);
+        console.error('[saveSelfReflection] Error details:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        });
+        return null;
+      }
+      console.log('[saveSelfReflection] Successfully updated reflection:', data.id);
+      return data;
+    }
+  }
+
+  // Insert new reflection
+  console.log('[saveSelfReflection] Inserting new reflection');
   const { data, error } = await supabase
     .from('self_reflections')
     .insert(insertPayload)
@@ -1335,10 +1601,18 @@ export const saveSelfReflection = async (clerkUserId, reflection = {}) => {
     .single();
 
   if (error) {
-    console.error('Error saving self reflection:', error);
+    console.error('[saveSelfReflection] Error saving self reflection:', error);
+    console.error('[saveSelfReflection] Error details:', {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+      payload: insertPayload
+    });
     return null;
   }
 
+  console.log('[saveSelfReflection] Successfully saved reflection:', data.id);
   return data;
 };
 
@@ -1529,6 +1803,8 @@ export const getUserCommunicationMetrics = async (clerkUserId, limit = 20, journ
 
   const userId = await getOrCreateUser(clerkUserId);
 
+  console.log('[getUserCommunicationMetrics] Fetching metrics with journeyId:', journeyId, 'limit:', limit, 'userId:', userId);
+
   let query = supabase
     .from('communication_metrics')
     .select(`
@@ -1543,17 +1819,40 @@ export const getUserCommunicationMetrics = async (clerkUserId, limit = 20, journ
 
   if (journeyId) {
     query = query.eq('journey_id', journeyId);
+    console.log('[getUserCommunicationMetrics] Querying with journeyId filter:', journeyId);
+  } else {
+    console.log('[getUserCommunicationMetrics] Querying without journeyId filter');
   }
 
-  const { data, error } = await query
+  let { data, error } = await query
     .order('created_at', { ascending: true })
     .limit(limit);
 
-  if (error) {
-    console.error('Error fetching communication metrics:', error);
+  console.log('[getUserCommunicationMetrics] Query result:', {
+    count: data?.length || 0,
+    error: error?.code,
+    errorMessage: error?.message,
+    journeyId: journeyId || 'none',
+    sampleJourneyId: data?.[0]?.journey_id,
+    sampleUserId: data?.[0]?.user_id
+  });
+
+  if (error && error.code !== 'PGRST116') {
+    console.error('[getUserCommunicationMetrics] Error fetching communication metrics:', error);
     return [];
   }
 
+  // If journeyId was provided, verify all returned metrics belong to that journey
+  if (journeyId && data && data.length > 0) {
+    const invalidMetrics = data.filter(m => m.journey_id !== journeyId);
+    if (invalidMetrics.length > 0) {
+      console.warn('[getUserCommunicationMetrics] Found metrics with incorrect journeyId:', invalidMetrics.length);
+      // Filter out metrics that don't match the requested journeyId
+      data = data.filter(m => m.journey_id === journeyId);
+    }
+  }
+
+  console.log('[getUserCommunicationMetrics] Returning', data?.length || 0, 'metrics for journeyId:', journeyId || 'none');
   return data || [];
 };
 
@@ -1663,7 +1962,9 @@ export const getUserCommunicationProfile = async (clerkUserId, journeyId = null)
 
   const userId = await getOrCreateUser(clerkUserId);
 
-  // Get latest metrics
+  console.log('[getUserCommunicationProfile] Fetching profile with journeyId:', journeyId, 'userId:', userId);
+
+  // Get latest metrics for the specified journey
   let metricsQuery = supabase
     .from('communication_metrics')
     .select('*')
@@ -1671,18 +1972,36 @@ export const getUserCommunicationProfile = async (clerkUserId, journeyId = null)
 
   if (journeyId) {
     metricsQuery = metricsQuery.eq('journey_id', journeyId);
+    console.log('[getUserCommunicationProfile] Querying metrics with journeyId filter:', journeyId);
+  } else {
+    console.log('[getUserCommunicationProfile] Querying metrics without journeyId filter');
   }
 
-  const { data: latestMetrics, error: metricsError } = await metricsQuery
+  let { data: latestMetrics, error: metricsError } = await metricsQuery
     .order('created_at', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
-  if (metricsError && metricsError.code !== 'PGRST116') { // PGRST116 = no rows
-    console.error('Error fetching latest metrics:', metricsError);
+  console.log('[getUserCommunicationProfile] Query result:', {
+    found: !!latestMetrics,
+    error: metricsError?.code,
+    errorMessage: metricsError?.message,
+    requestedJourneyId: journeyId || 'none',
+    foundJourneyId: latestMetrics?.journey_id,
+    userId: latestMetrics?.user_id
+  });
+
+  // Verify that the returned metrics belong to the requested journey
+  if (journeyId && latestMetrics && latestMetrics.journey_id !== journeyId) {
+    console.warn('[getUserCommunicationProfile] Found metrics with incorrect journeyId. Expected:', journeyId, 'Got:', latestMetrics.journey_id);
+    latestMetrics = null;
   }
 
-  // Get latest insight
+  if (metricsError && metricsError.code !== 'PGRST116') { // PGRST116 = no rows
+    console.error('[getUserCommunicationProfile] Error fetching latest metrics:', metricsError);
+  }
+
+  // Get latest insight for the specified journey
   let insightQuery = supabase
     .from('communication_insights')
     .select('*')
@@ -1692,18 +2011,24 @@ export const getUserCommunicationProfile = async (clerkUserId, journeyId = null)
     insightQuery = insightQuery.eq('journey_id', journeyId);
   }
 
-  const { data: latestInsight, error: insightError } = await insightQuery
+  let { data: latestInsight, error: insightError } = await insightQuery
     .order('created_at', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
+
+  // Verify that the returned insight belongs to the requested journey
+  if (journeyId && latestInsight && latestInsight.journey_id !== journeyId) {
+    console.warn('[getUserCommunicationProfile] Found insight with incorrect journeyId. Expected:', journeyId, 'Got:', latestInsight.journey_id);
+    latestInsight = null;
+  }
 
   if (insightError && insightError.code !== 'PGRST116') {
     console.error('Error fetching latest insight:', insightError);
   }
 
   return {
-    latest_metrics: latestMetrics,
-    latest_insight: latestInsight
+    latest_metrics: latestMetrics || null,
+    latest_insight: latestInsight || null
   };
 };
 
@@ -2222,5 +2547,154 @@ export const checkPracticeCommitmentStatus = async (clerkUserId, journeyId = nul
     weekStart: weeklyCount.weekStart,
     weekEnd: weeklyCount.weekEnd
   };
+};
+
+// Email notification functions
+
+/**
+ * Get user email preferences
+ */
+export const getUserEmailPreferences = async (userId) => {
+  if (!supabase || !userId) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('email_notifications_enabled, email_marketing_enabled')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('[getUserEmailPreferences] Error:', error);
+      return null;
+    }
+
+    return data;
+  } catch (err) {
+    console.error('[getUserEmailPreferences] Exception:', err);
+    return null;
+  }
+};
+
+/**
+ * Update user email preferences
+ */
+export const updateUserEmailPreferences = async (clerkUserId, preferences) => {
+  if (!supabase || !clerkUserId) {
+    throw new Error('Supabase or clerkUserId not provided');
+  }
+
+  try {
+    // Get user ID from clerk_user_id
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('clerk_user_id', clerkUserId)
+      .single();
+
+    if (userError || !user) {
+      throw new Error(`User not found: ${userError?.message || 'Unknown error'}`);
+    }
+
+    const updates = {};
+    if (preferences.email_notifications_enabled !== undefined) {
+      updates.email_notifications_enabled = preferences.email_notifications_enabled;
+    }
+    if (preferences.email_marketing_enabled !== undefined) {
+      updates.email_marketing_enabled = preferences.email_marketing_enabled;
+    }
+
+    const { data, error } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('id', user.id)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to update preferences: ${error.message}`);
+    }
+
+    return data;
+  } catch (err) {
+    console.error('[updateUserEmailPreferences] Error:', err);
+    throw err;
+  }
+};
+
+/**
+ * Log email notification in database
+ */
+export const logEmailSent = async ({ userId, emailType, recipientEmail, subject, status = 'sent', metadata = {} }) => {
+  if (!supabase || !userId) {
+    console.warn('[logEmailSent] Supabase or userId not provided');
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('email_notifications')
+      .insert({
+        user_id: userId,
+        email_type: emailType,
+        recipient_email: recipientEmail,
+        subject: subject,
+        status: status,
+        metadata: metadata
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[logEmailSent] Error:', error);
+      return null;
+    }
+
+    return data;
+  } catch (err) {
+    console.error('[logEmailSent] Exception:', err);
+    return null;
+  }
+};
+
+/**
+ * Get user's email notification history
+ */
+export const getUserEmailHistory = async (clerkUserId, limit = 20) => {
+  if (!supabase || !clerkUserId) {
+    return [];
+  }
+
+  try {
+    // Get user ID from clerk_user_id
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('clerk_user_id', clerkUserId)
+      .single();
+
+    if (userError || !user) {
+      return [];
+    }
+
+    const { data, error } = await supabase
+      .from('email_notifications')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('sent_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error('[getUserEmailHistory] Error:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (err) {
+    console.error('[getUserEmailHistory] Exception:', err);
+    return [];
+  }
 };
 

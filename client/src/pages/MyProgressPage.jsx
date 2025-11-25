@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   TrendingUp,
   TrendingDown,
@@ -258,7 +258,8 @@ export default function MyProgressPage({
   journeys = [],
   journeysLoading = false,
   activeJourneyId = null,
-  onSelectJourney
+  onSelectJourney,
+  refreshTrigger
 }) {
   const { user } = useUser();
   const navigate = useNavigate();
@@ -280,6 +281,7 @@ export default function MyProgressPage({
   );
   const focusLabel = activeJourney?.display_name || activeJourney?.focus_label || activeJourney?.focus_slug;
   const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  const location = useLocation();
 
   useEffect(() => {
     if (user) {
@@ -287,9 +289,49 @@ export default function MyProgressPage({
     } else {
       setLoading(false);
     }
-  }, [user, activeJourneyId]);
+  }, [user]);
+
+  // Clear and refetch data when activeJourneyId changes (journey switching)
+  useEffect(() => {
+    if (user && activeJourneyId !== null) {
+      // Clear existing data immediately to avoid showing stale data
+      setMetrics([]);
+      setNextDrill(null);
+      setReflections([]);
+      setLoading(true);
+      // Fetch new data for the selected journey
+      fetchProgressData();
+    }
+  }, [activeJourneyId, user]);
+
+  // Refresh when refreshTrigger changes (after new analysis)
+  useEffect(() => {
+    if (user && refreshTrigger !== undefined) {
+      // Add a small delay to ensure backend has saved the data
+      const timeoutId = setTimeout(() => {
+        fetchProgressData();
+      }, 500);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [refreshTrigger, user, activeJourneyId]);
+
+  // Refresh when navigating to My Progress page (both /grades and /my-progress routes)
+  useEffect(() => {
+    if (user && (location.pathname === '/my-progress' || location.pathname === '/grades')) {
+      // Add a small delay to ensure backend has saved the data
+      const timeoutId = setTimeout(() => {
+        fetchProgressData();
+      }, 300);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [location.pathname, user, activeJourneyId]);
 
   const fetchNextDrill = async (headers) => {
+    if (!headers || !headers['X-Clerk-User-Id']) {
+      setNextDrill(null);
+      return;
+    }
+    
     try {
       const actionParams = new URLSearchParams();
       actionParams.append('status', 'pending');
@@ -299,7 +341,10 @@ export default function MyProgressPage({
       const actionRes = await fetch(
         `${apiBase}/api/action-items?${actionParams.toString()}`,
         { headers }
-      );
+      ).catch((fetchError) => {
+        console.error('Network error fetching next drill:', fetchError);
+        throw fetchError;
+      });
 
       if (actionRes.ok) {
         const actionData = await actionRes.json();
@@ -337,7 +382,10 @@ export default function MyProgressPage({
   };
 
   const fetchProgressData = async () => {
-    if (!user) return;
+    if (!user || !user.id) {
+      setLoading(false);
+      return;
+    }
     
     setLoading(true);
     try {
@@ -349,22 +397,52 @@ export default function MyProgressPage({
         'X-Clerk-User-Id': user.id,
         'Content-Type': 'application/json'
       };
-      const metricsRes = await fetch(
-        `${apiBase}/api/communication/metrics?${params.toString()}`,
-        { headers }
-      );
+      const endpoint = `${apiBase}/api/communication/metrics?${params.toString()}`;
+      console.log('MyProgressPage: Fetching metrics from:', endpoint, 'with journeyId:', activeJourneyId);
+      
+      let metricsRes;
+      try {
+        metricsRes = await fetch(endpoint, { headers });
+      } catch (fetchError) {
+        console.error('MyProgressPage: Network error fetching metrics:', fetchError);
+        setMetrics([]);
+        setNextDrill(null);
+        setReflections([]);
+        setLoading(false);
+        return;
+      }
 
       if (metricsRes.ok) {
         const metricsData = await metricsRes.json();
+        console.log('MyProgressPage: Received metrics:', {
+          count: metricsData.metrics?.length || 0,
+          sample: metricsData.metrics?.[0]
+        });
         setMetrics(metricsData.metrics || []);
       } else {
+        console.error('MyProgressPage: Failed to fetch metrics:', metricsRes.status, metricsRes.statusText);
+        const errorData = await metricsRes.json().catch(() => ({}));
+        console.error('MyProgressPage: Error details:', errorData);
         setMetrics([]);
       }
 
-      await fetchNextDrill(headers);
-      await fetchReflections(headers);
+      // Fetch next drill and reflections with error handling
+      try {
+        await fetchNextDrill(headers);
+      } catch (err) {
+        console.error('Failed to fetch next drill:', err);
+        setNextDrill(null);
+      }
+
+      try {
+        await fetchReflections(headers);
+      } catch (err) {
+        console.error('Failed to fetch reflections:', err);
+        setReflections([]);
+      }
     } catch (err) {
       console.error('Failed to fetch progress data:', err);
+      setMetrics([]);
       setNextDrill(null);
       setReflections([]);
     } finally {
@@ -651,12 +729,31 @@ export default function MyProgressPage({
 
   const aiOverallScore = useMemo(() => parseScore(latestMetrics?.overall_score), [latestMetrics]);
 
+  // Normalize reflection score from 1-5 scale to 0-10 scale for comparison
+  const normalizedReflectionScore = useMemo(() => {
+    if (!Number.isFinite(reflectionScore)) return null;
+    // Convert 1-5 scale to 0-10 scale: (score - 1) * 2.5
+    return (reflectionScore - 1) * 2.5;
+  }, [reflectionScore]);
+
   const reflectionDelta = useMemo(() => {
-    if (!latestReflection || !Number.isFinite(aiOverallScore) || !Number.isFinite(reflectionScore)) {
+    if (!latestReflection || !Number.isFinite(aiOverallScore) || !Number.isFinite(normalizedReflectionScore)) {
       return null;
     }
-    return Number((aiOverallScore - reflectionScore).toFixed(1));
-  }, [latestReflection, aiOverallScore, reflectionScore]);
+    // Delta: positive means AI scored higher, negative means user scored themselves higher
+    return Number((aiOverallScore - normalizedReflectionScore).toFixed(1));
+  }, [latestReflection, aiOverallScore, normalizedReflectionScore]);
+  
+  // Calculate reflection trend (comparing current vs previous reflection)
+  const reflectionTrend = useMemo(() => {
+    if (!reflections || reflections.length < 2) return null;
+    const current = reflections[0];
+    const previous = reflections[1];
+    const currentNormalized = current.confidence_rating ? (current.confidence_rating - 1) * 2.5 : null;
+    const previousNormalized = previous.confidence_rating ? (previous.confidence_rating - 1) * 2.5 : null;
+    if (!Number.isFinite(currentNormalized) || !Number.isFinite(previousNormalized)) return null;
+    return Number((currentNormalized - previousNormalized).toFixed(1));
+  }, [reflections]);
 
   const streakInfo = useMemo(() => computeStreakInfo(metrics, getMetricTimestamp), [metrics]);
 
@@ -1045,6 +1142,9 @@ export default function MyProgressPage({
                 <span>Self rating</span>
                 <strong>{Number.isFinite(reflectionScore) ? reflectionScore.toFixed(1) : '—'}</strong>
                 <small>/ 5</small>
+                {normalizedReflectionScore !== null && (
+                  <small className="reflectionCard__normalized">({normalizedReflectionScore.toFixed(1)}/10)</small>
+                )}
               </div>
               <div>
                 <span>AI overall</span>
@@ -1057,10 +1157,30 @@ export default function MyProgressPage({
                   <strong className={reflectionDelta >= 0 ? 'delta--positive' : 'delta--negative'}>
                     {reflectionDelta >= 0 ? '+' : ''}{reflectionDelta.toFixed(1)}
                   </strong>
-                  <small>AI vs you</small>
+                  <small>
+                    {reflectionDelta > 0 ? 'AI higher' : reflectionDelta < 0 ? 'You higher' : 'Match'}
+                  </small>
+                </div>
+              )}
+              {reflectionTrend !== null && (
+                <div>
+                  <span>Trend</span>
+                  <strong className={reflectionTrend >= 0 ? 'delta--positive' : 'delta--negative'}>
+                    {reflectionTrend >= 0 ? '+' : ''}{reflectionTrend.toFixed(1)}
+                  </strong>
+                  <small>vs previous</small>
                 </div>
               )}
             </div>
+            {reflectionDelta !== null && Math.abs(reflectionDelta) > 1 && (
+              <div className="reflectionCard__insight">
+                {reflectionDelta > 1 ? (
+                  <p>💡 <strong>Insight:</strong> The AI scored you higher than you rated yourself. You might be underestimating your performance!</p>
+                ) : (
+                  <p>💡 <strong>Insight:</strong> You rated yourself higher than the AI. Consider focusing on the specific areas the AI identified for improvement.</p>
+                )}
+              </div>
+            )}
             {latestReflection.mood_label && (
               <div className="reflectionCard__mood">
                 Mood check-in: {latestReflection.mood_label}

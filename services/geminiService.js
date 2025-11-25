@@ -79,8 +79,64 @@ const buildHistoricalContextBlock = (historicalContext = null) => {
   return sections.length ? `${sections.join('\n')}\n` : '';
 };
 
+// Build Module 1 baseline prompt
+const buildModule1BaselinePrompt = () => {
+  return `You are an expert body language and social psychology analyst specializing in the Stereotype Content Model (Warmth vs Competence framework).
+
+**Context:**
+This is a baseline assessment for Module 1 of the First Impression Mastery course. The user is recording their natural, unscripted introduction to establish their starting point on the Warmth-Competence matrix.
+
+**Your Task:**
+Analyze this video and assess the user's natural presentation across two critical dimensions:
+
+1. **Warmth (Trustworthiness/Intentions)**: How approachable, friendly, and trustworthy does this person appear?
+   - Markers: Duchenne smile presence, head tilt, eyebrow flash, open palm gestures, eye softness, facial warmth
+   - Score: 0-10 (0 = cold/threatening, 10 = very warm/trustworthy)
+
+2. **Competence (Capability/Ability)**: How capable, confident, and effective does this person appear?
+   - Markers: Posture verticality, shoulder width, vocal depth, lack of fidgeting, confident presence, clear articulation
+   - Score: 0-10 (0 = weak/incompetent, 10 = highly capable/confident)
+
+**Analysis Requirements:**
+
+1. Provide a brief overview of how the person comes across in the first 0-7 seconds
+2. Assess Warmth score (0-10) with specific evidence
+3. Assess Competence score (0-10) with specific evidence
+4. Identify which quadrant they fall into:
+   - **Admiration** (High Warmth, High Competence) - The goal
+   - **Pity** (High Warmth, Low Competence) - Liked but not respected
+   - **Envy/Threat** (Low Warmth, High Competence) - Respected but not trusted
+   - **Contempt** (Low Warmth, Low Competence) - Rejected
+5. Provide specific, actionable feedback on what's working and what needs improvement
+6. Note any congruence issues (does their face match their words?)
+
+**Output Format:**
+At the end of your response, include a JSON block with the following structure:
+
+\`\`\`json
+{
+  "warmth_score": 7.5,
+  "competence_score": 6.2,
+  "quadrant": "admiration",
+  "warmth_evidence": ["Duchenne smile present", "Open body language", "Warm vocal tone"],
+  "competence_evidence": ["Upright posture", "Clear articulation", "Confident presence"],
+  "first_impression_analysis": "Brief description of first 0-7 seconds",
+  "congruence": "high",
+  "recommendations": ["Specific actionable feedback"]
+}
+\`\`\`
+
+Be honest and specific. This baseline will guide their learning journey.`;
+};
+
 // Build dynamic prompt based on user context
 const buildPrompt = (userContext = {}) => {
+  // Check if this is a Module 1 baseline assessment
+  const courseContext = userContext.courseContext || (typeof userContext === 'string' ? JSON.parse(userContext) : null);
+  if (courseContext?.type === 'baseline' && courseContext?.moduleId === 'module-1') {
+    return buildModule1BaselinePrompt();
+  }
+
   const goal = userContext.primaryGoal || 'general';
   const confidence = userContext.confidenceLevel || 'medium';
   const goalSpecific = userContext.goalSpecificContext || {};
@@ -588,7 +644,9 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
     }
     
     const INLINE_LIMIT_BYTES = 20 * 1024 * 1024; // 20MB
-    const modelName = options.model || 'gemini-2.5-pro';
+    const fallbackModel = 'gemini-2.5-pro';
+    const modelName = options.model || 'gemini-3-pro-preview';
+    let effectiveModel = modelName;
     const ai = new GoogleGenAI({ apiKey: API_KEY });
     
     // Build dynamic prompt based on user context
@@ -664,13 +722,15 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
         };
         const execWithFallback = async (attempt) => {
           try {
+            effectiveModel = modelName;
             return await exec();
           } catch (err) {
             // Fallback to flash after 2 failed attempts on overload
-            const canFallback = (options.model ?? modelName) !== 'gemini-2.5-flash';
+            const canFallback = modelName !== fallbackModel;
             if (attempt >= 1 && shouldRetry(err) && canFallback) {
+              effectiveModel = fallbackModel;
               return await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
+                model: fallbackModel,
                 generationConfig,
                 contents: [
                   {
@@ -678,7 +738,7 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
                       // Reuse same uploaded file
                       {
                         fileData: {
-                          fileUri: err?.fileUri || undefined, // not available; caller will reupload if needed in subsequent attempt
+                          fileUri: myfile.uri,
                           mimeType,
                         },
                         ...(Object.keys(videoMetadata).length ? { videoMetadata } : {}),
@@ -723,12 +783,14 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
       };
       const execWithFallback = async (attempt) => {
         try {
+          effectiveModel = modelName;
           return await exec();
         } catch (err) {
-          const canFallback = (options.model ?? modelName) !== 'gemini-2.5-flash';
+          const canFallback = modelName !== fallbackModel;
           if (attempt >= 1 && shouldRetry(err) && canFallback) {
+            effectiveModel = fallbackModel;
             return await ai.models.generateContent({
-              model: 'gemini-2.5-flash',
+              model: fallbackModel,
               generationConfig,
               contents: [
                 {
@@ -763,8 +825,21 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
         rawMetricsPayload = parsed;
         metricsVersion = parsed.schema_version || parsed.version || DEFAULT_METRICS_SCHEMA_VERSION;
         
-        // Support both old format (metrics) and new format (sub_scores + final_scores)
-        if (parsed.sub_scores && parsed.final_scores) {
+        // Check if this is Module 1 baseline format (warmth_score, competence_score)
+        if (parsed.warmth_score !== undefined && parsed.competence_score !== undefined) {
+          // Module 1 baseline format
+          metrics = {
+            warmth_score: parsed.warmth_score,
+            competence_score: parsed.competence_score,
+            quadrant: parsed.quadrant || 'contempt',
+            warmth_evidence: parsed.warmth_evidence || [],
+            competence_evidence: parsed.competence_evidence || [],
+            first_impression_analysis: parsed.first_impression_analysis || '',
+            congruence: parsed.congruence || 'medium',
+            recommendations: parsed.recommendations || []
+          };
+        } else if (parsed.sub_scores && parsed.final_scores) {
+          // New format with sub-scores
           // New format with sub-scores
           metrics = {
             subScores: parsed.sub_scores,
@@ -816,7 +891,7 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
       metrics: metrics,
       rawMetrics: rawMetricsPayload,
       metricsVersion,
-      modelVersion: modelName
+      modelVersion: effectiveModel
     };
 };
 

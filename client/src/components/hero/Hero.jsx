@@ -1,68 +1,76 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Brain, Target, TrendingUp, Sparkles } from 'lucide-react';
+import './Hero.css';
 
-export default function Hero() {
+export default function Hero({ isSignedIn = false, onNewAnalysis }) {
   const navigate = useNavigate();
+
+  const handleCTAClick = (e) => {
+    if (isSignedIn) {
+      e.preventDefault();
+      if (onNewAnalysis) {
+        onNewAnalysis();
+      } else {
+        navigate('/new-analysis');
+      }
+    }
+  };
+
   return (
     <section className="hero">
-      {/* Background video layer */}
       <div className="hero__bg" aria-hidden="true">
-        <video
-          className="hero__bgVideo"
-          src="/hero-bg.mp4"
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
-        />
+        <div className="hero__bgGradient" />
+        <div className="hero__bgPattern" />
         <div className="hero__bgScrim" />
       </div>
-      <div className="hero__inner">
-        <div className="hero__copy">
-          <div className="hero__badge">
-            <Sparkles size={16} />
-            <span>AI-Powered Body Language Analysis</span>
-          </div>
+      
+      <div className="hero__container">
+        <div className="hero__content">
+
           <h1 className="hero__title">
             <span className="hero__titleLine1">Every Gesture Tells a Story.</span>
             <span className="hero__titleLine2">Make Yours Unforgettable.</span>
           </h1>
           <p className="hero__subtitle">
-            Master the art of confident communication with AI-guided video feedback. 
-            Get personalized insights on your body language, delivery, and presence.
+            {isSignedIn 
+              ? "Continue your journey to confident communication. Upload a new video to track your progress."
+              : "Master the art of confident communication with AI-guided video feedback. Transform how you present yourself in every interaction."
+            }
           </p>
           <div className="hero__actions">
-            <a className="btn btn--primary" href="#try">Get Started Now For Free</a>
-            <button className="btn btn--ghost" onClick={() => navigate('/pricing')} style={{ background: 'rgba(255, 255, 255, 0.1)', border: '1px solid rgba(255, 255, 255, 0.3)', color: '#FFFFFF' }}>
-              View Pricing
-            </button>
+            {isSignedIn ? (
+              <button 
+                className="btn btn--primary hero__cta" 
+                onClick={handleCTAClick}
+              >
+                <span>Start New Analysis</span>
+                <div className="hero__ctaGlow" />
+              </button>
+            ) : (
+              <a className="btn btn--primary hero__cta" href="#try">
+                <span>Get Started Now For Free</span>
+                <div className="hero__ctaGlow" />
+              </a>
+            )}
           </div>
-          <p className="hero__micro">No credit card required • Start improving today</p>
-          <div className="hero__benefits">
-            <div className="hero__benefit">
-              <div className="hero__benefitIcon">
-                <Brain size={20} />
-              </div>
-              <span>AI-Powered Analysis</span>
-            </div>
-            <div className="hero__benefit">
-              <div className="hero__benefitIcon">
-                <Target size={20} />
-              </div>
-              <span>Personalized Feedback</span>
-            </div>
-            <div className="hero__benefit">
-              <div className="hero__benefitIcon">
-                <TrendingUp size={20} />
-              </div>
-              <span>Track Your Progress</span>
-            </div>
-          </div>
+          {!isSignedIn && (
+            <p className="hero__micro">No credit card required • Start improving today</p>
+          )}
+        </div>
+        
+        <div className="hero__visual">
+          <div className="hero__visualOrb hero__visualOrb--1" />
+          <div className="hero__visualOrb hero__visualOrb--2" />
+          <div className="hero__visualOrb hero__visualOrb--3" />
+          <div className="hero__visualGlow" />
+          <div className="hero__visualRing" />
+          <img 
+            src="/images/character.png" 
+            alt="AI Analysis Visualization" 
+            className="hero__figure"
+          />
         </div>
       </div>
     </section>
   );
 }
-

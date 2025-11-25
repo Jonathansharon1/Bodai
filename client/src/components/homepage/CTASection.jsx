@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SignInButton } from '@clerk/clerk-react';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight, Rocket } from 'lucide-react';
 import './CTASection.css';
 
-export default function CTASection() {
+export default function CTASection({ isSignedIn = false }) {
   const navigate = useNavigate();
   const sectionRef = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -35,27 +35,54 @@ export default function CTASection() {
       <div className="ctaSection__container">
         <div className="ctaSection__content">
           <div className="ctaSection__icon">
-            <Sparkles size={48} />
+            <Rocket size={48} />
           </div>
-          <h2 className="ctaSection__title">Ready to Transform Your Communication?</h2>
+          <h2 className="ctaSection__title">
+            {isSignedIn ? "Ready for Your Next Practice Session?" : "Ready to Transform Your Communication?"}
+          </h2>
           <p className="ctaSection__subtitle">
-            Join thousands of users who are already improving their body language and communication skills with BodAI.
+            {isSignedIn 
+              ? "Keep improving your communication skills. Upload a new video analysis or check your progress."
+              : "Join hundreds of users who are already improving their body language and communication skills with BodAI."
+            }
           </p>
           <div className="ctaSection__actions">
-            <SignInButton mode="modal">
-              <button className="btn btn--primary ctaSection__button">
-                Get Started Free
-                <ArrowRight size={20} />
-              </button>
-            </SignInButton>
-            <button 
-              className="btn btn--ghost ctaSection__button"
-              onClick={() => navigate('/pricing')}
-            >
-              View Pricing
-            </button>
+            {isSignedIn ? (
+              <>
+                <button 
+                  className="btn btn--primary ctaSection__button"
+                  onClick={() => navigate('/new-analysis')}
+                >
+                  Start New Analysis
+                  <ArrowRight size={20} />
+                </button>
+                <button 
+                  className="btn btn--ghost ctaSection__button"
+                  onClick={() => navigate('/dashboard')}
+                >
+                  Go to Dashboard
+                </button>
+              </>
+            ) : (
+              <>
+                <SignInButton mode="modal">
+                  <button className="btn btn--primary ctaSection__button">
+                    Get Started Free
+                    <ArrowRight size={20} />
+                  </button>
+                </SignInButton>
+                <button 
+                  className="btn btn--ghost ctaSection__button"
+                  onClick={() => navigate('/pricing')}
+                >
+                  View Pricing
+                </button>
+              </>
+            )}
           </div>
-          <p className="ctaSection__micro">No credit card required • Cancel anytime</p>
+          {!isSignedIn && (
+            <p className="ctaSection__micro">No credit card required • Cancel anytime</p>
+          )}
         </div>
       </div>
     </section>

@@ -18,10 +18,6 @@ export default function JourneyPreviewCard({
           <h3 className="journeyPreview__title">{template.title}</h3>
           <p className="journeyPreview__subtitle">{template.tagline}</p>
         </div>
-        <div className="journeyPreview__badge">
-          <Compass size={18} />
-          <span>{template.durationLabel}</span>
-        </div>
       </div>
 
       <div className="journeyPreview__grid">
@@ -40,20 +36,7 @@ export default function JourneyPreviewCard({
           <p className="journeyPreview__panelBody">{template.focusPhrase}</p>
         </div>
 
-        <div className="journeyPreview__panel">
-          <div className="journeyPreview__panelHeader">
-            <CalendarCheck2 size={16} />
-            <span>Milestones</span>
-          </div>
-          <ul className="journeyPreview__timeline">
-            {template.milestones.map((item) => (
-              <li key={item.label}>
-                <strong>{item.label}</strong>
-                <span>{item.detail}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+        {/* Weekly progression placeholder removed */}
       </div>
 
       <div className="journeyPreview__footer">
@@ -85,10 +68,6 @@ export default function JourneyPreviewCard({
             </span>
           </div>
         )}
-        <div className="journeyPreview__meta journeyPreview__meta--highlight">
-          <Sparkles size={16} />
-          <span>{template.promise}</span>
-        </div>
       </div>
     </div>
   );

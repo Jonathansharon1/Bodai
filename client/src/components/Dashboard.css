@@ -1,17 +1,19 @@
 .dashboardLayout {
   margin-left: 280px;
   min-height: 100vh;
-  background: #FFFFFF;
+  background: var(--bg-800);
 }
 
 .dashboard {
-  padding: 32px;
+  padding: 40px;
+  max-width: 1600px;
+  margin: 0 auto;
 }
 
 .dashboard__header {
-  margin-bottom: 32px;
+  margin-bottom: 40px;
   padding-bottom: 24px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .dashboard__headerContent {
@@ -24,10 +26,10 @@
 
 .dashboard__title {
   font-size: 32px;
-  font-weight: 700;
-  color: #0f172a;
+  font-weight: 800;
+  color: var(--text-dark);
   margin: 0;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
   font-family: var(--font-display);
 }
 
@@ -557,14 +559,29 @@
 }
 
 .profileCard {
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
   border-radius: 20px;
-  padding: 32px;
+  padding: 40px;
   color: #ffffff;
   display: flex;
-  gap: 32px;
+  gap: 40px;
   align-items: center;
-  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3);
+  box-shadow: var(--shadow-lg);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Add subtle pattern to profile card */
+.profileCard::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -20%;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
 }
 
 .profileCard__score {
@@ -577,6 +594,36 @@
   font-weight: 700;
   line-height: 1;
   margin-bottom: 8px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.profileCard__trend {
+  font-size: 18px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(8px);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.profileCard__trend.positive {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.25);
+}
+
+.profileCard__trend.negative {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.25);
 }
 
 .profileCard__scoreLabel {

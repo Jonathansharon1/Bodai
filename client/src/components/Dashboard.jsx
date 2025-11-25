@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@clerk/clerk-react';
+import { useLocation } from 'react-router-dom';
 import { 
   Target,
   Dumbbell,
@@ -22,6 +23,13 @@ import {
 import {
   LineChart,
   Line,
+  BarChart,
+  Bar,
+  RadarChart,
+  Radar,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -78,6 +86,7 @@ export default function Dashboard({
   onStartJourney
 }) {
   const { user } = useUser();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState(null);
   const [localUserContext, setLocalUserContext] = useState(null);
@@ -114,12 +123,44 @@ export default function Dashboard({
     }
   }, [user]);
 
+  // Clear and refetch data when activeJourneyId changes (journey switching)
+  useEffect(() => {
+    if (user && activeJourneyId !== null) {
+      // Clear existing data immediately to avoid showing stale data
+      setProgressData({
+        profile: null,
+        metrics: [],
+        insights: [],
+        achievements: [],
+        actionItems: []
+      });
+      setLoading(true);
+      // Fetch new data for the selected journey
+      fetchProgressData(activeJourneyId);
+    }
+  }, [activeJourneyId, user]);
+
   // Refresh when refreshTrigger changes
   useEffect(() => {
     if (user && refreshTrigger !== undefined) {
-      fetchProgressData(activeJourneyId);
+      // Add a small delay to ensure backend has saved the data
+      const timeoutId = setTimeout(() => {
+        fetchProgressData(activeJourneyId);
+      }, 500);
+      return () => clearTimeout(timeoutId);
     }
   }, [refreshTrigger, user, activeJourneyId]);
+
+  // Refresh when navigating to dashboard route
+  useEffect(() => {
+    if (user && location.pathname === '/dashboard') {
+      // Add a small delay to ensure backend has saved the data
+      const timeoutId = setTimeout(() => {
+        fetchProgressData(activeJourneyId);
+      }, 300);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [location.pathname, user, activeJourneyId]);
 
   const fetchUserProfile = async () => {
     if (!user) return;
@@ -166,6 +207,7 @@ export default function Dashboard({
         params.append('journeyId', journeyIdParam);
       }
       const endpoint = `${process.env.REACT_APP_API_URL || 'http://localhost:5000/api/communication/progress'}${params.toString() ? `?${params.toString()}` : ''}`;
+      console.log('Fetching dashboard data from:', endpoint, 'with journeyId:', journeyIdParam);
       const res = await fetch(endpoint, {
         headers: {
           'X-Clerk-User-Id': user.id,
@@ -177,12 +219,18 @@ export default function Dashboard({
         const data = await res.json();
         console.log('Dashboard data fetched:', {
           profile: !!data.profile,
+          latest_metrics: !!data.profile?.latest_metrics,
           metrics: data.metrics?.length || 0,
           insights: data.insights?.length || 0,
           achievements: data.achievements?.length || 0,
           actionItems: data.actionItems?.length || 0
         });
-        console.log('Action Items data:', data.actionItems);
+        if (data.metrics && data.metrics.length > 0) {
+          console.log('Metrics sample:', data.metrics[0]);
+        }
+        if (data.profile?.latest_metrics) {
+          console.log('Latest metrics:', data.profile.latest_metrics);
+        }
         setProgressData({
           profile: data.profile || null,
           metrics: data.metrics || [],
@@ -350,6 +398,26 @@ function ExpandableDashboardText({ text, collapsedLines = 2 }) {
     confidence: (chartData[chartData.length - 1].confidence - chartData[0].confidence).toFixed(1),
   } : null;
 
+  // Prepare radar chart data (current performance)
+  const radarData = chartData.length > 0 ? [
+    { metric: 'Presence', value: chartData[chartData.length - 1].presence, fullMark: 10 },
+    { metric: 'Voice', value: chartData[chartData.length - 1].voice_expression, fullMark: 10 },
+    { metric: 'Clarity', value: chartData[chartData.length - 1].clarity, fullMark: 10 },
+    { metric: 'Authenticity', value: chartData[chartData.length - 1].authenticity, fullMark: 10 },
+    { metric: 'Impact', value: chartData[chartData.length - 1].impact, fullMark: 10 },
+    { metric: 'Confidence', value: chartData[chartData.length - 1].confidence, fullMark: 10 },
+  ] : [];
+
+  // Prepare bar chart data (current vs previous session)
+  const barChartData = chartData.length >= 2 ? [
+    { metric: 'Presence', current: chartData[chartData.length - 1].presence, previous: chartData[chartData.length - 2].presence },
+    { metric: 'Voice', current: chartData[chartData.length - 1].voice_expression, previous: chartData[chartData.length - 2].voice_expression },
+    { metric: 'Clarity', current: chartData[chartData.length - 1].clarity, previous: chartData[chartData.length - 2].clarity },
+    { metric: 'Authenticity', current: chartData[chartData.length - 1].authenticity, previous: chartData[chartData.length - 2].authenticity },
+    { metric: 'Impact', current: chartData[chartData.length - 1].impact, previous: chartData[chartData.length - 2].impact },
+    { metric: 'Confidence', current: chartData[chartData.length - 1].confidence, previous: chartData[chartData.length - 2].confidence },
+  ] : [];
+
   // Custom tooltip component
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
@@ -396,6 +464,97 @@ function ExpandableDashboardText({ text, collapsedLines = 2 }) {
   const focusLabel = activeJourney?.display_name || activeJourney?.focus_label || (focusSlug ? getGoalLabel(focusSlug) : null);
   const focusConfidence = activeJourney?.confidence_level || userProfile?.confidence_level || localUserContext?.confidenceLevel;
 
+  // Get user's name for personalization
+  const userName = user?.firstName || userProfile?.first_name || userProfile?.full_name?.split(' ')[0] || null;
+
+  // Calculate score trend (compare latest with previous)
+  const scoreTrend = useMemo(() => {
+    if (!latestMetrics || !progressData.metrics || progressData.metrics.length < 2) return null;
+    const currentScore = parseFloat(latestMetrics.overall_score) || 0;
+    const previousMetric = progressData.metrics[progressData.metrics.length - 2];
+    const previousScore = parseFloat(previousMetric?.overall_score) || 0;
+    const change = currentScore - previousScore;
+    if (Math.abs(change) < 0.5) return null; // Ignore changes less than 0.5 points
+    return {
+      value: Math.abs(change).toFixed(1),
+      isPositive: change > 0
+    };
+  }, [latestMetrics, progressData.metrics]);
+
+  // Generate dynamic, encouraging title based on journey focus
+  const getDashboardTitle = () => {
+    if (!focusLabel && !userName) {
+      return "Your Body Language Journey";
+    }
+
+    // Map focus labels to short, punchy title templates
+    const titleTemplates = {
+      'Build Self-Confidence': [
+        userName ? `Hey ${userName}! Ready to shine?` : "Ready to shine?",
+        userName ? `${userName}'s Confidence Journey` : "Your Confidence Journey",
+        userName ? `Welcome back, ${userName}!` : "Welcome back!",
+        userName ? `${userName}, let's build confidence` : "Let's build confidence"
+      ],
+      'Job Interview Preparation': [
+        userName ? `Hey ${userName}! Let's ace it` : "Let's ace it",
+        userName ? `${userName}'s Interview Prep` : "Interview Prep",
+        userName ? `Welcome back, ${userName}!` : "Welcome back!",
+        userName ? `${userName}, ready to impress?` : "Ready to impress?"
+      ],
+      'Improve Presentations': [
+        userName ? `Hey ${userName}! Let's captivate` : "Let's captivate",
+        userName ? `${userName}'s Presentation Journey` : "Presentation Journey",
+        userName ? `Welcome back, ${userName}!` : "Welcome back!",
+        userName ? `${userName}, ready to present?` : "Ready to present?"
+      ],
+      'Better Communication': [
+        userName ? `Hey ${userName}! Let's connect` : "Let's connect",
+        userName ? `${userName}'s Communication Journey` : "Communication Journey",
+        userName ? `Welcome back, ${userName}!` : "Welcome back!",
+        userName ? `${userName}, ready to grow?` : "Ready to grow?"
+      ],
+      'Leadership Presence': [
+        userName ? `Hey ${userName}! Let's lead` : "Let's lead",
+        userName ? `${userName}'s Leadership Journey` : "Leadership Journey",
+        userName ? `Welcome back, ${userName}!` : "Welcome back!",
+        userName ? `${userName}, ready to inspire?` : "Ready to inspire?"
+      ],
+      'Dating & Romantic': [
+        userName ? `Hey ${userName}! Let's connect` : "Let's connect",
+        userName ? `${userName}'s Dating Journey` : "Dating Journey",
+        userName ? `Welcome back, ${userName}!` : "Welcome back!",
+        userName ? `${userName}, ready to impress?` : "Ready to impress?"
+      ],
+      'Social Confidence': [
+        userName ? `Hey ${userName}! Let's socialize` : "Let's socialize",
+        userName ? `${userName}'s Social Journey` : "Social Journey",
+        userName ? `Welcome back, ${userName}!` : "Welcome back!",
+        userName ? `${userName}, ready to shine?` : "Ready to shine?"
+      ],
+      'General Improvement': [
+        userName ? `Hey ${userName}! Let's grow` : "Let's grow",
+        userName ? `${userName}'s Growth Journey` : "Growth Journey",
+        userName ? `Welcome back, ${userName}!` : "Welcome back!",
+        userName ? `${userName}, ready to improve?` : "Ready to improve?"
+      ]
+    };
+
+    // Find matching templates for the focus label
+    const templates = titleTemplates[focusLabel] || titleTemplates[Object.keys(titleTemplates).find(key => focusLabel?.includes(key)) || ''] || [];
+
+    // If we have templates, pick one based on a simple hash of the user ID for consistency
+    if (templates.length > 0) {
+      const userHash = user?.id ? user.id.charCodeAt(0) : 0;
+      return templates[userHash % templates.length];
+    }
+
+    // Fallback: generic encouraging title
+    if (userName) {
+      return `Hey ${userName}! Your communication journey continues`;
+    }
+    return "Your Body Language Journey";
+  };
+
   if (loading) {
     return (
       <div className="dashboard">
@@ -421,7 +580,7 @@ function ExpandableDashboardText({ text, collapsedLines = 2 }) {
       {/* Header */}
       <div className="dashboard__header">
         <div className="dashboard__headerContent">
-          <h1 className="dashboard__title">Your Body Language Journey</h1>
+          <h1 className="dashboard__title">{getDashboardTitle()}</h1>
           <button className="btn btn--primary" onClick={onNewAnalysis}>
             + New Analysis
           </button>
@@ -435,6 +594,11 @@ function ExpandableDashboardText({ text, collapsedLines = 2 }) {
             <div className="profileCard__score">
               <div className="profileCard__scoreValue">
                 {Math.round(latestMetrics.overall_score || 0)}
+                {scoreTrend && (
+                  <span className={`profileCard__trend ${scoreTrend.isPositive ? 'positive' : 'negative'}`}>
+                    {scoreTrend.isPositive ? '↑' : '↓'} {scoreTrend.value}
+                  </span>
+                )}
               </div>
               <div className="profileCard__scoreLabel">Communication Score</div>
             </div>
@@ -630,6 +794,113 @@ function ExpandableDashboardText({ text, collapsedLines = 2 }) {
         </div>
       )}
 
+      {/* Additional Charts - Radar and Bar Comparison */}
+      {chartData.length > 0 && (
+        <div className="dashboard__chartsGrid">
+          {/* Radar Chart - Current Performance */}
+          {radarData.length > 0 && (
+            <div className="dashboard__chartCard">
+              <div className="chartCard">
+                <div className="chartCard__header">
+                  <div>
+                    <h3 className="chartCard__title">
+                      <Target size={20} />
+                      Current Performance Profile
+                    </h3>
+                    <p className="chartCard__subtitle">
+                      Your latest session across all metrics
+                    </p>
+                  </div>
+                </div>
+                <ResponsiveContainer width="100%" height={350}>
+                  <RadarChart data={radarData}>
+                    <PolarGrid stroke="#e2e8f0" />
+                    <PolarAngleAxis 
+                      dataKey="metric" 
+                      tick={{ fill: '#64748b', fontSize: 12 }}
+                    />
+                    <PolarRadiusAxis 
+                      angle={90} 
+                      domain={[0, 10]} 
+                      tick={{ fill: '#64748b', fontSize: 10 }}
+                    />
+                    <Radar
+                      name="Current"
+                      dataKey="value"
+                      stroke="#0ea5e9"
+                      fill="#0ea5e9"
+                      fillOpacity={0.6}
+                      strokeWidth={2}
+                    />
+                    <Tooltip 
+                      formatter={(value) => `${value.toFixed(1)}/10`}
+                      contentStyle={{ 
+                        backgroundColor: '#1e293b', 
+                        border: '1px solid #334155',
+                        borderRadius: '8px',
+                        color: '#f1f5f9'
+                      }}
+                    />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {/* Bar Chart - Current vs Previous */}
+          {barChartData.length > 0 && (
+            <div className="dashboard__chartCard">
+              <div className="chartCard">
+                <div className="chartCard__header">
+                  <div>
+                    <h3 className="chartCard__title">
+                      <BarChart3 size={20} />
+                      Session Comparison
+                    </h3>
+                    <p className="chartCard__subtitle">
+                      Latest vs previous session
+                    </p>
+                  </div>
+                </div>
+                <ResponsiveContainer width="100%" height={350}>
+                  <BarChart data={barChartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                    <XAxis 
+                      dataKey="metric" 
+                      stroke="#64748b" 
+                      tick={{ fill: '#64748b', fontSize: 12 }}
+                      tickLine={{ stroke: '#cbd5e1' }}
+                    />
+                    <YAxis 
+                      domain={[0, 10]} 
+                      stroke="#64748b"
+                      tick={{ fill: '#64748b', fontSize: 12 }}
+                      tickLine={{ stroke: '#cbd5e1' }}
+                      label={{ value: 'Score (0-10)', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#64748b' } }}
+                    />
+                    <Tooltip 
+                      formatter={(value) => `${value.toFixed(1)}/10`}
+                      contentStyle={{ 
+                        backgroundColor: '#1e293b', 
+                        border: '1px solid #334155',
+                        borderRadius: '8px',
+                        color: '#f1f5f9'
+                      }}
+                    />
+                    <Legend 
+                      wrapperStyle={{ paddingTop: '20px' }}
+                      formatter={(value) => <span style={{ fontSize: '12px', color: '#64748b' }}>{value}</span>}
+                    />
+                    <Bar dataKey="previous" fill="#94a3b8" name="Previous Session" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="current" fill="#0ea5e9" name="Latest Session" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Two Column Layout */}
       <div className="dashboard__grid">
         {/* Action Items To-Do List */}
@@ -701,7 +972,7 @@ function ExpandableDashboardText({ text, collapsedLines = 2 }) {
       </div>
 
       {/* Empty State */}
-      {!latestMetrics && (
+      {!latestMetrics && progressData.metrics.length === 0 && (
         <div className="dashboard__empty">
           <div className="dashboard__emptyIcon">
             <BarChart3 size={64} />
@@ -720,7 +991,7 @@ function ExpandableDashboardText({ text, collapsedLines = 2 }) {
             <div className="journeyModal__header">
               <div>
                 <p className="journeyModal__eyebrow">New focus journey</p>
-                <h3>What would you like to improve?</h3>
+                <h3>Create a new focus journey</h3>
               </div>
               <button
                 type="button"

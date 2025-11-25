@@ -6,7 +6,6 @@ import {
   Video, 
   TrendingUp, 
   Gem, 
-  BookOpen, 
   Settings,
   Home
 } from 'lucide-react';
@@ -46,12 +45,6 @@ const SIDEBAR_ITEMS = [
     path: 'subscription',
   },
   {
-    id: 'courses',
-    label: 'Courses',
-    icon: BookOpen,
-    path: 'courses',
-  },
-  {
     id: 'settings',
     label: 'Settings',
     icon: Settings,
@@ -71,7 +64,6 @@ export default function Sidebar() {
     if (path === '/analyses') return 'analyses';
     if (path === '/grades') return 'grades';
     if (path === '/subscription') return 'subscription';
-    if (path === '/courses') return 'courses';
     if (path === '/settings') return 'settings';
     return 'dashboard';
   };

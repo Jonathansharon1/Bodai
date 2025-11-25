@@ -131,8 +131,7 @@ const JOURNEY_TEMPLATES = {
       light: '1 deep practice per week (15 min).',
       standard: '2 drills/week + async feedback nudges.',
       intense: '3+ drills/week + optional stretch prompts.'
-    },
-    promise: 'Expect sharper answers and calmer presence by week 3.'
+    }
   },
   leadership: {
     id: 'executive-presence',
@@ -159,8 +158,7 @@ const JOURNEY_TEMPLATES = {
       light: 'Weekly scenario with guided cues.',
       standard: 'Weekly scenario + mid-week quick drill.',
       intense: 'Twice-weekly scenario swaps + coach challenges.'
-    },
-    promise: 'By week 6 you can articulate any strategy with presence.'
+    }
   },
   confidence: {
     id: 'confidence-accelerator',
@@ -184,8 +182,7 @@ const JOURNEY_TEMPLATES = {
       light: 'Quick check-ins 3x per week.',
       standard: 'Daily 5-minute drills.',
       intense: 'Daily drills + optional social challenges.'
-    },
-    promise: 'You’ll feel a measurable confidence lift in 10 days.'
+    }
   },
   presentation: {
     id: 'presentation-mastery',
@@ -210,8 +207,7 @@ const JOURNEY_TEMPLATES = {
       light: 'Weekly rehearsal run + async notes.',
       standard: 'Two runs/week with targeted feedback.',
       intense: 'Three runs/week plus live Q&A prompts.'
-    },
-    promise: 'Expect calmer delivery, stronger story beats, and confident Q&A within a month.'
+    }
   }
 };
 
@@ -462,6 +458,13 @@ export default function OnboardingQuestions({ onComplete }) {
   const [coachArchetype, setCoachArchetype] = useState('');
   const [weeklyPromise, setWeeklyPromise] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [goalConsents, setGoalConsents] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('bodai_goal_consents')) || {};
+    } catch (err) {
+      return {};
+    }
+  });
 
   const filteredGoals = useMemo(() => GOALS.filter(goalOption => ACTIVE_GOALS.includes(goalOption.id)), []);
   const selectedTemplate = useMemo(() => JOURNEY_TEMPLATES[goal] || null, [goal]);
@@ -470,14 +473,20 @@ export default function OnboardingQuestions({ onComplete }) {
   const hasSecondQuestion = goal ? Boolean(GOAL_SPECIFIC_QUESTIONS[goal]?.question2) : false;
   const customizationStep = hasSecondQuestion ? 5 : 4;
   const isCustomizationStep = goal && step === customizationStep;
+  const existingGoalConsent = goal ? goalConsents[goal] : null;
+  const consentRequired = !existingGoalConsent;
+  const consentAcceptedDate = existingGoalConsent?.acceptedAt
+    ? new Date(existingGoalConsent.acceptedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+    : null;
 
   const handleGoalSelect = (goalId) => {
+    const hasConsent = Boolean(goalConsents[goalId]);
     setGoal(goalId);
     setGoalSpecificAnswer1('');
     setGoalSpecificAnswer2('');
     setDifficultyBaseline('');
     setPracticeCommitment('');
-    setConsentAccepted(false);
+    setConsentAccepted(hasConsent);
     setConsentTouched(false);
     setCoachArchetype('');
     setWeeklyPromise('');
@@ -521,12 +530,29 @@ export default function OnboardingQuestions({ onComplete }) {
   };
 
 
+  const saveGoalConsent = (goalId, consentData) => {
+    setGoalConsents((prev) => {
+      const next = { ...prev, [goalId]: consentData };
+      localStorage.setItem('bodai_goal_consents', JSON.stringify(next));
+      return next;
+    });
+  };
+
   const handleContinue = () => {
     if (step === 1 && !goal) return;
     if (step === 2 && !confidence) return;
     if (step === 3 && !goalSpecificAnswer1) return;
     if (hasSecondQuestion && step === 4 && !goalSpecificAnswer2) return;
-    if (isCustomizationStep && (!difficultyBaseline || !practiceCommitment || !coachArchetype || !weeklyPromise || !consentAccepted)) return;
+    if (
+      isCustomizationStep &&
+      (
+        !difficultyBaseline ||
+        !practiceCommitment ||
+        !coachArchetype ||
+        !weeklyPromise ||
+        (consentRequired && !consentAccepted)
+      )
+    ) return;
 
     if (step === 1) {
       setStep(2);
@@ -553,11 +579,16 @@ export default function OnboardingQuestions({ onComplete }) {
         return;
       }
       setSubmitting(true);
-      const consentPayload = {
-        accepted: consentAccepted,
-        version: CONSENT_VERSION,
-        acceptedAt: new Date().toISOString()
-      };
+      const activeConsent = goal ? goalConsents[goal] : null;
+      const consentNeeded = !activeConsent;
+      const newConsentPayload = consentNeeded
+        ? {
+            goal,
+            accepted: true,
+            version: CONSENT_VERSION,
+            acceptedAt: new Date().toISOString()
+          }
+        : activeConsent || null;
 
       const goalSpecificContext = {
         question1: goalSpecificAnswer1
@@ -579,7 +610,7 @@ export default function OnboardingQuestions({ onComplete }) {
         coachArchetypeLabel: selectedArchetype?.label || null,
         weeklyPromise,
         weeklyPromiseLabel: selectedPromise?.label || null,
-        consent: consentPayload,
+        consent: newConsentPayload,
         identityCommitment: {
           archetype: coachArchetype,
           archetypeLabel: selectedArchetype?.label || null,
@@ -595,11 +626,22 @@ export default function OnboardingQuestions({ onComplete }) {
         } : null
       };
 
+      const persistConsentIfNeeded = () => {
+        if (consentNeeded && newConsentPayload) {
+          saveGoalConsent(goal, newConsentPayload);
+        }
+      };
+
       try {
         const maybePromise = onComplete(answers);
         if (maybePromise && typeof maybePromise.then === 'function') {
-          maybePromise.finally(() => setSubmitting(false));
+          maybePromise
+            .then(() => {
+              persistConsentIfNeeded();
+            })
+            .finally(() => setSubmitting(false));
         } else {
+          persistConsentIfNeeded();
           setSubmitting(false);
         }
       } catch (error) {
@@ -614,8 +656,16 @@ export default function OnboardingQuestions({ onComplete }) {
     (step === 2 && !confidence) ||
     (step === 3 && !goalSpecificAnswer1) ||
     (hasSecondQuestion && step === 4 && !goalSpecificAnswer2) ||
-    (isCustomizationStep && (!difficultyBaseline || !practiceCommitment || !coachArchetype || !weeklyPromise || !consentAccepted));
+    (isCustomizationStep && (
+      !difficultyBaseline ||
+      !practiceCommitment ||
+      !coachArchetype ||
+      !weeklyPromise ||
+      (consentRequired && !consentAccepted)
+    ));
 
+  const totalSteps = goal ? customizationStep : 5;
+  const currentStepNumber = Math.min(step, totalSteps);
   const baseButtonLabel = isCustomizationStep ? 'Start journey' : 'Continue';
   const buttonLabel = submitting ? 'Creating journey...' : baseButtonLabel;
 
@@ -795,26 +845,37 @@ export default function OnboardingQuestions({ onComplete }) {
               ))}
             </div>
 
-            <div className={`onboardingQuestions__consent ${consentTouched && !consentAccepted ? 'error' : ''}`}>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={consentAccepted}
-                  onChange={(event) => {
-                    setConsentTouched(true);
-                    setConsentAccepted(event.target.checked);
-                  }}
-                />
-                <span>
-                  I consent to BodAI analyzing my recordings with AI to deliver coaching insights (v{CONSENT_VERSION}).
-                </span>
-              </label>
-              <ul>
-                {CONSENT_POINTS.map((point) => (
-                  <li key={point}>{point}</li>
-                ))}
-              </ul>
-            </div>
+            {consentRequired ? (
+              <div className={`onboardingQuestions__consent ${consentTouched && !consentAccepted ? 'error' : ''}`}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={consentAccepted}
+                    onChange={(event) => {
+                      setConsentTouched(true);
+                      setConsentAccepted(event.target.checked);
+                    }}
+                  />
+                  <span>
+                    I consent to BodAI analyzing my recordings with AI to deliver coaching insights (v{CONSENT_VERSION}).
+                  </span>
+                </label>
+                <ul>
+                  {CONSENT_POINTS.map((point) => (
+                    <li key={point}>{point}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <div className="onboardingQuestions__consent onboardingQuestions__consent--ack">
+                <p>
+                  <strong>Consent already on file.</strong>{' '}
+                  {consentAcceptedDate
+                    ? `You agreed on ${consentAcceptedDate}.`
+                    : 'You have previously agreed to these terms.'}
+                </p>
+              </div>
+            )}
 
             <div className="onboardingQuestions__summaryRow">
               <div className="onboardingQuestions__summaryCard">
@@ -860,6 +921,9 @@ export default function OnboardingQuestions({ onComplete }) {
       )}
 
       <div className="onboardingQuestions__actions">
+        <span className="onboardingQuestions__progress">
+          Step {currentStepNumber} of {totalSteps}
+        </span>
         {step > 1 && (
           <button
             type="button"

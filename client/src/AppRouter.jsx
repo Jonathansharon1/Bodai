@@ -8,6 +8,8 @@ import MyAnalysesPage from './pages/MyAnalysesPage';
 import MyProgressPage from './pages/MyProgressPage';
 import PricingPage from './pages/PricingPage';
 import SubscriptionPage from './pages/SubscriptionPage';
+import CoursesPage from './pages/CoursesPage';
+import SettingsPage from './pages/SettingsPage';
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
 import Hero from './components/hero/Hero';
@@ -15,7 +17,6 @@ import UpgradeModal from './components/UpgradeModal';
 import FeaturesSection from './components/homepage/FeaturesSection';
 import HowItWorksSection from './components/homepage/HowItWorksSection';
 import SocialProofSection from './components/homepage/SocialProofSection';
-import TrustSection from './components/homepage/TrustSection';
 import CTASection from './components/homepage/CTASection';
 import { SignInButton, SignedOut } from '@clerk/clerk-react';
 
@@ -43,11 +44,31 @@ function ProtectedRoute({ children, requireOnboarding = false }) {
     const checkOnboarding = async () => {
       setCheckingOnboarding(true);
       try {
+        // Send user profile data from Clerk to sync with database
+        const headers = {
+          'X-Clerk-User-Id': user.id,
+          'Content-Type': 'application/json'
+        };
+        
+        // Add user profile data to headers for syncing
+        if (user.emailAddresses?.[0]?.emailAddress) {
+          headers['X-User-Email'] = user.emailAddresses[0].emailAddress;
+        }
+        if (user.firstName) {
+          headers['X-User-First-Name'] = user.firstName;
+        }
+        if (user.lastName) {
+          headers['X-User-Last-Name'] = user.lastName;
+        }
+        if (user.phoneNumbers?.[0]?.phoneNumber) {
+          headers['X-User-Phone'] = user.phoneNumbers[0].phoneNumber;
+        }
+        if (user.imageUrl) {
+          headers['X-User-Image-Url'] = user.imageUrl;
+        }
+        
         const res = await fetch(process.env.REACT_APP_API_URL || 'http://localhost:5000/api/user/profile', {
-          headers: {
-            'X-Clerk-User-Id': user.id,
-            'Content-Type': 'application/json'
-          }
+          headers
         });
 
         if (res.ok) {
@@ -91,7 +112,23 @@ function ProtectedRoute({ children, requireOnboarding = false }) {
     };
 
     checkOnboarding();
-  }, [user, userLoaded, navigate]);
+  }, [user, userLoaded, navigate, location.pathname]);
+
+  // Handle redirects in useEffect to avoid setState during render
+  // This must be before any early returns to satisfy React Hook rules
+  useEffect(() => {
+    if (!userLoaded || checkingOnboarding || !user) return;
+
+    if (requireOnboarding && !hasCompletedOnboarding) {
+      // Redirect to onboarding if required but not completed
+      if (location.pathname !== '/onboarding') {
+        navigate('/onboarding', { replace: true });
+      }
+    } else if (!requireOnboarding && hasCompletedOnboarding && location.pathname === '/onboarding') {
+      // Already completed onboarding, redirect to dashboard
+      navigate('/dashboard', { replace: true });
+    }
+  }, [userLoaded, checkingOnboarding, user, requireOnboarding, hasCompletedOnboarding, location.pathname, navigate]);
 
   if (!userLoaded || checkingOnboarding) {
     return (
@@ -127,20 +164,95 @@ function ProtectedRoute({ children, requireOnboarding = false }) {
   }
 
   if (requireOnboarding && !hasCompletedOnboarding) {
-    // Redirect to onboarding if required but not completed
+    // Show loading while redirecting
     if (location.pathname !== '/onboarding') {
-      navigate('/onboarding', { replace: true });
-      return null;
+      return (
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          height: '100vh',
+          flexDirection: 'column',
+          gap: '1rem'
+        }}>
+          <div style={{ 
+            width: '40px', 
+            height: '40px', 
+            border: '4px solid #f3f3f3',
+            borderTop: '4px solid #007bff',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }}></div>
+          <p style={{ color: '#666', fontSize: '14px' }}>Redirecting...</p>
+        </div>
+      );
     }
   }
 
   if (!requireOnboarding && hasCompletedOnboarding && location.pathname === '/onboarding') {
-    // Already completed onboarding, redirect to dashboard
-    navigate('/dashboard', { replace: true });
-    return null;
+    // Show loading while redirecting
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        flexDirection: 'column',
+        gap: '1rem'
+      }}>
+        <div style={{ 
+          width: '40px', 
+          height: '40px', 
+          border: '4px solid #f3f3f3',
+          borderTop: '4px solid #007bff',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite'
+        }}></div>
+        <p style={{ color: '#666', fontSize: '14px' }}>Redirecting...</p>
+      </div>
+    );
   }
 
   return children;
+}
+
+// Homepage Route Component - handles redirects and conditional rendering
+function HomepageRoute({ user, isLoaded, navigate, onNewAnalysis }) {
+  const [shouldRedirect, setShouldRedirect] = useState(false);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    if (user) {
+      // Check if this is a fresh sign-in
+      const justSignedIn = sessionStorage.getItem('bodai_just_signed_in');
+      if (justSignedIn === 'true') {
+        sessionStorage.removeItem('bodai_just_signed_in');
+        setShouldRedirect(true);
+        navigate('/dashboard', { replace: true });
+        return;
+      }
+    }
+  }, [user, isLoaded, navigate]);
+
+  if (shouldRedirect) {
+    return null;
+  }
+
+  const isSignedIn = !!user;
+
+  return (
+    <>
+      <Header />
+      <Hero isSignedIn={isSignedIn} onNewAnalysis={onNewAnalysis} />
+      <div id="try">
+        <FeaturesSection />
+        <HowItWorksSection />
+        <SocialProofSection />
+        <CTASection isSignedIn={isSignedIn} />
+      </div>
+    </>
+  );
 }
 
 export default function AppRouter() {
@@ -161,7 +273,24 @@ export default function AppRouter() {
   const [activeJourneyId, setActiveJourneyId] = useState(null);
   const [practiceCompletionNotices, setPracticeCompletionNotices] = useState([]);
   const [hasCompletedAnalysis, setHasCompletedAnalysis] = useState(() => localStorage.getItem('bodai_has_completed_analysis') === 'true');
+  const [previousUserState, setPreviousUserState] = useState(null);
   const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
+  // Detect fresh sign-in
+  useEffect(() => {
+    if (!userLoaded) return;
+    
+    // If user just signed in (was null, now has user)
+    if (!previousUserState && user) {
+      if (location.pathname === '/') {
+        sessionStorage.setItem('bodai_just_signed_in', 'true');
+      } else {
+        sessionStorage.removeItem('bodai_just_signed_in');
+      }
+    }
+    
+    setPreviousUserState(user);
+  }, [user, userLoaded, previousUserState, location.pathname]);
 
   // Load user context from localStorage on mount
   useEffect(() => {
@@ -209,11 +338,32 @@ export default function AppRouter() {
         const data = await res.json();
         const journeyList = Array.isArray(data.journeys) ? data.journeys : [];
         setJourneys(journeyList);
-        const storedActive = localStorage.getItem('bodai_active_journey');
-        let nextActive = storedActive && journeyList.some(j => j.id === storedActive) ? storedActive : null;
-        if (!nextActive && journeyList.length > 0) {
-          nextActive = (journeyList.find(j => j.is_default) || journeyList[0]).id;
+        
+        // Check URL first, then localStorage, then default
+        const searchParams = new URLSearchParams(location.search);
+        const urlJourneyId = searchParams.get('journey');
+        let nextActive = null;
+        
+        if (urlJourneyId && journeyList.some(j => j.id === urlJourneyId)) {
+          // URL has a valid journey ID
+          nextActive = urlJourneyId;
+        } else {
+          // Fall back to localStorage or default
+          const storedActive = localStorage.getItem('bodai_active_journey');
+          nextActive = storedActive && journeyList.some(j => j.id === storedActive) ? storedActive : null;
+          if (!nextActive && journeyList.length > 0) {
+            nextActive = (journeyList.find(j => j.is_default) || journeyList[0]).id;
+          }
+          
+          // Update URL if we're on a journey page and have a journey selected
+          const journeyPages = ['/dashboard', '/my-progress', '/grades', '/analyses'];
+          if (nextActive && journeyPages.includes(location.pathname)) {
+            const newSearchParams = new URLSearchParams(location.search);
+            newSearchParams.set('journey', nextActive);
+            navigate(`${location.pathname}?${newSearchParams.toString()}`, { replace: true });
+          }
         }
+        
         if (nextActive) {
           localStorage.setItem('bodai_active_journey', nextActive);
           const activeJourney = journeyList.find(j => j.id === nextActive);
@@ -228,7 +378,7 @@ export default function AppRouter() {
     } finally {
       setJourneysLoading(false);
     }
-  }, [apiBase, user?.id, syncUserContextFromJourney]);
+  }, [apiBase, user?.id, syncUserContextFromJourney, location.search, location.pathname, navigate]);
 
   useEffect(() => {
     fetchJourneys();
@@ -271,6 +421,35 @@ export default function AppRouter() {
     return () => controller.abort();
   }, [user?.id, hasCompletedAnalysis, apiBase]);
 
+  // Sync journeyId with URL query parameter
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const urlJourneyId = searchParams.get('journey');
+    
+    // If URL has a journey param and it's different from state, update state
+    if (urlJourneyId && urlJourneyId !== activeJourneyId) {
+      // Verify the journey exists in the journeys list
+      const journeyExists = journeys.some(j => j.id === urlJourneyId);
+      if (journeyExists) {
+        setActiveJourneyId(urlJourneyId);
+        localStorage.setItem('bodai_active_journey', urlJourneyId);
+        const journey = journeys.find(j => j.id === urlJourneyId);
+        if (journey) {
+          syncUserContextFromJourney(journey);
+        }
+      }
+    } else if (!urlJourneyId && activeJourneyId) {
+      // If URL doesn't have journey param but state does, update URL
+      // Only update URL if we're on a page that should show journey (dashboard, my-progress, analyses)
+      const journeyPages = ['/dashboard', '/my-progress', '/grades', '/analyses'];
+      if (journeyPages.includes(location.pathname)) {
+        const newSearchParams = new URLSearchParams(location.search);
+        newSearchParams.set('journey', activeJourneyId);
+        navigate(`${location.pathname}?${newSearchParams.toString()}`, { replace: true });
+      }
+    }
+  }, [location.search, location.pathname, journeys, activeJourneyId, syncUserContextFromJourney, navigate]);
+
   const handleJourneySelect = useCallback((journeyId) => {
     setActiveJourneyId(journeyId);
     if (journeyId) {
@@ -279,10 +458,27 @@ export default function AppRouter() {
       if (journey) {
         syncUserContextFromJourney(journey);
       }
+      
+      // Update URL with journey query parameter
+      const journeyPages = ['/dashboard', '/my-progress', '/grades', '/analyses'];
+      if (journeyPages.includes(location.pathname)) {
+        const searchParams = new URLSearchParams(location.search);
+        searchParams.set('journey', journeyId);
+        navigate(`${location.pathname}?${searchParams.toString()}`, { replace: true });
+      }
     } else {
       localStorage.removeItem('bodai_active_journey');
+      
+      // Remove journey from URL
+      const journeyPages = ['/dashboard', '/my-progress', '/grades', '/analyses'];
+      if (journeyPages.includes(location.pathname)) {
+        const searchParams = new URLSearchParams(location.search);
+        searchParams.delete('journey');
+        const newSearch = searchParams.toString();
+        navigate(`${location.pathname}${newSearch ? `?${newSearch}` : ''}`, { replace: true });
+      }
     }
-  }, [journeys, syncUserContextFromJourney]);
+  }, [journeys, syncUserContextFromJourney, location.pathname, location.search, navigate]);
 
   const handleJourneyCreate = useCallback(async (answers) => {
     if (!user?.id) {
@@ -318,8 +514,19 @@ export default function AppRouter() {
 
     const data = await res.json();
     await fetchJourneys();
+    
+    // Update URL with the new journey ID if we're on a journey page
+    if (data.journey?.id) {
+      const journeyPages = ['/dashboard', '/my-progress', '/grades', '/analyses'];
+      if (journeyPages.includes(location.pathname)) {
+        const searchParams = new URLSearchParams(location.search);
+        searchParams.set('journey', data.journey.id);
+        navigate(`${location.pathname}?${searchParams.toString()}`, { replace: true });
+      }
+    }
+    
     return data.journey;
-  }, [apiBase, user?.id, fetchJourneys]);
+  }, [apiBase, user?.id, fetchJourneys, location.pathname, location.search, navigate]);
 
   const handleQuestionsComplete = async (answers) => {
     setUserContext(answers);
@@ -475,17 +682,12 @@ export default function AppRouter() {
       <Routes>
       {/* Public Routes */}
       <Route path="/" element={
-        <>
-          <Header />
-          <Hero />
-          <div id="try">
-            <FeaturesSection />
-            <HowItWorksSection />
-            <SocialProofSection />
-            <TrustSection />
-            <CTASection />
-          </div>
-        </>
+        <HomepageRoute 
+          user={user} 
+          isLoaded={userLoaded}
+          navigate={navigate}
+          onNewAnalysis={handleNewAnalysis}
+        />
       } />
 
       {/* Protected Routes */}
@@ -602,6 +804,7 @@ export default function AppRouter() {
                 journeysLoading={journeysLoading}
                 activeJourneyId={activeJourneyId}
                 onSelectJourney={handleJourneySelect}
+                refreshTrigger={dashboardRefreshTrigger}
               />
             </div>
           </>
@@ -631,24 +834,19 @@ export default function AppRouter() {
           <>
             <Sidebar />
             <div className="dashboardLayout">
-              <div className="pageContent">
-                <h2>Courses</h2>
-                <p>Browse and enroll in personalized courses</p>
-              </div>
+              <CoursesPage />
             </div>
           </>
         </ProtectedRoute>
       } />
+      <Route path="/courses/*" element={<Navigate to="/courses" replace />} />
 
       <Route path="/settings" element={
         <ProtectedRoute requireOnboarding>
           <>
             <Sidebar />
             <div className="dashboardLayout">
-              <div className="pageContent">
-                <h2>Settings</h2>
-                <p>Manage your account settings and preferences</p>
-              </div>
+              <SettingsPage />
             </div>
           </>
         </ProtectedRoute>

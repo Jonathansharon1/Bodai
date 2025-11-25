@@ -1,0 +1,185 @@
+.settingsPage {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.settingsPage__header {
+  margin-bottom: 40px;
+}
+
+.settingsPage__header h1 {
+  font-size: 32px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: #1a1a1a;
+}
+
+.settingsPage__header p {
+  font-size: 16px;
+  color: #666;
+  margin: 0;
+}
+
+.settingsPage__loading {
+  text-align: center;
+  padding: 60px 20px;
+  color: #666;
+}
+
+.settingsPage__section {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 32px;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.settingsPage__sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.settingsPage__sectionHeader h2 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+  color: #1a1a1a;
+}
+
+.settingsPage__preferences {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.settingsPage__preference {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.settingsPage__preferenceInfo {
+  flex: 1;
+}
+
+.settingsPage__preferenceInfo h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: #1a1a1a;
+}
+
+.settingsPage__preferenceInfo p {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.settingsPage__toggle {
+  position: relative;
+  display: inline-block;
+  width: 52px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.settingsPage__toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.settingsPage__toggleSlider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #cbd5e1;
+  transition: 0.3s;
+  border-radius: 28px;
+}
+
+.settingsPage__toggleSlider:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+}
+
+.settingsPage__toggle input:checked + .settingsPage__toggleSlider {
+  background-color: #6366f1;
+}
+
+.settingsPage__toggle input:checked + .settingsPage__toggleSlider:before {
+  transform: translateX(24px);
+}
+
+.settingsPage__toggle input:disabled + .settingsPage__toggleSlider {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.settingsPage__actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.settingsPage__status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  padding: 8px 12px;
+  border-radius: 6px;
+}
+
+.settingsPage__status--success {
+  color: #059669;
+  background-color: #d1fae5;
+}
+
+.settingsPage__status--error {
+  color: #dc2626;
+  background-color: #fee2e2;
+}
+
+@media (max-width: 640px) {
+  .settingsPage {
+    padding: 20px 16px;
+  }
+
+  .settingsPage__section {
+    padding: 24px 20px;
+  }
+
+  .settingsPage__preference {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .settingsPage__toggle {
+    align-self: flex-start;
+  }
+}
+

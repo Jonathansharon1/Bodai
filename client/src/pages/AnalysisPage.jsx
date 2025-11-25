@@ -133,18 +133,15 @@ export default function AnalysisPage({
 
   useEffect(() => {
     if (currentAnalysisData) return;
-    if (actionPromptOption) {
-      setSelectedPrompt(actionPromptOption);
-      setPracticeAcknowledged(false);
-      setPracticeAckTouched(false);
-    } else {
-      setSelectedPrompt(null);
-      setPracticeAcknowledged(true);
-    }
+    // Don't auto-select - let user choose from action items
+    setSelectedPrompt(null);
+    setPracticeAcknowledged(true);
+    setPracticeAckTouched(false);
   }, [actionPromptOption, currentAnalysisData]);
 
   const handleAnalyzeClick = () => {
-    if (actionPromptOption && !practiceAcknowledged) {
+    // Only require acknowledgment if user selected a prompt
+    if (selectedPrompt && !practiceAcknowledged) {
       setPracticeAckTouched(true);
       return;
     }
@@ -665,7 +662,7 @@ export default function AnalysisPage({
                       Need a reminder? Use this prompt to guide your next recording.
                     </p>
 
-                    {actionPromptOption && (
+                    {selectedPrompt && (
                       <div className={`practiceAck ${practiceAckTouched && !practiceAcknowledged ? 'practiceAck--error' : ''}`}>
                         <label>
                           <input

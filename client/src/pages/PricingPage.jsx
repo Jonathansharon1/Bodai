@@ -10,6 +10,15 @@ export default function PricingPage() {
   const navigate = useNavigate();
   const [billingPeriod, setBillingPeriod] = useState('monthly'); // 'monthly' or 'yearly'
 
+  const sharedFeatures = [
+    'AI body language coach powered by Gemini',
+    'Historical trendlines & progress dashboard',
+    'Personalized action plans (instant tip + micro-practice)',
+    'Goal-aware modules & baseline tracking',
+    'Exportable insights & PDF summaries',
+    'Priority support + practice reminders'
+  ];
+
   const plans = [
     {
       id: 'free',
@@ -33,92 +42,59 @@ export default function PricingPage() {
       valueText: null
     },
     {
-      id: 'basic',
-      name: 'Basic',
+      id: 'starter',
+      name: 'Starter Reps',
       icon: '📦',
-      price: 12,
-      priceYearly: 120,
+      price: 9,
+      priceYearly: 90,
       period: 'per month',
-      analyses: 12,
-      analysesText: '12 analyses per month',
-      features: [
-        '12 analyses per month',
-        'Full progress tracking with charts',
-        'Personalized Action Items',
-        'Advanced Insights',
-        'Achievements & Gamification',
-        'Comparisons with your baseline'
-      ],
-      cta: 'Get Started',
+      analyses: 6,
+      analysesText: '6 analyses per month',
+      features: sharedFeatures,
+      cta: 'Lock In My Reps',
       ctaVariant: 'primary',
       recommended: false,
       badge: null,
-      valueText: 'Less than $1 per analysis',
-      savings: {
-        payAsYouGo: 36,
-        youPay: 12,
-        amount: 24
-      }
+      valueText: 'Perfect for monthly check-ins',
+      savings: null
     },
     {
-      id: 'premium',
-      name: 'Premium',
+      id: 'momentum',
+      name: 'Momentum',
       icon: '⭐',
-      price: 20,
-      priceYearly: 200,
+      price: 15,
+      priceYearly: 150,
       period: 'per month',
       analyses: 20,
       analysesText: '20 analyses per month',
-      features: [
-        '20 analyses per month',
-        'Full progress tracking with charts',
-        'Personalized Action Items',
-        'Advanced Insights',
-        'Achievements & Gamification',
-        'Comparisons with your baseline',
-        'Option to purchase additional analyses ($3 per analysis)'
-      ],
-      cta: 'Get Started',
+      features: sharedFeatures,
+      cta: 'Start My Momentum',
       ctaVariant: 'primary',
       recommended: true,
       badge: 'Most Popular',
-      valueText: 'Less than $1 per analysis',
+      valueText: 'Weekly practice for under $1 per analysis',
       savings: {
-        payAsYouGo: 60,
-        youPay: 20,
-        amount: 40
+        payAsYouGo: 30,
+        youPay: 15,
+        amount: 15
       }
     },
     {
-      id: 'pro',
-      name: 'Pro',
+      id: 'executive',
+      name: 'Executive Mastery',
       icon: '💎',
-      price: 37,
-      priceYearly: 370,
+      price: 39,
+      priceYearly: 390,
       period: 'per month',
       analyses: '∞',
       analysesText: 'Unlimited analyses',
-      features: [
-        'Unlimited analyses',
-        'Everything in Premium, plus:',
-        'Advanced personalized analyses (Advanced AI)',
-        'Access to advanced global statistics',
-        'Comparisons with other users (anonymous)',
-        'Priority Support',
-        'Export data to PDF/Excel',
-        'Custom Goals & Metrics',
-        'Longer analyses (up to 10 minutes)'
-      ],
-      cta: 'Get Started',
+      features: sharedFeatures,
+      cta: 'Train Without Limits',
       ctaVariant: 'primary',
       recommended: false,
       badge: 'Premium',
-      valueText: 'Perfect for professionals',
-      savings: {
-        payAsYouGo: 90,
-        youPay: 37,
-        amount: 53
-      }
+      valueText: 'Coaches & daily practitioners',
+      savings: null
     }
   ];
 
@@ -189,11 +165,11 @@ export default function PricingPage() {
                 Perfect for those who use it only once or twice a month. No subscription - pay only when you use it.
               </p>
               <div className="payAsYouGo__price">
-                <span className="payAsYouGo__amount">$3</span>
+                <span className="payAsYouGo__amount">$1.50</span>
                 <span className="payAsYouGo__period">per analysis</span>
               </div>
               <p className="payAsYouGo__hint">
-                Already done 5 analyses? Upgrade to a plan and save!
+                After 5 analyses it’s cheaper to move to Starter Reps.
               </p>
               {isSignedIn ? (
                 <button

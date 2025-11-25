@@ -41,17 +41,21 @@ import {
   findAnalysisByVideoHash,
   deleteAnalysisForUser,
   checkPracticeCommitmentStatus,
-  getWeeklyPracticeCount
+  getWeeklyPracticeCount,
+  getUserEmailPreferences,
+  updateUserEmailPreferences,
+  getUserEmailHistory
 } from './services/supabaseService.js';
 import { processAnalysisMetrics, METRICS_PROCESSOR_VERSION } from './services/scoringService.js';
 import { uploadVideoToS3, getVideoUrl } from './services/s3Service.js';
 import { parseActionItems } from './services/parseActionItems.js';
 import { buildAnalysisCacheKey, getCachedAnalysis, setCachedAnalysis } from './services/analysisCache.js';
 import { notifyAnalysisGate, notifyJourneyEnrollment, notifyAnalysisStored } from './services/notificationService.js';
+import { sendWelcomeEmail, sendAnalysisCompleteEmail } from './services/emailService.js';
 
 const app = express();
 const port = process.env.PORT || 5000;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-pro';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini3-pro-preview';
 const MAX_VIDEO_SIZE_MB = Number(process.env.MAX_VIDEO_SIZE_MB || 250);
 const MAX_VIDEO_SIZE_BYTES = MAX_VIDEO_SIZE_MB * 1024 * 1024;
 const MIN_VIDEO_DURATION_SECONDS = Number(process.env.MIN_VIDEO_DURATION_SECONDS || 20);
@@ -96,6 +100,29 @@ const getClerkUserId = (req) => {
   // Clerk sends user info in x-clerk-user-id header or we can get it from auth token
   // For now, we'll use a custom header from frontend
   return req.headers['x-clerk-user-id'] || req.headers['authorization']?.split(' ')[1];
+};
+
+// Middleware to extract user profile data from headers (sent from frontend)
+const getUserProfileFromHeaders = (req) => {
+  const profile = {};
+  
+  if (req.headers['x-user-email']) {
+    profile.email = req.headers['x-user-email'];
+  }
+  if (req.headers['x-user-first-name']) {
+    profile.firstName = req.headers['x-user-first-name'];
+  }
+  if (req.headers['x-user-last-name']) {
+    profile.lastName = req.headers['x-user-last-name'];
+  }
+  if (req.headers['x-user-phone']) {
+    profile.phoneNumber = req.headers['x-user-phone'];
+  }
+  if (req.headers['x-user-image-url']) {
+    profile.imageUrl = req.headers['x-user-image-url'];
+  }
+  
+  return Object.keys(profile).length > 0 ? profile : null;
 };
 
 const roundScore = (value) => {
@@ -390,15 +417,33 @@ app.post('/api/analyze-video', upload.single('video'), async (req, res) => {
     }
 
     let journeyId = req.body?.journey_id || req.body?.journeyId || null;
+    console.log('[analyze-video] Received journeyId from request:', journeyId);
     if (clerkUserId) {
       if (journeyId) {
         const journey = await getJourneyForUser(clerkUserId, journeyId);
         if (!journey) {
+          console.error('[analyze-video] Journey not found:', journeyId);
           return res.status(404).json({ error: 'Journey not found' });
         }
+        console.log('[analyze-video] Journey validated:', journeyId);
       } else {
         const defaultJourney = await getDefaultJourneyForUser(clerkUserId);
         journeyId = defaultJourney?.id || null;
+        console.log('[analyze-video] Using default journey:', journeyId);
+      }
+    }
+    console.log('[analyze-video] Final journeyId to use:', journeyId);
+
+    // Parse course context if provided
+    let courseContext = null;
+    if (req.body?.courseContext) {
+      try {
+        courseContext = typeof req.body.courseContext === 'string' 
+          ? JSON.parse(req.body.courseContext) 
+          : req.body.courseContext;
+        userContext.courseContext = courseContext;
+      } catch (e) {
+        console.warn('Failed to parse courseContext:', e);
       }
     }
 
@@ -463,7 +508,9 @@ app.post('/api/analyze-video', upload.single('video'), async (req, res) => {
     
     if (clerkUserId) {
       try {
-        userId = await getOrCreateUser(clerkUserId);
+        // Get user profile from headers if available
+        const userProfile = getUserProfileFromHeaders(req);
+        userId = await getOrCreateUser(clerkUserId, userProfile || {});
         console.log(`User ID retrieved: ${userId}`);
         
         // Ensure filename is properly encoded as UTF-8
@@ -555,6 +602,9 @@ app.post('/api/analyze-video', upload.single('video'), async (req, res) => {
     const resultMarkdown = analysisResult.text || analysisResult; // Support both old and new format
     const metrics = analysisResult.metrics || null;
     
+    // Check if this is a Module 1 baseline assessment
+    const isModule1Baseline = courseContext?.type === 'baseline' && courseContext?.moduleId === 'module-1';
+    
     // Save to database if Supabase is configured and user is authenticated
     let analysisId = null;
     let unlockedAchievements = [];
@@ -571,8 +621,8 @@ app.post('/api/analyze-video', upload.single('video'), async (req, res) => {
           console.warn('Filename encoding issue, using original:', e);
         }
         
-        console.log(`Attempting to save analysis for user ${userId}...`);
-        console.log('S3 Key to save:', s3Key || 'NULL (S3 not configured or upload failed)');
+        console.log(`[analyze-video] Attempting to save analysis for user ${userId} with journeyId: ${journeyId}`);
+        console.log('[analyze-video] S3 Key to save:', s3Key || 'NULL (S3 not configured or upload failed)');
         const saved = await saveAnalysis(userId, {
           videoFilename: filename,
           videoSize: req.file.size,
@@ -606,6 +656,29 @@ app.post('/api/analyze-video', upload.single('video'), async (req, res) => {
             metricsVersion: analysisResult.metricsVersion || METRICS_VERSION,
             aiModelVersion: analysisResult.modelVersion || GEMINI_MODEL
           }).catch(() => {});
+          
+          // Send analysis complete email
+          if (userId && metrics) {
+            try {
+              const userData = await getUserWithOnboarding(clerkUserId);
+              const userEmail = userData?.email || req.headers['x-user-email'];
+              const userName = userData?.first_name || userData?.name || null;
+              
+              if (userEmail) {
+                sendAnalysisCompleteEmail({
+                  userId,
+                  userEmail,
+                  userName,
+                  analysisId,
+                  overallScore: metrics.overall_score
+                }).catch((emailError) => {
+                  console.warn('Failed to send analysis complete email:', emailError.message);
+                });
+              }
+            } catch (emailError) {
+              console.warn('Error preparing analysis complete email:', emailError.message);
+            }
+          }
           
           // Process and save communication metrics if available
           if (metrics) {
@@ -687,8 +760,13 @@ app.post('/api/analyze-video', upload.single('video'), async (req, res) => {
               const focusMetricKey = determineWeakestMetricKey(metricsToSave);
               
               // Save metrics
-              await saveCommunicationMetrics(userId, analysisId, metricsToSave, journeyId);
-              console.log('Communication metrics saved');
+              console.log('[analyze-video] Saving metrics with journeyId:', journeyId, 'analysisId:', analysisId);
+              const savedMetrics = await saveCommunicationMetrics(userId, analysisId, metricsToSave, journeyId);
+              if (savedMetrics) {
+                console.log('[analyze-video] Communication metrics saved successfully, journeyId:', savedMetrics.journey_id);
+              } else {
+                console.error('[analyze-video] Failed to save communication metrics');
+              }
               
               // Save insights
               if (metrics.insights && metrics.insights.length > 0) {
@@ -700,9 +778,10 @@ app.post('/api/analyze-video', upload.single('video'), async (req, res) => {
               if (resultMarkdown) {
                 try {
                   const actionItems = parseActionItems(resultMarkdown);
-                  console.log(`Parsed ${actionItems.length} action items from analysis`);
+                  console.log(`[analyze-video] Parsed ${actionItems.length} action items from analysis`);
                   if (actionItems.length > 0) {
-                    console.log('Action items found:', actionItems.map(a => a.title));
+                    console.log('[analyze-video] Action items found:', actionItems.map(a => a.title));
+                    console.log('[analyze-video] Saving action items with journeyId:', journeyId);
                     const savedActionItems = await saveActionItems(userId, analysisId, actionItems, { 
                       userContext, 
                       journeyId,
@@ -768,6 +847,42 @@ app.post('/api/analyze-video', upload.single('video'), async (req, res) => {
                 }
               }
               
+              // Save Module 1 baseline if applicable
+              if (isModule1Baseline && metrics && metrics.warmth_score !== undefined && metrics.competence_score !== undefined) {
+                try {
+                  // Get module ID for first-impression-mastery module-1
+                  const { createClient } = require('@supabase/supabase-js');
+                  const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+                  
+                  const { data: moduleData } = await supabase
+                    .from('course_modules')
+                    .select('id')
+                    .eq('slug', 'module-1')
+                    .eq('course_id', '00000000-0000-0000-0000-000000000001')
+                    .single();
+                  
+                  if (moduleData?.id) {
+                    await supabase
+                      .from('module_baselines')
+                      .upsert({
+                        user_id: userId,
+                        module_id: moduleData.id,
+                        analysis_id: analysisId,
+                        warmth_score: metrics.warmth_score,
+                        competence_score: metrics.competence_score,
+                        quadrant: metrics.quadrant || 'contempt',
+                        raw_analysis_data: metrics
+                      }, {
+                        onConflict: 'user_id,module_id'
+                      });
+                    console.log('Module 1 baseline saved successfully');
+                  }
+                } catch (baselineError) {
+                  console.error('Failed to save Module 1 baseline:', baselineError);
+                  // Don't fail the request if baseline save fails
+                }
+              }
+              
               // Update baseline (async, don't wait)
               calculateUserBaseline(clerkUserId, 2).then(() => {
                 console.log('User baseline updated');
@@ -821,10 +936,25 @@ app.post('/api/analyze-video', upload.single('video'), async (req, res) => {
       }
     }
 
+    // Format metrics for Module 1 baseline response
+    let formattedMetrics = metrics;
+    if (isModule1Baseline && metrics && metrics.warmth_score !== undefined) {
+      formattedMetrics = {
+        warmth_score: metrics.warmth_score,
+        competence_score: metrics.competence_score,
+        quadrant: metrics.quadrant,
+        warmth_evidence: metrics.warmth_evidence,
+        competence_evidence: metrics.competence_evidence,
+        first_impression_analysis: metrics.first_impression_analysis,
+        congruence: metrics.congruence,
+        recommendations: metrics.recommendations
+      };
+    }
+    
     return res.json({ 
       result: resultMarkdown,
       analysisId: analysisId, // Return analysis ID for frontend reference
-      metrics: metrics, // Return metrics if available
+      metrics: formattedMetrics, // Return metrics if available
       unlockedAchievements: unlockedAchievements, // Return any newly unlocked achievements
       completedPracticePrompts: completedPracticePrompts
     });
@@ -969,7 +1099,35 @@ app.post('/api/user/onboarding', async (req, res) => {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
+    // Check if user already completed onboarding (to determine if this is first time)
+    const existingUser = await getUserWithOnboarding(clerkUserId);
+    const isFirstTime = !existingUser?.onboarding_completed_at;
+
     await saveOnboardingAnswers(clerkUserId, req.body || {});
+    
+    // Send welcome email if this is first time completing onboarding
+    if (isFirstTime) {
+      try {
+        // Get user profile from headers
+        const userProfile = getUserProfileFromHeaders(req);
+        const userId = await getOrCreateUser(clerkUserId, userProfile || {});
+        const userData = await getUserWithOnboarding(clerkUserId);
+        const userEmail = userData?.email || req.headers['x-user-email'];
+        const userName = userData?.first_name || userData?.full_name || null;
+        
+        if (userEmail) {
+          sendWelcomeEmail({
+            userId,
+            userEmail,
+            userName
+          }).catch((emailError) => {
+            console.warn('Failed to send welcome email:', emailError.message);
+          });
+        }
+      } catch (emailError) {
+        console.warn('Error preparing welcome email:', emailError.message);
+      }
+    }
     
     return res.json({ success: true });
   } catch (err) {
@@ -1161,6 +1319,8 @@ app.get('/api/communication/progress', async (req, res) => {
       }
     }
 
+    console.log('[api/communication/progress] Fetching progress data for journeyId:', journeyId);
+    
     const [profile, metrics, insights, achievements, actionItems] = await Promise.all([
       getUserCommunicationProfile(clerkUserId, journeyId),
       getUserCommunicationMetrics(clerkUserId, 20, journeyId),
@@ -1168,6 +1328,14 @@ app.get('/api/communication/progress', async (req, res) => {
       getUserAchievements(clerkUserId),
       getUserActionItems(clerkUserId, 'pending', journeyId) // Get pending action items for To-Do List
     ]);
+
+    console.log('[api/communication/progress] Results:', {
+      profileHasLatestMetrics: !!profile?.latest_metrics,
+      metricsCount: metrics?.length || 0,
+      insightsCount: insights?.length || 0,
+      achievementsCount: achievements?.length || 0,
+      actionItemsCount: actionItems?.length || 0
+    });
 
     return res.json({
       profile,
@@ -1177,8 +1345,44 @@ app.get('/api/communication/progress', async (req, res) => {
       actionItems
     });
   } catch (err) {
-    console.error('Error fetching communication progress:', err);
+    console.error('[api/communication/progress] Error fetching communication progress:', err);
+    console.error('[api/communication/progress] Error stack:', err.stack);
     return res.status(500).json({ error: 'Failed to fetch communication progress' });
+  }
+});
+
+// Debug endpoint to check if metrics exist for a user
+app.get('/api/debug/metrics', async (req, res) => {
+  try {
+    const clerkUserId = getClerkUserId(req);
+    if (!clerkUserId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const { getOrCreateUser } = require('./services/supabaseService');
+    const userId = await getOrCreateUser(clerkUserId);
+    
+    // Query all metrics for this user
+    const { createClient } = require('@supabase/supabase-js');
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+    
+    const { data: allMetrics, error } = await supabase
+      .from('communication_metrics')
+      .select('id, journey_id, created_at, overall_score, user_id')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    return res.json({
+      userId,
+      clerkUserId,
+      metricsCount: allMetrics?.length || 0,
+      metrics: allMetrics || [],
+      error: error?.message
+    });
+  } catch (err) {
+    console.error('[api/debug/metrics] Error:', err);
+    return res.status(500).json({ error: err.message });
   }
 });
 
@@ -1240,13 +1444,15 @@ app.get('/api/action-items', async (req, res) => {
 
     const status = req.query.status || null; // 'pending' or 'completed' or null for all
     let journeyId = req.query.journeyId || null;
+    const analysisId = req.query.analysisId || null;
+    
     if (journeyId) {
       const journey = await getJourneyForUser(clerkUserId, journeyId);
       if (!journey) {
         return res.status(404).json({ error: 'Journey not found' });
       }
     }
-    const actionItems = await getUserActionItems(clerkUserId, status, journeyId);
+    const actionItems = await getUserActionItems(clerkUserId, status, journeyId, analysisId);
     return res.json({ actionItems });
   } catch (err) {
     console.error('Error fetching action items:', err);
@@ -1289,7 +1495,16 @@ app.post('/api/reflections', async (req, res) => {
     }
 
     const { confidenceRating, mood, notes, analysisId, journeyId } = req.body || {};
+    console.log('[api/reflections] Received reflection data:', {
+      confidenceRating,
+      mood,
+      analysisId,
+      journeyId,
+      hasNotes: !!notes
+    });
+
     if (!confidenceRating || Number.isNaN(Number(confidenceRating))) {
+      console.error('[api/reflections] Invalid confidenceRating:', confidenceRating);
       return res.status(400).json({ error: 'confidenceRating (1-5) is required' });
     }
 
@@ -1302,12 +1517,15 @@ app.post('/api/reflections', async (req, res) => {
     });
 
     if (!payload) {
+      console.error('[api/reflections] saveSelfReflection returned null');
       return res.status(500).json({ error: 'Failed to save reflection' });
     }
 
+    console.log('[api/reflections] Successfully saved reflection:', payload.id);
     return res.json({ reflection: payload });
   } catch (err) {
-    console.error('Error saving reflection:', err);
+    console.error('[api/reflections] Error saving reflection:', err);
+    console.error('[api/reflections] Error stack:', err.stack);
     return res.status(500).json({ error: 'Failed to save reflection' });
   }
 });
@@ -1362,6 +1580,62 @@ const clientBuildPath = path.join(__dirname, 'client', 'build');
 app.use(express.static(clientBuildPath));
 app.get('*', (_req, res) => {
   res.sendFile(path.join(clientBuildPath, 'index.html'));
+});
+
+// Email preferences endpoints
+app.get('/api/user/email-preferences', async (req, res) => {
+  try {
+    const clerkUserId = getClerkUserId(req);
+    if (!clerkUserId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const userId = await getOrCreateUser(clerkUserId);
+    const preferences = await getUserEmailPreferences(userId);
+    
+    return res.json({ preferences: preferences || { email_notifications_enabled: true, email_marketing_enabled: true } });
+  } catch (err) {
+    console.error('Error fetching email preferences:', err);
+    return res.status(500).json({ error: 'Failed to fetch email preferences' });
+  }
+});
+
+app.put('/api/user/email-preferences', async (req, res) => {
+  try {
+    const clerkUserId = getClerkUserId(req);
+    if (!clerkUserId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const { email_notifications_enabled, email_marketing_enabled } = req.body;
+    
+    const updated = await updateUserEmailPreferences(clerkUserId, {
+      email_notifications_enabled,
+      email_marketing_enabled
+    });
+    
+    return res.json({ preferences: updated });
+  } catch (err) {
+    console.error('Error updating email preferences:', err);
+    return res.status(500).json({ error: 'Failed to update email preferences' });
+  }
+});
+
+app.get('/api/user/email-history', async (req, res) => {
+  try {
+    const clerkUserId = getClerkUserId(req);
+    if (!clerkUserId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const limit = parseInt(req.query.limit) || 20;
+    const history = await getUserEmailHistory(clerkUserId, limit);
+    
+    return res.json({ emails: history });
+  } catch (err) {
+    console.error('Error fetching email history:', err);
+    return res.status(500).json({ error: 'Failed to fetch email history' });
+  }
 });
 
 app.listen(port, () => {
