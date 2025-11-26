@@ -166,11 +166,31 @@ export default function Dashboard({
     if (!user) return;
     
     try {
+      // Build headers with Clerk profile data for syncing
+      const headers = {
+        'X-Clerk-User-Id': user.id,
+        'Content-Type': 'application/json'
+      };
+      
+      // Add user profile data to headers for syncing with Supabase
+      if (user.emailAddresses?.[0]?.emailAddress) {
+        headers['X-User-Email'] = user.emailAddresses[0].emailAddress;
+      }
+      if (user.firstName) {
+        headers['X-User-First-Name'] = user.firstName;
+      }
+      if (user.lastName) {
+        headers['X-User-Last-Name'] = user.lastName;
+      }
+      if (user.phoneNumbers?.[0]?.phoneNumber) {
+        headers['X-User-Phone'] = user.phoneNumbers[0].phoneNumber;
+      }
+      if (user.imageUrl) {
+        headers['X-User-Image-Url'] = user.imageUrl;
+      }
+      
       const res = await fetch(process.env.REACT_APP_API_URL || 'http://localhost:5000/api/user/profile', {
-        headers: {
-          'X-Clerk-User-Id': user.id,
-          'Content-Type': 'application/json'
-        }
+        headers
       });
       
       if (res.ok) {

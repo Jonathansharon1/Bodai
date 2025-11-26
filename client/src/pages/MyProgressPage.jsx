@@ -557,7 +557,7 @@ export default function MyProgressPage({
 
     const latest = metrics[metrics.length - 1];
     const first = metrics.length >= 2 ? metrics[0] : null;
-    const weaknessesList = [];
+    let weaknessesList = [];
 
     Object.values(PARAMETER_CATEGORIES).forEach(category => {
       category.parameters.forEach(param => {
@@ -590,11 +590,37 @@ export default function MyProgressPage({
     });
 
     // Sort by severity (lowest score first, then declining)
-    return weaknessesList.sort((a, b) => {
+    weaknessesList = weaknessesList.sort((a, b) => {
       if (a.isDeclining && !b.isDeclining) return -1;
       if (!a.isDeclining && b.isDeclining) return 1;
       return a.current - b.current;
     }).slice(0, 3);
+
+    // Fallback: if no weaknesses detected, show lowest metrics as opportunities
+    if (weaknessesList.length === 0) {
+      const fallbackCandidates = [];
+      Object.values(PARAMETER_CATEGORIES).forEach(category => {
+        category.parameters.forEach(param => {
+          const current = parseFloat(latest[param.key]) || 0;
+          fallbackCandidates.push({
+            key: param.key,
+            label: param.label,
+            description: param.description,
+            category: category.name,
+            categoryColor: category.color,
+            current,
+            isDeclining: false,
+            trend: null
+          });
+        });
+      });
+
+      weaknessesList = fallbackCandidates
+        .sort((a, b) => a.current - b.current)
+        .slice(0, 2);
+    }
+
+    return weaknessesList;
   }, [metrics]);
 
   // Smart hero: biggest win OR most critical weakness
@@ -727,7 +753,13 @@ export default function MyProgressPage({
     ? Number(latestReflection.confidence_rating ?? latestReflection.confidenceRating)
     : null;
 
-  const aiOverallScore = useMemo(() => parseScore(latestMetrics?.overall_score), [latestMetrics]);
+  const aiOverallScoreRaw = useMemo(() => parseScore(latestMetrics?.overall_score), [latestMetrics]);
+
+  // Normalize AI overall to 0-10 scale (API sends 0-100)
+  const aiOverallScore = useMemo(() => {
+    if (!Number.isFinite(aiOverallScoreRaw)) return null;
+    return aiOverallScoreRaw > 10 ? aiOverallScoreRaw / 10 : aiOverallScoreRaw;
+  }, [aiOverallScoreRaw]);
 
   // Normalize reflection score from 1-5 scale to 0-10 scale for comparison
   const normalizedReflectionScore = useMemo(() => {
@@ -1193,28 +1225,6 @@ export default function MyProgressPage({
         </div>
       )}
 
-      {masteryUnlocked && (
-        <div className="myProgressPage__section masterySection">
-          <div className="masteryCard">
-            <div>
-              <p className="masteryCard__eyebrow">Milestone unlocked</p>
-              <h3>Ready for the Advanced {focusLabel || 'Presence'} Drill</h3>
-              <p>
-                Three consecutive sessions above 8.0 unlocked a tougher practice set. 
-                Run the advanced drill to keep compounding gains.
-              </p>
-            </div>
-            <button
-              type="button"
-              className="btn btn--primary"
-              onClick={() => navigate('/new-analysis')}
-            >
-              Launch advanced drill
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Areas to Focus On - PROMINENT */}
       {weaknesses.length > 0 && (
         <div className="myProgressPage__section myProgressPage__section--focus">
@@ -1233,6 +1243,7 @@ export default function MyProgressPage({
               const param = category?.parameters.find(p => p.key === weakness.key);
               
               const guidance = FOCUS_GUIDANCE[weakness.key] || FOCUS_GUIDANCE.default;
+              const hasCustomGuidance = guidance && guidance !== FOCUS_GUIDANCE.default;
               const isExpanded = expandedFocusCards[weakness.key];
 
               return (
@@ -1270,32 +1281,36 @@ export default function MyProgressPage({
                     {generateWeaknessNarrative(param || { key: weakness.key, label: weakness.label, description: weakness.description }, weakness.current, weakness.trend)}
                   </p>
                   <div className="focusCard__why">{guidance.why}</div>
-                  <button
-                    type="button"
-                    className="focusCard__toggle"
-                    onClick={() => toggleFocusCard(weakness.key)}
-                  >
-                    {isExpanded ? 'Hide coach plan' : 'Show coach plan'}
-                    {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  </button>
-                  {isExpanded && (
-                    <div className="focusPlan">
-                      <div className="focusPlan__item">
-                        <div className="focusPlan__label">Instant Tip</div>
-                        <p>{guidance.instantTip}</p>
-                      </div>
-                      <div className="focusPlan__item">
-                        <div className="focusPlan__label">Optional micro practice</div>
-                        <p>{guidance.microPractice}</p>
-                        {guidance.practiceTime && (
-                          <span className="focusPlan__chip">{guidance.practiceTime}</span>
-                        )}
-                      </div>
-                      <div className="focusPlan__item focusPlan__item--meta">
-                        <div className="focusPlan__label">Track this</div>
-                        <p>{guidance.trackThis}</p>
-                      </div>
-                    </div>
+                  {hasCustomGuidance && (
+                    <>
+                      <button
+                        type="button"
+                        className="focusCard__toggle"
+                        onClick={() => toggleFocusCard(weakness.key)}
+                      >
+                        {isExpanded ? 'Hide coach plan' : 'Show coach plan'}
+                        {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                      </button>
+                      {isExpanded && (
+                        <div className="focusPlan">
+                          <div className="focusPlan__item">
+                            <div className="focusPlan__label">Instant Tip</div>
+                            <p>{guidance.instantTip}</p>
+                          </div>
+                          <div className="focusPlan__item">
+                            <div className="focusPlan__label">Optional micro practice</div>
+                            <p>{guidance.microPractice}</p>
+                            {guidance.practiceTime && (
+                              <span className="focusPlan__chip">{guidance.practiceTime}</span>
+                            )}
+                          </div>
+                          <div className="focusPlan__item focusPlan__item--meta">
+                            <div className="focusPlan__label">Track this</div>
+                            <p>{guidance.trackThis}</p>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               );

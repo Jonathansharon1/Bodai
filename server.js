@@ -39,6 +39,8 @@ import {
   getJourneyForUser,
   getDefaultJourneyForUser,
   findAnalysisByVideoHash,
+  findSimilarRecentAnalysis,
+  logAnalysisQuality,
   deleteAnalysisForUser,
   checkPracticeCommitmentStatus,
   getWeeklyPracticeCount,
@@ -52,10 +54,11 @@ import { parseActionItems } from './services/parseActionItems.js';
 import { buildAnalysisCacheKey, getCachedAnalysis, setCachedAnalysis } from './services/analysisCache.js';
 import { notifyAnalysisGate, notifyJourneyEnrollment, notifyAnalysisStored } from './services/notificationService.js';
 import { sendWelcomeEmail, sendAnalysisCompleteEmail } from './services/emailService.js';
+import { validateAnalysisResponse } from './services/responseValidator.js';
 
 const app = express();
 const port = process.env.PORT || 5000;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini3-pro-preview';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-pro';
 const MAX_VIDEO_SIZE_MB = Number(process.env.MAX_VIDEO_SIZE_MB || 250);
 const MAX_VIDEO_SIZE_BYTES = MAX_VIDEO_SIZE_MB * 1024 * 1024;
 const MIN_VIDEO_DURATION_SECONDS = Number(process.env.MIN_VIDEO_DURATION_SECONDS || 20);
@@ -564,15 +567,24 @@ app.post('/api/analyze-video', upload.single('video'), async (req, res) => {
     }
 
     // Build historical context for Gemini (if authenticated)
+    // Only include historical context if user has 2+ previous analyses to avoid anchoring bias for new users
     let historicalContext = null;
     if (clerkUserId && userId) {
       try {
-        const [previousMetrics, userBaseline, recentActionItems] = await Promise.all([
-          getUserPreviousMetrics(clerkUserId, 3),
-          getUserBaseline(clerkUserId),
-          getUserActionItems(clerkUserId, null, journeyId)
-        ]);
-        historicalContext = buildHistoricalContextPayload(previousMetrics, userBaseline, recentActionItems);
+        const previousMetrics = await getUserPreviousMetrics(clerkUserId, 3);
+        
+        // Only include historical context if user has meaningful history (2+ analyses)
+        // This prevents anchoring bias for new users' first few analyses
+        if (previousMetrics && previousMetrics.length >= 2) {
+          const [userBaseline, recentActionItems] = await Promise.all([
+            getUserBaseline(clerkUserId),
+            getUserActionItems(clerkUserId, null, journeyId)
+          ]);
+          historicalContext = buildHistoricalContextPayload(previousMetrics, userBaseline, recentActionItems);
+          console.log(`[analyze-video] Including historical context (${previousMetrics.length} previous analyses)`);
+        } else {
+          console.log(`[analyze-video] Skipping historical context for new user (only ${previousMetrics?.length || 0} previous analyses)`);
+        }
       } catch (historyError) {
         console.warn('Failed to build historical context:', historyError.message || historyError);
       }
@@ -583,22 +595,54 @@ app.post('/api/analyze-video', upload.single('video'), async (req, res) => {
 
     // Call Gemini service with video buffer + MIME type + user context
     // Returns { text, metrics } where text is markdown and metrics contains structured data
+    // Includes validation and retry logic for malformed responses
+    const MAX_ANALYSIS_RETRIES = 2;
     let analysisResult = getCachedAnalysis(cacheKey);
+    let validationResult = null;
+    let analysisAttempts = 0;
+    
     if (!analysisResult) {
-      analysisResult = await analyzeBodyLanguage(videoBuffer, mimeType, { 
-        userContext,
-        model: GEMINI_MODEL,
-        generationConfig: {
-          temperature: 0.15,
-          topP: 0.2,
-          topK: 16,
-          candidateCount: 1
+      while (analysisAttempts < MAX_ANALYSIS_RETRIES) {
+        analysisAttempts++;
+        
+        analysisResult = await analyzeBodyLanguage(videoBuffer, mimeType, { 
+          userContext,
+          model: GEMINI_MODEL,
+          generationConfig: {
+            temperature: 0.05,  // Reduced for more consistent scoring
+            topP: 0.1,          // Reduced for narrower sampling
+            topK: 8,            // Reduced for fewer token choices
+            candidateCount: 1
+          }
+        });
+        
+        // Validate the response
+        validationResult = validateAnalysisResponse(analysisResult);
+        
+        if (validationResult.isValid) {
+          console.log(`[analyze-video] Analysis validation passed on attempt ${analysisAttempts}`);
+          break;
         }
-      });
-      setCachedAnalysis(cacheKey, analysisResult, 1000 * 60 * 60 * 12); // 12 hours
+        
+        console.warn(`[analyze-video] Analysis validation failed (attempt ${analysisAttempts}/${MAX_ANALYSIS_RETRIES}):`, validationResult.summary);
+        console.warn('[analyze-video] Validation issues:', JSON.stringify(validationResult.issues, null, 2));
+        
+        // Don't retry if we've exhausted attempts
+        if (analysisAttempts >= MAX_ANALYSIS_RETRIES) {
+          console.warn('[analyze-video] Max retries reached, proceeding with potentially incomplete response');
+        }
+      }
+      
+      // Cache even if validation had warnings (but passed critical checks)
+      if (analysisResult) {
+        setCachedAnalysis(cacheKey, analysisResult, 1000 * 60 * 60 * 12); // 12 hours
+      }
     } else {
       console.log(`Reused cached Gemini result for ${cacheKey}`);
+      // Validate cached result too
+      validationResult = validateAnalysisResponse(analysisResult);
     }
+    
     const resultMarkdown = analysisResult.text || analysisResult; // Support both old and new format
     const metrics = analysisResult.metrics || null;
     
@@ -650,6 +694,17 @@ app.post('/api/analyze-video', upload.single('video'), async (req, res) => {
         if (saved) {
           analysisId = saved.id;
           console.log(`Analysis saved successfully with ID: ${analysisId}`);
+          
+          // Log any validation issues from the analysis
+          if (validationResult && validationResult.issues && validationResult.issues.length > 0) {
+            try {
+              await logAnalysisQuality(analysisId, userId, validationResult.issues);
+              console.log(`[analyze-video] Logged ${validationResult.issues.length} validation issue(s) for analysis ${analysisId}`);
+            } catch (logError) {
+              console.warn('Failed to log validation issues:', logError.message);
+            }
+          }
+          
           notifyAnalysisStored({
             clerkUserId,
             analysisId,
@@ -766,6 +821,37 @@ app.post('/api/analyze-video', upload.single('video'), async (req, res) => {
                 console.log('[analyze-video] Communication metrics saved successfully, journeyId:', savedMetrics.journey_id);
               } else {
                 console.error('[analyze-video] Failed to save communication metrics');
+              }
+              
+              // Score variance detection for similar videos
+              // Check if there's a similar video uploaded recently (possible re-encode)
+              try {
+                const similarAnalysis = await findSimilarRecentAnalysis(clerkUserId, videoHash, durationSeconds);
+                
+                if (similarAnalysis?.type === 'similar' && similarAnalysis.analysis?.overall_score && metricsToSave.overall_score) {
+                  const previousScore = similarAnalysis.analysis.overall_score;
+                  const currentScore = metricsToSave.overall_score;
+                  const scoreDiff = Math.abs(currentScore - previousScore);
+                  
+                  // Log warning if score differs by more than 5 points for similar video
+                  if (scoreDiff > 5) {
+                    console.warn(`[Score Variance Alert] Similar video detected with ${scoreDiff.toFixed(1)} point difference`);
+                    console.warn(`[Score Variance Alert] Previous: ${previousScore.toFixed(1)}, Current: ${currentScore.toFixed(1)}`);
+                    console.warn(`[Score Variance Alert] Previous analysis: ${similarAnalysis.analysis.id} (${similarAnalysis.analysis.video_filename})`);
+                    
+                    // Log to analysis quality log
+                    await logAnalysisQuality(analysisId, userId, [{
+                      type: 'score_variance',
+                      severity: 'warning',
+                      previousScore,
+                      currentScore,
+                      difference: scoreDiff,
+                      previousAnalysisId: similarAnalysis.analysis.id
+                    }]);
+                  }
+                }
+              } catch (varianceError) {
+                console.warn('Error checking score variance:', varianceError.message);
               }
               
               // Save insights
@@ -1276,19 +1362,27 @@ app.get('/api/user/profile', async (req, res) => {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
+    // Get user profile from headers (sent from frontend with Clerk data)
+    const userProfile = getUserProfileFromHeaders(req);
+
     // Try to get user, create if doesn't exist (first login)
     let userData = await getUserWithOnboarding(clerkUserId);
     
     if (!userData) {
       // User doesn't exist yet - create them (first login)
       try {
-        const userId = await getOrCreateUser(clerkUserId);
+        const userId = await getOrCreateUser(clerkUserId, userProfile || {});
         // Fetch the newly created user
         userData = await getUserWithOnboarding(clerkUserId);
       } catch (createError) {
         console.error('Error creating user:', createError);
         return res.status(500).json({ error: 'Failed to create user' });
       }
+    } else if (userProfile) {
+      // User exists but profile data was sent - sync it (fills in missing fields)
+      await syncUserProfile(clerkUserId, userProfile);
+      // Refetch to get updated data
+      userData = await getUserWithOnboarding(clerkUserId);
     }
 
     // If still no user data, return error

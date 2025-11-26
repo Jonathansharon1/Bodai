@@ -95,6 +95,28 @@ export const getOrCreateUser = async (clerkUserId, userProfile = {}) => {
     .single();
 
   if (createError) {
+    // Handle race condition: if unique constraint violation, user was created by another request
+    // Try to fetch the existing user instead of throwing an error
+    if (createError.code === '23505' || createError.message?.includes('duplicate') || createError.message?.includes('unique')) {
+      console.log(`[getOrCreateUser] Race condition detected for ${clerkUserId}, fetching existing user`);
+      const { data: raceUser, error: raceError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('clerk_user_id', clerkUserId)
+        .single();
+      
+      if (raceUser) {
+        // Sync profile data for the existing user
+        if (Object.keys(userProfile).length > 0) {
+          await syncUserProfile(clerkUserId, userProfile);
+        }
+        return raceUser.id;
+      }
+      
+      // If still can't find user, throw the original error
+      throw new Error(`Failed to create user: ${createError.message}`);
+    }
+    
     throw new Error(`Failed to create user: ${createError.message}`);
   }
 
@@ -911,6 +933,209 @@ export const findAnalysisByVideoHash = async (clerkUserId, videoHash) => {
 };
 
 /**
+ * Find similar recent analysis for score variance detection
+ * Checks for exact hash match first, then looks for videos with similar duration
+ * uploaded in the last 24 hours (possible re-encodes of same video)
+ * @param {string} clerkUserId - Clerk user ID
+ * @param {string} videoHash - SHA256 hash of the video
+ * @param {number} durationSeconds - Duration of the video in seconds
+ * @returns {Promise<{type: 'exact'|'similar', analysis: Object}|null>}
+ */
+export const findSimilarRecentAnalysis = async (clerkUserId, videoHash, durationSeconds) => {
+  if (!supabase || !clerkUserId) {
+    return null;
+  }
+
+  try {
+    // Check for exact hash match first
+    const exactMatch = await findAnalysisByVideoHash(clerkUserId, videoHash);
+    if (exactMatch) {
+      return { type: 'exact', analysis: exactMatch };
+    }
+
+    // If no duration provided, can't check for similar videos
+    if (!durationSeconds || durationSeconds <= 0) {
+      return null;
+    }
+
+    const userId = await getOrCreateUser(clerkUserId);
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+    // Look for videos with similar duration uploaded in last 24 hours
+    const { data, error } = await supabase
+      .from('analyses')
+      .select(`
+        id, 
+        video_duration_seconds, 
+        created_at,
+        video_filename
+      `)
+      .eq('user_id', userId)
+      .gte('created_at', oneDayAgo)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error finding similar analysis:', error);
+      return null;
+    }
+
+    if (!data || data.length === 0) {
+      return null;
+    }
+
+    // Find videos with similar duration (within 2 seconds)
+    // This catches re-encoded videos that may have slightly different metadata
+    const DURATION_TOLERANCE_SECONDS = 2;
+    const similar = data.find(analysis => {
+      const analysisDuration = analysis.video_duration_seconds || 0;
+      return Math.abs(analysisDuration - durationSeconds) <= DURATION_TOLERANCE_SECONDS;
+    });
+
+    if (similar) {
+      // Fetch the overall_score from communication_metrics for this analysis
+      const { data: metricsData, error: metricsError } = await supabase
+        .from('communication_metrics')
+        .select('overall_score')
+        .eq('analysis_id', similar.id)
+        .maybeSingle();
+
+      if (!metricsError && metricsData) {
+        similar.overall_score = metricsData.overall_score;
+      }
+
+      return { type: 'similar', analysis: similar };
+    }
+
+    return null;
+  } catch (err) {
+    console.error('Error in findSimilarRecentAnalysis:', err);
+    return null;
+  }
+};
+
+/**
+ * Log analysis quality issues for monitoring and debugging
+ * Records issues like score variance, missing metrics, truncated responses, etc.
+ * @param {string} analysisId - UUID of the analysis
+ * @param {string} userId - UUID of the user
+ * @param {Array<Object>} issues - Array of issue objects
+ * @param {string} issues[].type - Issue type (e.g., 'score_variance', 'missing_metrics')
+ * @param {string} issues[].severity - 'info', 'warning', or 'critical'
+ * @param {Object} issues[].* - Additional issue-specific details
+ * @returns {Promise<boolean>} True if logged successfully
+ */
+export const logAnalysisQuality = async (analysisId, userId, issues) => {
+  if (!supabase) {
+    console.warn('Supabase not configured, skipping quality log');
+    return false;
+  }
+
+  if (!issues || !Array.isArray(issues) || issues.length === 0) {
+    return true; // Nothing to log
+  }
+
+  try {
+    const records = issues.map(issue => ({
+      analysis_id: analysisId || null,
+      user_id: userId || null,
+      issue_type: issue.type || 'unknown',
+      severity: issue.severity || 'info',
+      details: issue
+    }));
+
+    const { error } = await supabase
+      .from('analysis_quality_log')
+      .insert(records);
+
+    if (error) {
+      console.error('Error logging analysis quality:', error);
+      return false;
+    }
+
+    console.log(`[Quality Log] Logged ${records.length} issue(s) for analysis ${analysisId}`);
+    return true;
+  } catch (err) {
+    console.error('Error in logAnalysisQuality:', err);
+    return false;
+  }
+};
+
+/**
+ * Get quality issues for an analysis
+ * @param {string} analysisId - UUID of the analysis
+ * @returns {Promise<Array>} Array of quality issues
+ */
+export const getAnalysisQualityIssues = async (analysisId) => {
+  if (!supabase || !analysisId) {
+    return [];
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('analysis_quality_log')
+      .select('*')
+      .eq('analysis_id', analysisId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching quality issues:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (err) {
+    console.error('Error in getAnalysisQualityIssues:', err);
+    return [];
+  }
+};
+
+/**
+ * Get quality statistics for monitoring
+ * @param {number} days - Number of days to look back (default 7)
+ * @returns {Promise<Object>} Statistics object
+ */
+export const getQualityStatistics = async (days = 7) => {
+  if (!supabase) {
+    return null;
+  }
+
+  try {
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+    const { data, error } = await supabase
+      .from('analysis_quality_log')
+      .select('issue_type, severity')
+      .gte('created_at', since);
+
+    if (error) {
+      console.error('Error fetching quality statistics:', error);
+      return null;
+    }
+
+    // Aggregate statistics
+    const stats = {
+      total: data?.length || 0,
+      byType: {},
+      bySeverity: { info: 0, warning: 0, critical: 0 }
+    };
+
+    data?.forEach(issue => {
+      // Count by type
+      stats.byType[issue.issue_type] = (stats.byType[issue.issue_type] || 0) + 1;
+      // Count by severity
+      if (stats.bySeverity[issue.severity] !== undefined) {
+        stats.bySeverity[issue.severity]++;
+      }
+    });
+
+    return stats;
+  } catch (err) {
+    console.error('Error in getQualityStatistics:', err);
+    return null;
+  }
+};
+
+/**
  * Save communication metrics for an analysis (with sub-metrics)
  */
 export const saveCommunicationMetrics = async (userId, analysisId, metrics, journeyId = null) => {
@@ -1184,28 +1409,23 @@ export const saveActionItems = async (userId, analysisId, actionItems, options =
       continue;
     }
 
-    // Check for duplicate by title AND analysis_id (only skip if same action item from same analysis)
     const normalizedTitle = title.trim().toLowerCase();
-    
-    // Check if this exact action item already exists for this analysis
+
+    // Check if a similar action item already exists (pending/in-progress) for this user
     const { data: existingItems } = await supabase
       .from('action_items')
       .select('id, status, title, analysis_id')
-      .eq('user_id', userId)
-      .eq('analysis_id', analysisId);
-    
-    // Check if a similar title exists in THIS analysis (case-insensitive)
-    const existing = existingItems?.find(item => 
-      item.title.trim().toLowerCase() === normalizedTitle
+      .eq('user_id', userId);
+
+    const existingActive = existingItems?.find(item => 
+      item.title.trim().toLowerCase() === normalizedTitle &&
+      ['pending', 'in_progress'].includes(item.status)
     );
 
-    if (existing) {
-      // Duplicate found in the same analysis - skip to avoid duplicates
-      console.log(`Skipping duplicate action item from same analysis: ${title}`);
+    if (existingActive) {
+      console.log(`Skipping duplicate active action item: ${title} (existing status: ${existingActive.status})`);
       continue;
     }
-    
-    // Allow same action items from different analyses - they might be relevant for different videos
 
     // Prepare details object
     // Prepare details object - preserve all details
@@ -1223,12 +1443,22 @@ export const saveActionItems = async (userId, analysisId, actionItems, options =
         const lowerDetail = detail.toLowerCase().trim();
         const cleanDetail = detail.trim();
         
-        if ((lowerDetail.includes('what to do') || lowerDetail.includes('what to practice')) && !details.what_to_do) {
+        const looksLikeWhy = lowerDetail.includes('why it matters') || lowerDetail.includes('because') || lowerDetail.includes('so that');
+        const looksLikeExample = lowerDetail.includes('example') || lowerDetail.includes('for instance');
+        const looksLikeInstruction = lowerDetail.includes('what to do') || lowerDetail.includes('what to practice') || lowerDetail.includes('try to') || lowerDetail.startsWith('practice');
+
+        if (looksLikeInstruction && !details.what_to_do) {
           details.what_to_do = cleanDetail.replace(/^(what to do|what to practice)[:\s-]+/i, '').trim();
-        } else if ((lowerDetail.includes('why it matters') || (lowerDetail.includes('why') && lowerDetail.length > 10)) && !details.why_it_matters) {
-          details.why_it_matters = cleanDetail.replace(/^(why it matters|why)[:\s-]+/i, '').trim();
-        } else if (lowerDetail.includes('example') && !details.example) {
+        } else if (looksLikeWhy && !details.why_it_matters) {
+          details.why_it_matters = cleanDetail.replace(/^(why it matters|why|because)[:\s-]+/i, '').trim();
+        } else if (looksLikeExample && !details.example) {
           details.example = cleanDetail.replace(/^example[:\s-]+/i, '').trim();
+        } else if (!details.what_to_do) {
+          details.what_to_do = cleanDetail;
+        } else if (!details.why_it_matters && lowerDetail.includes('so you can')) {
+          details.why_it_matters = cleanDetail;
+        } else if (!details.example && lowerDetail.includes('e.g.')) {
+          details.example = cleanDetail;
         }
       });
       
@@ -1409,7 +1639,7 @@ const generatePromptWithRetry = async (item, maxAttempts = 3) => {
         userContext: item.userContext || {},
         targetMetric: item.targetMetric || inferTargetMetricFromTitle(item.title),
         difficulty,
-        estimatedTime: '2 minutes',
+        estimatedTime: '45 seconds',
         previousTitles: [] // TODO: fetch existing practice prompts history
       });
 

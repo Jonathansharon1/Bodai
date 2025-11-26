@@ -65,7 +65,9 @@ export const parseActionItems = (text) => {
       introText = [];
     } else if (currentAction) {
       // We're inside an action - check if it's a detail
+      const bulletMatch = cleaned.match(/^[-*•]\s*(.+)/);
       const isSubItem = originalLine.match(/^\s{2,}/) ||
+        bulletMatch ||
         cleaned.match(/^[-*•]\s*(What to do|Why|How|Example|Tip|Why it matters)/i) ||
         cleaned.match(/^(What to do|Why|How|Example|Tip|Why it matters)[:\s-]/i);
       
@@ -73,6 +75,9 @@ export const parseActionItems = (text) => {
         // Add as detail to current action
         let detailText = cleaned.replace(/^[-*•]\s*/, '').trim();
         detailText = detailText.replace(/^(What to do|Why|How|Example|Tip|Why it matters)[:\s-]+/i, '').trim();
+        if (bulletMatch && bulletMatch[1]) {
+          detailText = bulletMatch[1].trim();
+        }
         if (detailText) {
           currentAction.details.push(detailText);
         }

@@ -143,134 +143,28 @@ const buildPrompt = (userContext = {}) => {
 
   // Map goals to specific focus areas
   const goalFocus = {
-    'confidence': 'building self-confidence and presence',
-    'interview': 'job interview preparation and professional presentation',
-    'presentation': 'public speaking, presentations, and engaging audiences',
-    'communication': 'interpersonal communication and social interactions',
-    'leadership': 'leadership presence and commanding respect',
-    'dating': 'romantic situations and making a positive impression',
-    'social': 'social confidence and comfort in group settings',
-    'general': 'overall body language improvement',
+    'confidence': 'self-confidence and presence',
+    'interview': 'job interviews',
+    'presentation': 'presentations',
+    'communication': 'interpersonal communication',
+    'leadership': 'leadership presence',
+    'dating': 'dating confidence',
+    'social': 'social confidence',
+    'general': 'overall communication',
   };
 
   // Map goal-specific answers to readable context
   const getGoalSpecificContext = () => {
-    if (!goalSpecific || Object.keys(goalSpecific).length === 0) {
-      return '';
-    }
-
-    const contextParts = [];
-    
-    // Map question IDs to readable labels
-    const question1Labels = {
-      'confidence': {
-        'work': 'Work/Professional situations',
-        'social': 'Social gatherings',
-        'dating': 'Dating/Romantic situations',
-        'speaking': 'Public speaking',
-        'new-people': 'Meeting new people',
-        'general': 'General daily interactions',
-      },
-      'interview': {
-        'technical': 'Technical interviews',
-        'behavioral': 'Behavioral interviews',
-        'panel': 'Panel interviews',
-        'phone-video': 'Phone/Video interviews',
-        'all-types': 'All types of interviews',
-      },
-      'presentation': {
-        'small-team': 'Small team (5-10 people)',
-        'large-conference': 'Large conference (50+ people)',
-        'online': 'Online/Virtual presentations',
-        'mixed': 'Mixed audience sizes',
-      },
-      'communication': {
-        'one-on-one': 'One-on-one conversations',
-        'team-meetings': 'Team meetings',
-        'difficult-conversations': 'Difficult conversations',
-        'networking': 'Networking events',
-        'all-situations': 'All communication situations',
-      },
-      'leadership': {
-        'team-lead': 'Leading a team',
-        'meetings': 'Leading meetings',
-        'presentations': 'Presenting to stakeholders',
-        'conflict': 'Managing conflict',
-        'all-leadership': 'All leadership situations',
-      },
-      'dating': {
-        'first-dates': 'First dates',
-        'online-dating': 'Online dating (video calls)',
-        'meeting-family': 'Meeting parents/family',
-        'long-term': 'Long-term relationships',
-        'all-dating': 'All dating situations',
-      },
-      'social': {
-        'parties': 'Parties and social gatherings',
-        'networking': 'Networking events',
-        'small-groups': 'Small group conversations',
-        'new-people': 'Meeting new people',
-        'all-social': 'All social situations',
-      },
+    if (!goalSpecific || Object.keys(goalSpecific).length === 0) return '';
+    const labels = {
+      'work': 'work situations', 'social': 'social gatherings', 'speaking': 'public speaking',
+      'technical': 'technical interviews', 'behavioral': 'behavioral interviews', 'panel': 'panel interviews',
+      'small-team': 'small teams', 'large-conference': 'large audiences', 'online': 'virtual presentations',
     };
-
-    const question2Labels = {
-      'confidence': {
-        'comfort': 'Feel more comfortable in challenging situations',
-        'impression': 'Make a better first impression',
-        'overcome-fear': 'Overcome specific fears or anxieties',
-        'self-assurance': 'Feel more self-assured overall',
-      },
-      'interview': {
-        'nervousness': 'Nervousness/Anxiety',
-        'answering': 'Answering questions clearly',
-        'body-language': 'Body language/First impression',
-        'technical-skills': 'Technical skills presentation',
-        'all-concerns': 'All of the above',
-      },
-      'presentation': {
-        'stage-fright': 'Stage fright/Nervousness',
-        'engaging': 'Engaging the audience',
-        'qa': 'Handling Q&A sessions',
-        'structure': 'Structuring and delivering content',
-      },
-      'communication': {
-        'listening': 'Better listening skills',
-        'expressing': 'Expressing ideas clearly',
-        'non-verbal': 'Using non-verbal cues effectively',
-        'confidence': 'Feeling more confident while speaking',
-      },
-      'leadership': {
-        'authority': 'Commanding authority and respect',
-        'influence': 'Influencing and persuading',
-        'presence': 'Building executive presence',
-        'confidence': 'Feeling more confident as a leader',
-      },
-      'dating': {
-        'first-impression': 'Making a good first impression',
-        'relaxed': 'Being more relaxed and natural',
-        'showing-interest': 'Showing interest effectively',
-        'reading-cues': 'Reading body language cues',
-      },
-      'social': {
-        'comfort': 'Feeling more comfortable',
-        'starting-conversations': 'Starting conversations',
-        'maintaining': 'Maintaining engaging conversations',
-        'body-language': 'Using positive body language',
-      },
-    };
-
-    if (goalSpecific.question1) {
-      const label = question1Labels[goal]?.[goalSpecific.question1] || goalSpecific.question1;
-      contextParts.push(`- Specific Context: ${label}`);
-    }
-
-    if (goalSpecific.question2) {
-      const label = question2Labels[goal]?.[goalSpecific.question2] || goalSpecific.question2;
-      contextParts.push(`- Primary Concern/Goal: ${label}`);
-    }
-
-    return contextParts.length > 0 ? contextParts.join('\n') : '';
+    const parts = [];
+    if (goalSpecific.question1) parts.push(labels[goalSpecific.question1] || goalSpecific.question1);
+    if (goalSpecific.question2) parts.push(goalSpecific.question2.replace(/-/g, ' '));
+    return parts.length > 0 ? `Context: ${parts.join(', ')}` : '';
   };
 
   const focusArea = goalFocus[goal] || goalFocus['general'];
@@ -278,352 +172,146 @@ const buildPrompt = (userContext = {}) => {
   const specificContext = getGoalSpecificContext();
   const recordingPrompt = userContext.recordingPrompt || null;
   const historicalContextBlock = userContext.historicalContext ? buildHistoricalContextBlock(userContext.historicalContext) : '';
-  const practiceContextReminder = `
-**Recording Context Reminder**
-- These uploads are informal practice reps, not polished productions.
-- Prioritize coaching on delivery: posture, gestures, eye contact, facial energy, voice dynamics, storytelling, transitions.
-- Keep filming/framing advice to a single short sentence and only if it blocks the viewer from reading their non-verbals.`;
-  const practiceFocusBlock = recordingPrompt?.title ? `
-**Practice Focus**
-- Action Item ID: ${recordingPrompt.actionItemId || 'baseline'}
-- Title: ${recordingPrompt.title}
-- Description: ${recordingPrompt.description || 'N/A'}
-- Setup: ${recordingPrompt.setup || 'Use your normal recording setup'}
-- What to notice: ${recordingPrompt.notice || 'Call out specific behaviors you expect to improve'}
-- Recording tip: ${recordingPrompt.tip || 'Stay relaxed and speak clearly.'}
-- Target Metric: ${recordingPrompt.targetMetric || 'overall'}
-- Difficulty: ${recordingPrompt.difficulty || 'intermediate'}
-- Estimated duration: ${recordingPrompt.estimatedTime || '2 minutes'}
+  
+  // Tone based on confidence
+  const tone = (confidence === 'very-low' || confidence === 'low') 
+    ? 'gentle and encouraging' 
+    : (confidence === 'medium' ? 'balanced' : 'direct and professional');
 
-Assess explicitly how well the user executed this practice focus. Include detailed commentary and add a JSON object named "prompt_focus" with fields:
-{
-  "prompt_id": "${recordingPrompt.actionItemId || 'baseline'}",
-  "score": 7.5,
-  "feedback": "Short explanation of what worked/what to adjust",
-  "target_metric": "${recordingPrompt.targetMetric || 'overall'}"
-}
-When reporting prompt_focus, use the action item ID above as prompt_id so the backend can mark completion when the score is >= 7.
+  // Practice focus block - only if user is practicing a specific action item
+  const practiceFocusBlock = recordingPrompt?.title ? `
+PRACTICE FOCUS EVALUATION
+The user is practicing: "${recordingPrompt.title}"
+Action Item ID: ${recordingPrompt.actionItemId || 'baseline'}
+Target: ${recordingPrompt.targetMetric || 'overall'}
+Description: ${recordingPrompt.description || 'General practice'}
+
+Evaluate how well they executed this specific practice. Score their performance on this focus area independently from overall analysis. The score determines if they pass (>=7) or need more practice (<7).
 ` : '';
 
-  const actionPlanRequirements = `
-**Action Plan Requirements**
-- Provide 1-3 action items.
-- Each item must include: "Instant Tip" (what to do differently in the next real conversation) and "Optional Micro Practice" (≤60 seconds, no upload required).
-- Tips should be concrete behavioral cues (e.g., "Hold eye contact to the lens for the first sentence" or "Match your gestures to anchor each bullet").
-- Optional practice should feel casual and doable at home.`;
-
-  const metricsJsonInstruction = String.raw`\`\`\`json
-{
+  // JSON schema - using varied example values to prevent anchoring
+  const jsonSchema = recordingPrompt?.title 
+    ? `{
   "sub_scores": {
-    "voice": {
-      "volume_stability": 7.5,
-      "tone_variation": 6.8,
-      "pace_control": 7.2,
-      "articulation": 6.5,
-      "warmth": 7.0
-    },
-    "presence": {
-      "eye_contact": 7.5,
-      "facial_relaxation": 6.8,
-      "body_posture": 7.2,
-      "hand_naturalness": 6.5,
-      "openness": 7.0
-    },
-    "clarity": {
-      "structure": 7.5,
-      "focus": 6.8,
-      "example_usage": 7.2,
-      "transition_quality": 6.5,
-      "repetition_control": 7.0
-    },
-    "authenticity": {
-      "naturalness": 7.5,
-      "emotional_transparency": 6.8,
-      "forced_expression_reduction": 7.2
-    },
-    "impact": {
-      "energy": 7.5,
-      "engagement": 6.8,
-      "persuasiveness": 7.2
-    },
-    "confidence": {
-      "filler_word_control": 7.5,
-      "pause_control": 6.8,
-      "physical_tension": 7.2,
-      "vocal_stability": 6.5,
-      "comfort_level": 7.0
-    }
+    "voice": { "volume_stability": 0.0, "tone_variation": 0.0, "pace_control": 0.0, "articulation": 0.0, "warmth": 0.0 },
+    "presence": { "eye_contact": 0.0, "facial_relaxation": 0.0, "body_posture": 0.0, "hand_naturalness": 0.0, "openness": 0.0 },
+    "clarity": { "structure": 0.0, "focus": 0.0, "example_usage": 0.0, "transition_quality": 0.0, "repetition_control": 0.0 },
+    "authenticity": { "naturalness": 0.0, "emotional_transparency": 0.0, "forced_expression_reduction": 0.0 },
+    "impact": { "energy": 0.0, "engagement": 0.0, "persuasiveness": 0.0 },
+    "confidence": { "filler_word_control": 0.0, "pause_control": 0.0, "physical_tension": 0.0, "vocal_stability": 0.0, "comfort_level": 0.0 }
   },
   "prompt_focus": {
-    "prompt_id": "${recordingPrompt?.actionItemId || 'baseline'}",
-    "score": 7.2,
-    "feedback": "Brief evaluation of the focused practice prompt",
-    "target_metric": "${recordingPrompt?.targetMetric || 'overall'}"
+    "prompt_id": "${recordingPrompt.actionItemId || 'baseline'}",
+    "score": 0.0,
+    "feedback": "Specific feedback on the practice focus execution",
+    "target_metric": "${recordingPrompt.targetMetric || 'overall'}"
   },
-  "final_scores": {
-    "voice": 7.0,
-    "presence": 7.0,
-    "clarity": 7.0,
-    "authenticity": 7.0,
-    "impact": 7.0,
-    "confidence": 7.0
+  "final_scores": { "voice": 0.0, "presence": 0.0, "clarity": 0.0, "authenticity": 0.0, "impact": 0.0, "confidence": 0.0 },
+  "overall_score": 0.0,
+  "stage_title": "",
+  "delivery_metrics": { "speaking_rate_wpm": 0, "filler_word_count": 0, "sentiment": "", "posture_flag": "" },
+  "validation": { "jump_detected": false, "jump_explanation": "", "confidence": 0.0 },
+  "insights": ["", "", ""]
+}`
+    : `{
+  "sub_scores": {
+    "voice": { "volume_stability": 0.0, "tone_variation": 0.0, "pace_control": 0.0, "articulation": 0.0, "warmth": 0.0 },
+    "presence": { "eye_contact": 0.0, "facial_relaxation": 0.0, "body_posture": 0.0, "hand_naturalness": 0.0, "openness": 0.0 },
+    "clarity": { "structure": 0.0, "focus": 0.0, "example_usage": 0.0, "transition_quality": 0.0, "repetition_control": 0.0 },
+    "authenticity": { "naturalness": 0.0, "emotional_transparency": 0.0, "forced_expression_reduction": 0.0 },
+    "impact": { "energy": 0.0, "engagement": 0.0, "persuasiveness": 0.0 },
+    "confidence": { "filler_word_control": 0.0, "pause_control": 0.0, "physical_tension": 0.0, "vocal_stability": 0.0, "comfort_level": 0.0 }
   },
-  "overall_score": 70.0,
-  "stage_title": "Emerging Communicator",
-  "analysis": {
-    "overview": "Brief overview of overall performance",
-    "strengths": "Key strengths identified",
-    "focus_area": "Main area for improvement",
-    "action_items": "Actionable steps",
-    "personal_insight": "Personalized insight based on user context"
-  },
-  "delivery_metrics": {
-    "speaking_rate_wpm": 142,
-    "filler_word_count": 4,
-    "sentiment": "positive",
-    "posture_flag": "open"
-  },
-  "validation": {
-    "jump_detected": false,
-    "jump_explanation": "",
-    "confidence": 0.9
-  },
-  "insights": [
-    "Your eye contact is strong and engaging, which builds trust immediately.",
-    "Consider varying your vocal pace to add more energy to key points.",
-    "Your natural gestures complement your words well, showing authenticity."
-  ]
-}
-\`\`\``;
+  "final_scores": { "voice": 0.0, "presence": 0.0, "clarity": 0.0, "authenticity": 0.0, "impact": 0.0, "confidence": 0.0 },
+  "overall_score": 0.0,
+  "stage_title": "",
+  "delivery_metrics": { "speaking_rate_wpm": 0, "filler_word_count": 0, "sentiment": "", "posture_flag": "" },
+  "validation": { "jump_detected": false, "jump_explanation": "", "confidence": 0.0 },
+  "insights": ["", "", ""]
+}`;
 
-  const scoringRulesBlock = String.raw`
-**CRITICAL SCORING RULES - YOU MUST FOLLOW STRICTLY:**
+  // Build the prompt with context first, instructions at the end (Gemini 3 best practice)
+  return `Body language coach analyzing a practice video.
 
-**Delivery Metrics (include in delivery_metrics)**
-- speaking_rate_wpm: Words per minute (between 90-190). Estimate from clip length and vocal pacing.
-- filler_word_count: Count how many fillers like "um", "uh", "like" you heard (integer).
-- sentiment: Overall vibe of delivery (\`positive\`, \`neutral\`, \`tense\`).
-- posture_flag: \`open\`, \`closed\`, \`leaning\`, or \`dynamic\` based on body language cues.
-
-**Sub-Metric Scoring Definitions (0-10 scale):**
-- **0-3 (Weak)**: Clear issues, needs significant improvement, noticeable problems
-- **4-6 (Average)**: Acceptable but room for improvement, some inconsistencies
-- **7-10 (Strong)**: Good to excellent, effective, natural, engaging
-
-**VOICE Sub-Metrics:**
-- **volume_stability** (0-10): Consistent volume without sudden drops/spikes. 0-3: Frequent volume changes. 4-6: Some variation. 7-10: Steady, controlled volume.
-- **tone_variation** (0-10): Vocal variety and expressiveness. 0-3: Monotone. 4-6: Some variation. 7-10: Dynamic, expressive tone.
-- **pace_control** (0-10): Appropriate speaking speed, not too fast/slow. 0-3: Too fast/slow, hard to follow. 4-6: Generally appropriate. 7-10: Well-paced, easy to follow.
-- **articulation** (0-10): Clear pronunciation, words are distinct. 0-3: Mumbling, unclear. 4-6: Mostly clear. 7-10: Very clear, crisp articulation.
-- **warmth** (0-10): Friendly, approachable vocal quality. 0-3: Cold, distant. 4-6: Neutral. 7-10: Warm, inviting tone.
-
-**PRESENCE Sub-Metrics:**
-- **eye_contact** (0-10): Consistent, natural eye contact with camera/audience. 0-3: Avoiding eye contact, looking away. 4-6: Some eye contact. 7-10: Strong, consistent eye contact.
-- **facial_relaxation** (0-10): Relaxed, natural facial expressions. 0-3: Tense, strained. 4-6: Some tension. 7-10: Relaxed, natural.
-- **body_posture** (0-10): Upright, confident posture. 0-3: Slouched, closed. 4-6: Acceptable. 7-10: Upright, open, confident.
-- **hand_naturalness** (0-10): Natural, purposeful gestures. 0-3: Stiff, no gestures, or excessive fidgeting. 4-6: Some gestures. 7-10: Natural, expressive gestures.
-- **openness** (0-10): Open body language, approachable. 0-3: Closed, defensive. 4-6: Neutral. 7-10: Open, welcoming.
-
-**CLARITY Sub-Metrics:**
-- **structure** (0-10): Clear organization, logical flow. 0-3: Disorganized, confusing. 4-6: Some structure. 7-10: Well-organized, clear flow.
-- **focus** (0-10): Stays on topic, clear main points. 0-3: Rambling, off-topic. 4-6: Generally focused. 7-10: Highly focused, clear points.
-- **example_usage** (0-10): Effective use of examples/stories. 0-3: No examples, abstract. 4-6: Some examples. 7-10: Rich, relevant examples.
-- **transition_quality** (0-10): Smooth transitions between ideas. 0-3: Abrupt, jarring. 4-6: Some transitions. 7-10: Smooth, natural transitions.
-- **repetition_control** (0-10): Avoids unnecessary repetition. 0-3: Excessive repetition. 4-6: Some repetition. 7-10: Concise, no unnecessary repetition.
-
-**AUTHENTICITY Sub-Metrics:**
-- **naturalness** (0-10): Appears genuine, not forced. 0-3: Forced, unnatural. 4-6: Somewhat natural. 7-10: Very natural, authentic.
-- **emotional_transparency** (0-10): Shows appropriate emotions. 0-3: Flat, no emotion. 4-6: Some emotion. 7-10: Genuine, appropriate emotions.
-- **forced_expression_reduction** (0-10): Minimal forced or fake expressions. 0-3: Many forced expressions. 4-6: Some forced moments. 7-10: No forced expressions.
-
-**IMPACT Sub-Metrics:**
-- **energy** (0-10): Appropriate energy level, engaging. 0-3: Low energy, boring. 4-6: Moderate energy. 7-10: High, appropriate energy.
-- **engagement** (0-10): Keeps audience engaged. 0-3: Disengaging. 4-6: Somewhat engaging. 7-10: Highly engaging.
-- **persuasiveness** (0-10): Convincing, compelling delivery. 0-3: Not convincing. 4-6: Somewhat persuasive. 7-10: Very persuasive.
-
-**CONFIDENCE Sub-Metrics:**
-- **filler_word_control** (0-10): Minimal "um", "uh", "like". 0-3: Many fillers. 4-6: Some fillers. 7-10: Very few fillers.
-- **pause_control** (0-10): Effective use of pauses. 0-3: No pauses or awkward pauses. 4-6: Some pauses. 7-10: Well-timed, effective pauses.
-- **physical_tension** (0-10): Low physical tension, relaxed. 0-3: Very tense. 4-6: Some tension. 7-10: Relaxed, no tension.
-- **vocal_stability** (0-10): Stable voice, no shaking/quivering. 0-3: Shaky, unstable. 4-6: Some instability. 7-10: Very stable.
-- **comfort_level** (0-10): Appears comfortable on camera. 0-3: Very uncomfortable. 4-6: Somewhat comfortable. 7-10: Very comfortable.
-
-**CRITICAL SCORING INSTRUCTIONS - BE STRICT AND CONSISTENT:**
-
-1. **Score each sub-metric independently using the definitions above (0-10, use decimals like 7.5)**
-   - Watch the video CAREFULLY and observe actual behavior
-   - Do NOT give benefit of the doubt - score what you actually see
-   - If you see problems, score them LOW (0-4)
-   - If you see average performance, score it AVERAGE (4-6)
-   - Only give 7+ if you see GENUINELY STRONG performance
-
-2. **BE STRICT - This is critical:**
-   - **7-10 (Strong)**: ONLY if the performance is genuinely excellent, professional, engaging, and effective
-   - **4-6 (Average)**: If there are noticeable issues, inconsistencies, or room for improvement
-   - **0-3 (Weak)**: If there are clear problems, mistakes, or significant issues
-   - **DO NOT inflate scores** - be honest and critical
-   - **If eye contact is poor** → score eye_contact 0-4
-   - **If speech is monotone** → score tone_variation 0-4
-   - **If there are many filler words** → score filler_word_control 0-4
-   - **If energy is low** → score energy 0-4
-
-3. **CONSISTENCY IS CRITICAL:**
-   - The SAME video should receive the SAME scores every time
-   - Base your scores ONLY on what you observe in THIS video
-   - Do NOT be influenced by previous analyses or assumptions
-   - If you analyze the same video twice, scores should be IDENTICAL
-
-4. **Pay attention to DETAILS:**
-   - Count actual filler words ("um", "uh", "like") - if many, score LOW
-   - Measure actual eye contact percentage - if <50%, score LOW
-   - Listen to actual tone variation - if monotone, score LOW
-   - Observe actual energy level - if low/boring, score LOW
-   - Notice actual mistakes, hesitations, or problems - score them LOW
-
-5. **Focus Areas MUST reflect actual weaknesses:**
-   - If you see problems, they MUST appear in Focus Areas
-   - If eye contact is poor → MUST be in Focus Areas
-   - If speech is monotone → MUST be in Focus Areas
-   - If there are many mistakes → MUST be in Focus Areas
-   - Do NOT hide problems - be honest and direct
-
-6. Consider the user's context (${goalLabel}) when scoring, but DO NOT use it as an excuse to inflate scores
-
-7. For each sub-score, provide brief evidence/explanation in your analysis - be specific about what you observed
-
-8. Calculate final category scores as weighted averages (weights will be applied by backend)
-
-9. Calculate overall_score: weighted average of final_scores (voice*0.15 + presence*0.15 + clarity*0.15 + authenticity*0.15 + impact*0.20 + confidence*0.20) * 10
-
-10. Determine stage_title based on overall_score:
-   - 0-40: "Beginning Communicator"
-   - 41-60: "Emerging Communicator"
-   - 61-75: "Developing Communicator"
-   - 76-85: "Expressive Communicator"
-   - 86-95: "Confident Communicator"
-   - 96-100: "Master Communicator"
-
-11. If you detect a significant jump from typical scores (>3 points), explain it in validation.jump_explanation
-
-12. Set validation.confidence (0-1) based on how certain you are of the scores
-
-13. Provide 2-3 brief insights for the communication journal
-
-Structure your main response as follows:
-
-**Overall Impression**
-(A short emotional summary of how they come across overall)
-
-**Key Strengths**
-2–3 main strengths directly supporting "${goalLabel}".
-Explain *why each matters* in their "${specificContext}" if relevant.
-Do NOT use emojis in section headers - use plain text only.
-
-**Focus Areas**
-2–3 areas that need improvement. Be HONEST and DIRECT about actual problems you observed.
-- If eye contact is poor → mention it directly
-- If speech is monotone → mention it directly
-- If there are many mistakes → mention them directly
-- If energy is low → mention it directly
-Explain each problem clearly + why improving it will help achieve "${goalLabel}"${specificContext ? ` and context` : ''}.
-Do NOT sugarcoat problems - be honest and constructive.
-Do NOT use emojis in section headers - use plain text only.
-
-**Action Plan**
-Start with a brief introduction (1-2 sentences) if helpful, then provide EXACTLY 3–4 personalized, practical steps.
-
-**CRITICAL FORMATTING REQUIREMENTS:**
-- You MUST provide 3-4 action items. Not 1, not 2, not 5. Exactly 3-4.
-- Each action item MUST start with "Action:" followed by the action title on the SAME line.
-- Example: "Action: The Vocal Amplifier" (not "Action:\nThe Vocal Amplifier")
-- Only lines starting with "Action:" will be displayed as actionable items with checkboxes.
-- Do NOT use emojis in section headers - use plain text only.
-- Format each action clearly with "What to do:", "Why it matters:", and "Example:" subsections.
-
-Format (REPEAT THIS FOR EACH OF THE 3-4 ACTIONS):
-- **Action: [Action Title]** (e.g., "Action: The '3-Point Map'")
-  - **What to do**: Specific instructions (indented with 2 spaces or a dash)
-  - **Why it matters**: Link to "${goalLabel}"${specificContext ? ` and context` : ''} (indented)
-  - **Example**: Specific, real-world situation (indented)
-
-Example of correct format:
-Action: The Vocal Amplifier
-  - What to do: Practice reading a short text out loud twice - first normally, then with 50% more energy
-  - Why it matters: What feels overly energetic to you often comes across as perfectly engaging to an audience
-  - Example: Take the first sentence of your video and say it normally, then say it again as if trying to get attention across a busy room
-
-Action: The 3-Point Map
-  - What to do: For any topic, identify three key messages and state them upfront
-  - Why it matters: This gives your presentation a clear roadmap and makes it easy for the audience to follow
-  - Example: For a product pitch: 1) It solves a problem, 2) It's affordable, 3) It's easy to use
-
-Do NOT use "Action:" for regular descriptive text. Only use it for actual actionable steps that users can check off.
-
-**Quick Wins**
-1–2 simple, immediate actions that make visible impact.
-Do NOT use emojis in section headers - use plain text only.
-
-Keep tone: ${confidence === 'very-low' || confidence === 'low' ? 'Gentle, supportive, and empowering' : 'Warm, professional, and actionable'}.
-Speak like a real coach: clear, human, and growth-oriented.
-
-**REMEMBER:**
-- Be STRICT with scoring - only give high scores for genuinely strong performance
-- Be HONEST about problems - if you see issues, mention them in Focus Areas
-- Be CONSISTENT - the same video should get the same scores every time
-- Pay attention to DETAILS - count filler words, measure eye contact, observe actual behavior
-- Do NOT inflate scores or hide problems - users need honest feedback to improve
-`;
-
-  // Adjust tone based on confidence level
-  const getToneGuidance = () => {
-    if (confidence === 'very-low' || confidence === 'low') {
-      return 'Use a gentle, encouraging, and supportive tone. This user is already self-aware and may be sensitive. Focus on building them up, highlighting existing strengths, and providing small, manageable steps. Avoid overwhelming them with too many changes at once.';
-    } else if (confidence === 'medium') {
-      return 'Use a balanced, encouraging tone. Provide constructive feedback while acknowledging their self-awareness. Offer clear, actionable steps.';
-    } else {
-      return 'Use a professional, direct tone. This user is confident and ready for advanced feedback. Provide specific, detailed recommendations.';
-    }
-  };
-
-  return `You are an expert body language coach specializing in helping professionals improve their presence, communication, and impact.
-  Your role is to analyze videos of users speaking and provide constructive, professional, and encouraging feedback.
-
-**User Context:**
-- Primary Goal: ${goalLabel}
-- Current Confidence Level: ${confidence}
-- Focus Area: ${focusArea}
-${specificContext ? specificContext : ''}
-
-**Tone Guidance:**
-${getToneGuidance()}
-
-${practiceContextReminder}
-
+USER CONTEXT
+Goal: ${goalLabel} (${focusArea})
+${specificContext}
+Confidence: ${confidence}
+Tone: ${tone}
 ${historicalContextBlock}
 ${practiceFocusBlock}
-${actionPlanRequirements}
 
-Analyze the following video with these goals and context in mind, and provide a concise, encouraging analysis that directly supports the user's objectives.
-Note: DO NOT include emojis in your response.
-**IMPORTANT: At the end of your response, include a structured metrics section in JSON format with detailed sub-scores:**
+SCORING SCALE (0-10)
+0-3: Weak (clear problems)
+4-6: Average (room for improvement)
+7-10: Strong (genuinely effective)
 
-${metricsJsonInstruction}
+SUB-METRICS TO SCORE
+Voice: volume_stability, tone_variation, pace_control, articulation, warmth
+Presence: eye_contact, facial_relaxation, body_posture, hand_naturalness, openness
+Clarity: structure, focus, example_usage, transition_quality, repetition_control
+Authenticity: naturalness, emotional_transparency, forced_expression_reduction
+Impact: energy, engagement, persuasiveness
+Confidence: filler_word_control, pause_control, physical_tension, vocal_stability, comfort_level
 
-${scoringRulesBlock}
-**REMEMBER:**
-- Be STRICT with scoring - only give high scores for genuinely strong performance
-- Be HONEST about problems - if you see issues, mention them in Focus Areas
-- Be CONSISTENT - the same video should get the same scores every time
-- Pay attention to DETAILS - count filler words, measure eye contact, observe actual behavior
-- Do NOT inflate scores or hide problems - users need honest feedback to improve`;
+DELIVERY METRICS
+speaking_rate_wpm: 90-190 typical
+filler_word_count: count "um", "uh", "like"
+sentiment: positive/neutral/tense
+posture_flag: open/closed/leaning/dynamic
 
+STAGE TITLES (by overall_score)
+0-40: Beginning Communicator
+41-60: Emerging Communicator
+61-75: Developing Communicator
+76-85: Expressive Communicator
+86-95: Confident Communicator
+96-100: Master Communicator
+
+---
+
+Based on the video above, provide:
+
+**Overall Impression**
+One sentence on how they come across.
+
+**Key Strengths**
+2-3 strengths with brief explanation.
+
+**Focus Areas**
+2-3 areas needing improvement. Be direct about problems.
+
+**Action Plan**
+Exactly 3-4 action items. Format each as:
+Action: [Title]
+  - What to do: [specific instruction]
+  - Why it matters: [relevance to their goal]
+  - Example: [concrete situation]
+
+**Quick Wins**
+1-2 immediate actions.
+
+End with JSON metrics block:
+\`\`\`json
+${jsonSchema}
+\`\`\`
+
+CRITICAL RULES:
+1. Score based ONLY on what you observe. Do not copy example values.
+2. Replace all 0.0 placeholders with actual scores (use decimals like 6.5, 7.8).
+3. Be strict: only 7+ for genuinely strong performance.
+4. If eye contact is poor, score it 0-4. If monotone, score tone_variation 0-4.
+5. overall_score = (voice×0.15 + presence×0.15 + clarity×0.15 + authenticity×0.15 + impact×0.20 + confidence×0.20) × 10
+6. ${recordingPrompt?.title ? `prompt_focus.score must reflect actual execution of "${recordingPrompt.title}". Score >=7 means pass, <7 means needs practice.` : 'No practice focus for this video.'}
+7. Provide 3 specific insights for the communication journal.
+8. No emojis.`;
 };
 
 
 const DEFAULT_GENERATION_CONFIG = {
-  temperature: 0.15,
-  topP: 0.2,
-  topK: 16,
+  temperature: 0.05,  // Reduced from 0.15 for more consistent scoring
+  topP: 0.1,          // Reduced from 0.2 for narrower sampling
+  topK: 8,            // Reduced from 16 for fewer token choices
   candidateCount: 1,
   maxOutputTokens: 2048
 };
@@ -644,8 +332,8 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
     }
     
     const INLINE_LIMIT_BYTES = 20 * 1024 * 1024; // 20MB
-    const fallbackModel = 'gemini-2.5-pro';
-    const modelName = options.model || 'gemini-3-pro-preview';
+    const fallbackModel = 'gemini-2.5-flash';
+    const modelName = options.model || 'gemini-2.5-pro';
     let effectiveModel = modelName;
     const ai = new GoogleGenAI({ apiKey: API_KEY });
     
@@ -886,6 +574,8 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
       }
     }
     
+    console.log(`[Gemini] Analysis completed using model: ${effectiveModel}`);
+    
     return {
       text: parsedText,
       metrics: metrics,
@@ -901,7 +591,7 @@ export const generatePracticePromptFromAction = async ({
   userContext = {},
   targetMetric = 'overall',
   difficulty = 'intermediate',
-  estimatedTime = '2 minutes',
+  estimatedTime = '45 seconds',
   previousTitles = []
 }) => {
   if (!process.env.API_KEY) {
@@ -924,7 +614,7 @@ export const generatePracticePromptFromAction = async ({
     ? `Previous drills already used for this user:\n${previousTitles.map(t => `- ${t}`).join('\n')}\n`
     : '';
 
-  const prompt = `You are an expert body language coach designing recorded practice drills that users can film on their phone in a single take.
+  const prompt = `You are an expert body language coach designing quick 45-second practice drills that users can rehearse on their own (no upload required, optional self-recording).
 
 Goal/Context: ${goal}
 User confidence: ${confidence}
@@ -950,10 +640,11 @@ Please respond ONLY with valid JSON (no markdown) in the format:
   "version": 2
 }
 Requirements:
-- description must mention video length and theme to talk about.
+- description must mention that the drill is ~45 seconds and the theme to talk about.
 - setup/what_to_notice/recording_tip must be specific and observable.
 - Use the supplied difficulty/target metric unless you have a strong reason to adjust (then explain briefly inside recording_tip).
-- Ensure the drill is distinct from prior ones if provided.`;
+- Ensure the drill is distinct from prior ones if provided.
+- Remind the user the drill is self-practice, no upload required.`;
 
   const runGeneration = async (model) => {
     const response = await ai.models.generateContent({

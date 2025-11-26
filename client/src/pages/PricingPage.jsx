@@ -1,14 +1,43 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser, SignInButton } from '@clerk/clerk-react';
-import { Check, Star, Sparkles, Zap, ArrowRight } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 import PricingCard from '../components/pricing/PricingCard';
 import './PricingPage.css';
 
+
+
+const faqs = [
+  {
+    question: 'What happens after I upload a video?',
+    answer: [
+      'AI breaks down your presence, voice, and storytelling within minutes.',
+      'You receive a structured report plus a personalized action plan.',
+      'A micro-practice is suggested to reinforce what to do next.'
+    ]
+  },
+  {
+    question: 'Can I switch or cancel plans anytime?',
+    answer:
+      'Yes. Upgrade, downgrade, or cancel whenever you like. Your account retains all historical analyses so you can come back later without starting over.'
+  },
+  {
+    question: 'Can I open multiple journeys (focus areas)?',
+    answer:
+      'Every plan supports unlimited journeys. Spin up interview prep, leadership, or social confidence tracks and keep independent progress for each.'
+  },
+  {
+    question: 'Do you support teams and companies?',
+    answer:
+      'Executive Mastery unlocks unlimited uploads and we offer tailored onboarding for teams. Reach out via chat to set up a workspace.'
+  }
+];
+
 export default function PricingPage() {
-  const { user, isSignedIn } = useUser();
+  const { isSignedIn } = useUser();
   const navigate = useNavigate();
-  const [billingPeriod, setBillingPeriod] = useState('monthly'); // 'monthly' or 'yearly'
+  const [billingPeriod, setBillingPeriod] = useState('monthly');
+  const [openFaqIndex, setOpenFaqIndex] = useState(0);
 
   const sharedFeatures = [
     'AI body language coach powered by Gemini',
@@ -16,85 +45,64 @@ export default function PricingPage() {
     'Personalized action plans (instant tip + micro-practice)',
     'Goal-aware modules & baseline tracking',
     'Exportable insights & PDF summaries',
-    'Priority support + practice reminders'
+    'Priority support + practice reminders',
+    'Launch unlimited focus journeys (interview, leadership, social, etc.) and keep historical progress for each'
   ];
 
   const plans = [
     {
       id: 'free',
       name: 'Free',
-      icon: '🆓',
       price: 0,
       priceYearly: 0,
       period: 'forever',
-      analyses: 1,
       analysesText: '1 analysis',
-      features: [
-        '1 full analysis',
-        'Personalized feedback',
-        'Professional insights',
-        'No cost - no commitment'
-      ],
-      cta: 'Get Started - Free',
+      theme: 'slate',
+      cta: 'Get Started Free',
       ctaVariant: 'secondary',
-      recommended: false,
-      badge: null,
-      valueText: null
+      recommended: false
     },
     {
       id: 'starter',
       name: 'Starter Reps',
-      icon: '📦',
-      price: 9,
-      priceYearly: 90,
+      price: 8,
+      priceYearly: 80,
       period: 'per month',
-      analyses: 6,
       analysesText: '6 analyses per month',
-      features: sharedFeatures,
+      theme: 'teal',
       cta: 'Lock In My Reps',
       ctaVariant: 'primary',
       recommended: false,
-      badge: null,
       valueText: 'Perfect for monthly check-ins',
-      savings: null
+      badgeText: 'Best for monthly'
     },
     {
       id: 'momentum',
       name: 'Momentum',
-      icon: '⭐',
       price: 15,
       priceYearly: 150,
       period: 'per month',
-      analyses: 20,
-      analysesText: '20 analyses per month',
-      features: sharedFeatures,
-      cta: 'Start My Momentum',
+      analysesText: '16 analyses per month',
+      theme: 'indigo',
+      cta: 'Start Momentum',
       ctaVariant: 'primary',
       recommended: true,
-      badge: 'Most Popular',
       valueText: 'Weekly practice for under $1 per analysis',
-      savings: {
-        payAsYouGo: 30,
-        youPay: 15,
-        amount: 15
-      }
+      badgeText: 'Most popular'
     },
     {
       id: 'executive',
       name: 'Executive Mastery',
-      icon: '💎',
       price: 39,
       priceYearly: 390,
       period: 'per month',
-      analyses: '∞',
       analysesText: 'Unlimited analyses',
-      features: sharedFeatures,
+      theme: 'graphite',
       cta: 'Train Without Limits',
       ctaVariant: 'primary',
       recommended: false,
-      badge: 'Premium',
       valueText: 'Coaches & daily practitioners',
-      savings: null
+      badgeText: 'Teams & power users'
     }
   ];
 
@@ -117,14 +125,14 @@ export default function PricingPage() {
   return (
     <div className="pricingPage">
       <div className="pricingPage__container">
-        {/* Header */}
-        <div className="pricingPage__header">
-          <h1 className="pricingPage__title">Choose Your Plan</h1>
+        <section className="pricingPage__hero">
+          <p className="pricingPage__eyebrow">Pricing</p>
+          <h1 className="pricingPage__title">World-class coaching feedback without the executive price tag</h1>
           <p className="pricingPage__subtitle">
-            Join over 10,000 users already improving their communication
+            Every plan includes the same AI engine, personalized action plans, and progress dashboards.
+            Choose how often you want to practice.
           </p>
-          
-          {/* Billing Toggle */}
+
           <div className="pricingPage__billingToggle">
             <button
               className={`billingToggle__button ${billingPeriod === 'monthly' ? 'active' : ''}`}
@@ -140,10 +148,25 @@ export default function PricingPage() {
               <span className="billingToggle__badge">Save up to 20%</span>
             </button>
           </div>
-        </div>
+        </section>
 
-        {/* Pricing Cards */}
-        <div className="pricingPage__cards">
+        <section className="pricingPage__included">
+          <div className="included__header">
+            <p className="included__eyebrow">Included in every plan</p>
+            <h2>All the coaching power. One toolkit.</h2>
+            <p>Every plan unlocks the full AI analysis pipeline, personalized drills, and progress intelligence.</p>
+          </div>
+          <ul className="included__list">
+            {sharedFeatures.map((feature) => (
+              <li key={feature} className="included__item">
+                <Check size={18} />
+                <span>{feature}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="pricingPage__cards">
           {plans.map((plan) => (
             <PricingCard
               key={plan.id}
@@ -153,94 +176,66 @@ export default function PricingPage() {
               isSignedIn={isSignedIn}
             />
           ))}
-        </div>
+        </section>
 
-        {/* Pay As You Go Section */}
-        <div className="pricingPage__payAsYouGo">
+        <section className="pricingPage__payAsYouGo">
           <div className="payAsYouGo__card">
-            <div className="payAsYouGo__icon">💳</div>
             <div className="payAsYouGo__content">
-              <h3 className="payAsYouGo__title">Pay As You Go</h3>
+              <p className="payAsYouGo__eyebrow">Need flexibility?</p>
+              <h3 className="payAsYouGo__title">Pay as you go</h3>
               <p className="payAsYouGo__description">
-                Perfect for those who use it only once or twice a month. No subscription - pay only when you use it.
+                Ideal if you only upload a few times per year. Purchase a single AI analysis whenever you want—no subscription.
               </p>
               <div className="payAsYouGo__price">
                 <span className="payAsYouGo__amount">$1.50</span>
                 <span className="payAsYouGo__period">per analysis</span>
               </div>
-              <p className="payAsYouGo__hint">
-                After 5 analyses it’s cheaper to move to Starter Reps.
-              </p>
-              {isSignedIn ? (
-                <button
-                  className="payAsYouGo__button"
-                  onClick={() => navigate('/new-analysis')}
-                >
-                  Try Now
-                </button>
-              ) : (
-                <SignInButton mode="modal">
-                  <button className="payAsYouGo__button">
-                    Try Now
-                  </button>
-                </SignInButton>
-              )}
+              <p className="payAsYouGo__hint">After five sessions a month, Starter Reps is more cost effective.</p>
             </div>
+            {isSignedIn ? (
+              <button className="payAsYouGo__button" onClick={() => navigate('/new-analysis')}>
+                Purchase a single analysis
+              </button>
+            ) : (
+              <SignInButton mode="modal">
+                <button className="payAsYouGo__button">Purchase a single analysis</button>
+              </SignInButton>
+            )}
           </div>
-        </div>
+        </section>
 
-        {/* Social Proof */}
-        <div className="pricingPage__socialProof">
-          <div className="socialProof__item">
-            <Star className="socialProof__icon" fill="#FFD700" color="#FFD700" />
-            <div>
-              <div className="socialProof__number">4.8/5</div>
-              <div className="socialProof__label">Average Rating</div>
-            </div>
+        <section className="pricingPage__faq">
+          <div className="faq__header">
+            <p className="faq__eyebrow">Have a question?</p>
+            <h2 className="faq__title">Pricing FAQs</h2>
           </div>
-          <div className="socialProof__item">
-            <Sparkles className="socialProof__icon" color="#46B5D1" />
-            <div>
-              <div className="socialProof__number">85%</div>
-              <div className="socialProof__label">Report improvement within a week</div>
-            </div>
-          </div>
-          <div className="socialProof__item">
-            <Zap className="socialProof__icon" color="#FF8C64" />
-            <div>
-              <div className="socialProof__number">92%</div>
-              <div className="socialProof__label">Recommend to friends</div>
-            </div>
-          </div>
-        </div>
-
-        {/* FAQ Section */}
-        <div className="pricingPage__faq">
-          <h2 className="faq__title">Frequently Asked Questions</h2>
           <div className="faq__list">
-            <div className="faq__item">
-              <h3 className="faq__question">How does it work?</h3>
-              <p className="faq__answer">
-                Upload a short video of yourself and get an advanced AI analysis with professional insights, 
-                improvement points, and a personalized action plan.
-              </p>
-            </div>
-            <div className="faq__item">
-              <h3 className="faq__question">Can I cancel anytime?</h3>
-              <p className="faq__answer">
-                Yes! You can cancel your subscription at any time with no questions asked. 
-                No additional charges will be made after cancellation.
-              </p>
-            </div>
-            <div className="faq__item">
-              <h3 className="faq__question">What's the difference between plans?</h3>
-              <p className="faq__answer">
-                The main difference is the number of analyses you get per month. 
-                Premium is the recommended plan - best value with 20 analyses per month.
-              </p>
-            </div>
+            {faqs.map((faq, index) => {
+              const isOpen = openFaqIndex === index;
+              return (
+                <div key={faq.question} className={`faq__item ${isOpen ? 'open' : ''}`}>
+                  <button
+                    className="faq__questionRow"
+                    onClick={() => setOpenFaqIndex(isOpen ? null : index)}
+                    aria-expanded={isOpen}
+                  >
+                    <span>{faq.question}</span>
+                    <ChevronDown size={18} />
+                  </button>
+                  {Array.isArray(faq.answer) ? (
+                    <ul className={`faq__answerList ${isOpen ? 'open' : ''}`}>
+                      {faq.answer.map((line) => (
+                        <li key={line}>{line}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className={`faq__answer ${isOpen ? 'open' : ''}`}>{faq.answer}</p>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        </div>
+        </section>
       </div>
     </div>
   );
