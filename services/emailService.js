@@ -347,3 +347,57 @@ export const sendActionItemReminderEmail = async ({ userId, userEmail, userName,
   });
 };
 
+/**
+ * Practice reminder email based on commitment level
+ */
+export const sendPracticeReminderEmail = async ({ 
+  userId, 
+  userEmail, 
+  userName, 
+  commitmentLevel,
+  daysSinceLastAnalysis,
+  practicePrompt,
+  subject,
+  introMessage
+}) => {
+  const analysisUrl = `${APP_URL}/new-analysis`;
+  
+  const practicePromptSection = practicePrompt ? `
+    <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); padding: 24px; border-radius: 12px; margin: 24px 0; border-left: 4px solid #0ea5e9;">
+      <p style="margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #0369a1; font-weight: 600;">Quick Exercise for Today</p>
+      <h3 style="margin: 0 0 12px; color: #0c4a6e; font-size: 18px;">${practicePrompt.title}</h3>
+      ${practicePrompt.description ? `<p style="margin: 0 0 12px; color: #475569;">${practicePrompt.description}</p>` : ''}
+      <p style="margin: 0; font-size: 14px; color: #64748b;">⏱️ ${practicePrompt.estimatedTime}</p>
+    </div>
+  ` : '';
+
+  const content = `
+    <h2>${subject || 'Time to Practice!'}</h2>
+    <p>Hi${userName ? ` ${userName}` : ''},</p>
+    <p>${introMessage || 'Regular practice is the key to improvement.'}</p>
+    ${daysSinceLastAnalysis > 0 ? `<p>It's been <strong>${daysSinceLastAnalysis} day${daysSinceLastAnalysis > 1 ? 's' : ''}</strong> since your last practice session.</p>` : ''}
+    ${practicePromptSection}
+    <p style="text-align: center;">
+      <a href="${analysisUrl}" class="button">Record a Quick Video</a>
+    </p>
+    <p>Even a 30-second recording can help you improve. Consistency beats perfection!</p>
+    <p>Your coach,<br>The BodAI Team</p>
+  `;
+
+  return await sendEmail({
+    to: userEmail,
+    subject: subject || 'Time for a quick practice session?',
+    html: wrapEmailTemplate(content, {
+      unsubscribeUrl: getUnsubscribeUrl(userId, 'practice_reminder'),
+      userName
+    }),
+    emailType: 'practice_reminder',
+    userId,
+    metadata: { 
+      commitmentLevel, 
+      daysSinceLastAnalysis,
+      practicePromptTitle: practicePrompt?.title 
+    }
+  });
+};
+

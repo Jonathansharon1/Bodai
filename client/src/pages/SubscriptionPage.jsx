@@ -3,6 +3,7 @@ import { useUser } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { Check, Calendar, TrendingUp, AlertCircle, ArrowRight } from 'lucide-react';
 import './SubscriptionPage.css';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 export default function SubscriptionPage() {
   const { user } = useUser();
@@ -117,10 +118,7 @@ export default function SubscriptionPage() {
   if (loading) {
     return (
       <div className="subscriptionPage">
-        <div className="subscriptionPage__loading">
-          <div className="loadingSpinner"></div>
-          <p>Loading your subscription information...</p>
-        </div>
+        <LoadingSpinner message="Loading your subscription..." size="large" />
       </div>
     );
   }

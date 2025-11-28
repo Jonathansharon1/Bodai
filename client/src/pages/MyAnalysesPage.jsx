@@ -4,8 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Target,
   Dumbbell,
-  Briefcase,
   Mic,
+  Video,
   MessageCircle,
   Award,
   Heart,
@@ -16,6 +16,7 @@ import {
 import './MyAnalysesPage.css';
 import { getPromptById } from '../config/recordingPrompts';
 import JourneySwitcher from '../components/JourneySwitcher';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 export default function MyAnalysesPage({
   onViewAnalysis,
@@ -117,7 +118,7 @@ export default function MyAnalysesPage({
   const getGoalIcon = (goal) => {
     const goalIcons = {
       'confidence': Dumbbell,
-      'interview': Briefcase,
+      'content': Video,
       'presentation': Mic,
       'communication': MessageCircle,
       'leadership': Award,
@@ -133,12 +134,28 @@ export default function MyAnalysesPage({
     () => journeys.find(journey => journey.id === activeJourneyId) || null,
     [journeys, activeJourneyId]
   );
-  const focusLabel = activeJourney?.display_name || activeJourney?.focus_label || activeJourney?.focus_slug;
+  
+  const getGoalLabel = (goal) => {
+    const goalMap = {
+      'confidence': 'Build Confidence',
+      'content': 'Content Creator',
+      'presentation': 'Presentation Skills',
+      'communication': 'Better Communication',
+      'leadership': 'Executive Presence',
+      'dating': 'Dating & Romantic',
+      'social': 'Social Confidence',
+      'general': 'General Improvement'
+    };
+    return goalMap[goal] || goal;
+  };
+  
+  const focusSlug = activeJourney?.focus_slug;
+  const focusLabel = focusSlug ? getGoalLabel(focusSlug) : (activeJourney?.display_name || activeJourney?.focus_label || null);
 
   if (loading) {
     return (
       <div className="myAnalysesPage">
-        <div className="myAnalysesPage__loading">Loading your analyses...</div>
+        <LoadingSpinner message="Loading your analyses..." size="large" />
       </div>
     );
   }
@@ -247,14 +264,21 @@ export default function MyAnalysesPage({
                   </span>
                 </div>
                 <div className="analysisCard__filename">{analysis.video_filename}</div>
-                {promptDefinition && (
-                  <div className="analysisCard__promptSnippet">
-                    <strong>{promptDefinition.title}</strong>
-                    {promptDefinition.description && (
-                      <p>{promptDefinition.description}</p>
-                    )}
-                  </div>
-                )}
+                <div className="analysisCard__promptSnippet">
+                  {promptDefinition ? (
+                    <>
+                      <strong>{promptDefinition.title}</strong>
+                      {promptDefinition.description && (
+                        <p>{promptDefinition.description}</p>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <strong>Free Practice</strong>
+                      <p>General communication practice without a specific focus prompt.</p>
+                    </>
+                  )}
+                </div>
                 <button 
                   className="btn btn--primary analysisCard__viewButton"
                   onClick={() => {

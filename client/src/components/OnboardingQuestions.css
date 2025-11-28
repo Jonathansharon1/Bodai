@@ -1,0 +1,278 @@
+/* Onboarding Questions - Modern Styling */
+
+.onboardingQuestions {
+  width: 100%;
+}
+
+/* Step Container */
+.onboardingQuestions__step {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Labels */
+.onboardingQuestions__label {
+  display: block;
+  font-size: 18px;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.onboardingQuestions__label .required {
+  color: #2563eb;
+}
+
+/* Goal Options (Step 1 & 3) */
+.onboardingQuestions__options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.onboardingQuestions__option {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  background: #ffffff;
+  border: 2px solid #e2e8f0;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  width: 100%;
+}
+
+.onboardingQuestions__option:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  transform: translateY(-1px);
+}
+
+.onboardingQuestions__option.active {
+  border-color: #2563eb;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.04) 0%, rgba(139, 92, 246, 0.04) 100%);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.onboardingQuestions__icon {
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  border-radius: 12px;
+  color: #64748b;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.onboardingQuestions__option.active .onboardingQuestions__icon {
+  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+  color: white;
+}
+
+.onboardingQuestions__optionContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.onboardingQuestions__optionLabel {
+  display: block;
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+.onboardingQuestions__optionDescription {
+  display: block;
+  font-size: 14px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+/* Confidence Options (Step 2) */
+.onboardingQuestions__confidenceOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.onboardingQuestions__confidenceOption {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  background: #ffffff;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  width: 100%;
+  position: relative;
+}
+
+.onboardingQuestions__confidenceOption:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.onboardingQuestions__confidenceOption.active {
+  border-color: var(--confidence-color, #2563eb);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.03) 0%, rgba(139, 92, 246, 0.03) 100%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--confidence-color, #2563eb) 15%, transparent);
+}
+
+.onboardingQuestions__confidenceIcon {
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  border-radius: 10px;
+  color: #64748b;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.onboardingQuestions__confidenceOption.active .onboardingQuestions__confidenceIcon {
+  background: var(--confidence-color, #2563eb);
+  color: white;
+}
+
+.onboardingQuestions__confidenceContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.onboardingQuestions__confidenceLabel {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 2px;
+}
+
+.onboardingQuestions__confidenceDescription {
+  display: block;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.onboardingQuestions__confidenceCheck {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--confidence-color, #2563eb);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.onboardingQuestions__confidenceCheckmark {
+  width: 10px;
+  height: 6px;
+  border-left: 2px solid white;
+  border-bottom: 2px solid white;
+  transform: rotate(-45deg) translateY(-1px);
+}
+
+/* Actions */
+.onboardingQuestions__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.onboardingQuestions__progress {
+  font-size: 13px;
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+.onboardingQuestions__actions .btn {
+  min-width: 100px;
+}
+
+.onboardingQuestions__actions .btn--primary {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+}
+
+.onboardingQuestions__actions .btn--primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+  transform: translateY(-1px);
+}
+
+.onboardingQuestions__actions .btn--ghost {
+  color: #64748b;
+}
+
+.onboardingQuestions__actions .btn--ghost:hover {
+  color: #0f172a;
+  background: #f1f5f9;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .onboardingQuestions__label {
+    font-size: 16px;
+  }
+  
+  .onboardingQuestions__option {
+    padding: 14px 16px;
+    gap: 12px;
+  }
+  
+  .onboardingQuestions__icon {
+    width: 44px;
+    height: 44px;
+  }
+  
+  .onboardingQuestions__icon svg {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .onboardingQuestions__optionLabel {
+    font-size: 15px;
+  }
+  
+  .onboardingQuestions__optionDescription {
+    font-size: 13px;
+  }
+  
+  .onboardingQuestions__actions {
+    flex-wrap: wrap;
+  }
+  
+  .onboardingQuestions__progress {
+    order: 3;
+    width: 100%;
+    text-align: center;
+    margin-top: 8px;
+  }
+}
+

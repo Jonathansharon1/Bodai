@@ -29,6 +29,112 @@
   background: #f8fafc;
 }
 
+/* Overall Score Card */
+.analysisResult__scoreCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 28px;
+  background: linear-gradient(135deg, #004E64 0%, #006B8F 100%);
+  border-radius: 16px;
+  color: white;
+}
+
+.analysisResult__scoreMain {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.analysisResult__scoreValue {
+  font-size: 56px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-family: var(--font-display, 'Inter', sans-serif);
+}
+
+.analysisResult__scoreLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.analysisResult__scoreLabel span:first-child {
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0.85;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.analysisResult__stageTitle {
+  font-size: 18px;
+  font-weight: 600;
+  opacity: 1;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.analysisResult__comparison {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.analysisResult__comparison--first {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.analysisResult__comparison--improved {
+  background: rgba(16, 185, 129, 0.25);
+  color: #d1fae5;
+}
+
+.analysisResult__comparison--declined {
+  background: rgba(239, 68, 68, 0.25);
+  color: #fecaca;
+}
+
+.analysisResult__comparison--stable {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.analysisResult__firstBadge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.analysisResult__firstBadge::before {
+  content: '🎉';
+}
+
+@media (max-width: 640px) {
+  .analysisResult__scoreCard {
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+  }
+  
+  .analysisResult__scoreMain {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .analysisResult__scoreLabel {
+    align-items: center;
+  }
+  
+  .analysisResult__scoreValue {
+    font-size: 48px;
+  }
+}
+
 .analysisResult__expandableSection {
   margin-top: 32px;
   padding-top: 32px;
@@ -841,6 +947,128 @@
 }
 
 /* Responsive Design */
+/* Communication Tips & Body Language Tips */
+.analysisResult__tipsList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.analysisResult__tipCard {
+  padding: 1.25rem;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
+}
+
+.analysisResult__tipCard:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+}
+
+.analysisResult__tipCard--bodyLanguage:hover {
+  border-color: #10b981;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.1);
+}
+
+.analysisResult__tipBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-radius: 20px;
+  margin-bottom: 0.75rem;
+}
+
+.analysisResult__tipBadge--bodyLanguage {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.analysisResult__tipTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 0.75rem;
+  line-height: 1.4;
+}
+
+.analysisResult__tipDetail {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.analysisResult__tipDetailLabel {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  margin-bottom: 0.5rem;
+}
+
+.analysisResult__tipDetail p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #475569;
+  line-height: 1.5;
+}
+
+/* Recording Note */
+.analysisResult__recordingNote {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 1rem 1.25rem;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+  margin: 1rem 1.5rem 1.5rem;
+}
+
+.analysisResult__recordingNoteIcon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  background: #f59e0b;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.analysisResult__recordingNoteContent {
+  flex: 1;
+}
+
+.analysisResult__recordingNoteLabel {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #92400e;
+  margin-bottom: 4px;
+}
+
+.analysisResult__recordingNoteContent p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #78350f;
+  line-height: 1.5;
+}
+
 @media (max-width: 968px) {
   .analysisResult__metricsVisualization {
     grid-template-columns: 1fr;
@@ -909,4 +1137,3 @@
     flex-wrap: wrap;
   }
 }
-

@@ -5,9 +5,103 @@
 
 export const parseActionItems = (text) => {
   if (!text) return [];
-  
-  const items = [];
+
+  // Try new Communication/Body Language Tips format first
+  const modernItems = parseTipSections(text);
+  if (modernItems.length > 0) {
+    console.log(`parseActionItems: Parsed ${modernItems.length} items from tip sections`);
+    return modernItems;
+  }
+
+  // Fall back to legacy Action Plan parser
+  return parseLegacyActionPlan(text);
+};
+
+const parseTipSections = (text) => {
   const lines = text.split('\n');
+  const tips = [];
+  let currentSection = null; // 'communication' | 'body-language'
+  let currentTip = null;
+
+  const commitTip = () => {
+    if (!currentTip || !currentTip.title) return;
+    const details = [];
+    if (currentTip.whatToPractice) {
+      details.push(`What to practice: ${currentTip.whatToPractice}`);
+    }
+    if (currentTip.whyItMatters) {
+      details.push(`Why it matters: ${currentTip.whyItMatters}`);
+    }
+    if (currentTip.extraDetails.length > 0) {
+      details.push(...currentTip.extraDetails);
+    }
+    tips.push({
+      title: currentTip.title,
+      details,
+      section: currentSection
+    });
+    currentTip = null;
+  };
+
+  lines.forEach((rawLine) => {
+    if (!rawLine) return;
+    let line = rawLine.trim();
+    if (!line) return;
+    line = line.replace(/\*\*/g, '').trim();
+
+    const lowerLine = line.toLowerCase();
+    const isCommunicationHeader = lowerLine.includes('communication tips');
+    const isBodyHeader = lowerLine.includes('body language tips');
+
+    if (isCommunicationHeader || isBodyHeader) {
+      commitTip();
+      currentSection = isCommunicationHeader ? 'communication' : 'body-language';
+      return;
+    }
+
+    if (!currentSection) {
+      return; // Ignore lines outside of tip sections
+    }
+
+    const isDetailLine =
+      line.match(/^[-*•]\s+/) ||
+      line.match(/^(What to practice|Why it matters)[:\s-]/i);
+
+    if (!isDetailLine) {
+      // Start of a new tip title
+      commitTip();
+      const title = line.replace(/^\d+[.)]\s*/, '').trim();
+      if (title.length === 0) return;
+      currentTip = {
+        title,
+        whatToPractice: '',
+        whyItMatters: '',
+        extraDetails: []
+      };
+      return;
+    }
+
+    if (!currentTip) {
+      return;
+    }
+
+    let detailText = line.replace(/^[-*•]\s*/, '').trim();
+    if (detailText.match(/^What to practice[:\s-]/i)) {
+      currentTip.whatToPractice = detailText.replace(/^What to practice[:\s-]+/i, '').trim();
+    } else if (detailText.match(/^Why it matters[:\s-]/i)) {
+      currentTip.whyItMatters = detailText.replace(/^Why it matters[:\s-]+/i, '').trim();
+    } else {
+      currentTip.extraDetails.push(detailText);
+    }
+  });
+
+  commitTip();
+  return tips;
+};
+
+const parseLegacyActionPlan = (text) => {
+  const lines = text.split('\n');
+  const items = [];
   let currentAction = null;
   let introText = [];
   
@@ -147,24 +241,8 @@ export const parseActionItems = (text) => {
   });
   
   // Debug logging
-  if (dedupedItems.length > 0) {
-    console.log(`parseActionItems: Found ${dedupedItems.length} unique action items:`, dedupedItems.map(i => i.title));
-  } else {
-    console.log('parseActionItems: No action items found in text');
-    // Find and log the Action Plan section specifically
-    const actionPlanStart = lines.findIndex(line => 
-      line.toLowerCase().includes('action plan') || 
-      line.toLowerCase().includes('action:')
-    );
-    if (actionPlanStart !== -1) {
-      const actionPlanSection = lines.slice(actionPlanStart, actionPlanStart + 50).join('\n');
-      console.log('Action Plan section found:', actionPlanSection.substring(0, 1000));
-    } else {
-      console.log('No "Action Plan" section found in text');
-    }
-    // Log a sample of the text to help debug
-    const sampleLines = lines.slice(0, 100).join('\n');
-    console.log('Sample of text being parsed:', sampleLines.substring(0, 1000));
+  if (dedupedItems.length === 0) {
+    console.log('parseActionItems: Legacy parser found no items. Sample text:', lines.slice(0, 50).join('\n'));
   }
   
   // Transform action items into Tier 1 / Tier 2 structure

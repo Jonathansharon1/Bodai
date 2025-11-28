@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { 
-  ChevronDown, 
-  CheckCircle2, 
-  Circle, 
-  Copy, 
+import {
+  ChevronDown,
+  CheckCircle2,
+  Circle,
+  Copy,
   Check,
   TrendingUp,
   TrendingDown,
@@ -17,7 +17,9 @@ import {
   Target,
   Heart,
   Zap,
-  Award
+  Award,
+  Camera,
+  User
 } from 'lucide-react';
 import TopStrengthCard from './analysis/TopStrengthCard';
 import TopOpportunityCard from './analysis/TopOpportunityCard';
@@ -29,12 +31,14 @@ const parseAnalysisText = (markdown) => {
   if (!markdown) return null;
 
   const sections = {
-    overallImpression: null,
     keyStrengths: [],
     focusAreas: [],
-    actionPlan: [],
+    communicationTips: [],
+    bodyLanguageTips: [],
+    recordingNote: null,
     quickWins: [],
-    closingEncouragement: null
+    // Legacy support for old format
+    actionPlan: []
   };
 
   // Split by markdown headers (## or **)
@@ -42,52 +46,86 @@ const parseAnalysisText = (markdown) => {
   let currentSection = null;
   let currentContent = [];
 
+  const savePreviousSection = () => {
+    if (!currentSection || currentContent.length === 0) return;
+    
+    const content = currentContent.join('\n');
+    switch (currentSection) {
+      case 'strengths':
+        sections.keyStrengths = parseListItems(content);
+        break;
+      case 'focus':
+        sections.focusAreas = parseFocusAreas(content);
+        break;
+      case 'communication':
+        sections.communicationTips = parseTipItems(content);
+        break;
+      case 'bodyLanguage':
+        sections.bodyLanguageTips = parseTipItems(content);
+        break;
+      case 'recording':
+        sections.recordingNote = content.trim();
+        break;
+      case 'quick':
+        sections.quickWins = parseQuickWins(content);
+        break;
+      case 'action':
+        // Legacy support
+        sections.actionPlan = parseActionItems(content);
+        break;
+    }
+  };
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
-    
-    // Detect section headers - check for emoji patterns and text
-    if (line.includes('🪞') && (line.includes('Overall') || line.includes('Impression'))) {
-      // Save previous section
-      if (currentSection === 'overall' && currentContent.length > 0) {
-        sections.overallImpression = currentContent.join('\n').trim();
-      }
-      currentSection = 'overall';
-      currentContent = [];
-      continue;
-    }
-    
-    if ((line.includes('🎯') || line.includes('Key Strengths')) && (line.includes('**') || line.match(/^##?/))) {
-      if (currentSection === 'overall' && currentContent.length > 0) {
-        sections.overallImpression = currentContent.join('\n').trim();
-      }
+
+    // Detect section headers
+    if ((line.includes('Key Strengths') || line.includes('🎯')) && (line.includes('**') || line.match(/^##?/))) {
+      savePreviousSection();
       currentSection = 'strengths';
       currentContent = [];
       continue;
     }
-    
-    if ((line.includes('💡') || line.includes('Focus Areas')) && (line.includes('**') || line.match(/^##?/))) {
-      if (currentSection === 'strengths' && currentContent.length > 0) {
-        sections.keyStrengths = parseListItems(currentContent.join('\n'));
-      }
+
+    if ((line.includes('Focus Areas') || line.includes('💡')) && (line.includes('**') || line.match(/^##?/))) {
+      savePreviousSection();
       currentSection = 'focus';
       currentContent = [];
       continue;
     }
-    
-    if ((line.includes('🚀') || line.includes('Action Plan')) && (line.includes('**') || line.match(/^##?/))) {
-      if (currentSection === 'focus' && currentContent.length > 0) {
-        sections.focusAreas = parseFocusAreas(currentContent.join('\n'));
-      }
-      currentSection = 'action';
+
+    if ((line.includes('Communication Tips') || line.includes('🗣')) && (line.includes('**') || line.match(/^##?/))) {
+      savePreviousSection();
+      currentSection = 'communication';
       currentContent = [];
       continue;
     }
-    
-    if ((line.includes('💬') || line.includes('Quick Wins')) && (line.includes('**') || line.match(/^##?/))) {
-      if (currentSection === 'action' && currentContent.length > 0) {
-        sections.actionPlan = parseActionItems(currentContent.join('\n'));
-      }
+
+    if ((line.includes('Body Language Tips') || line.includes('🧍')) && (line.includes('**') || line.match(/^##?/))) {
+      savePreviousSection();
+      currentSection = 'bodyLanguage';
+      currentContent = [];
+      continue;
+    }
+
+    if ((line.includes('Recording Note') || line.includes('📹')) && (line.includes('**') || line.match(/^##?/))) {
+      savePreviousSection();
+      currentSection = 'recording';
+      currentContent = [];
+      continue;
+    }
+
+    if ((line.includes('Quick Wins') || line.includes('💬') || line.includes('⚡')) && (line.includes('**') || line.match(/^##?/))) {
+      savePreviousSection();
       currentSection = 'quick';
+      currentContent = [];
+      continue;
+    }
+
+    // Legacy support: Action Plan header
+    if ((line.includes('Action Plan') || line.includes('🚀')) && (line.includes('**') || line.match(/^##?/))) {
+      savePreviousSection();
+      currentSection = 'action';
       currentContent = [];
       continue;
     }
@@ -103,34 +141,95 @@ const parseAnalysisText = (markdown) => {
   }
 
   // Process final section
-  if (currentSection === 'quick') {
-    sections.quickWins = parseQuickWins(currentContent.join('\n'));
-  } else if (currentSection === 'action') {
-    sections.actionPlan = parseActionItems(currentContent.join('\n'));
-  } else if (currentSection === 'focus') {
-    sections.focusAreas = parseFocusAreas(currentContent.join('\n'));
-  } else if (currentSection === 'strengths') {
-    sections.keyStrengths = parseListItems(currentContent.join('\n'));
-  } else if (currentSection === 'overall' || !sections.overallImpression) {
-    const text = currentContent.join('\n').trim();
-    if (text && !text.includes('**') && text.length > 50) {
-      sections.overallImpression = text;
-    }
-  }
+  savePreviousSection();
 
-  // Extract closing encouragement (usually the last paragraph)
-  const lastParagraph = lines.slice(-5).join('\n').trim();
-  if (lastParagraph && !lastParagraph.includes('**') && lastParagraph.length > 30) {
-    sections.closingEncouragement = lastParagraph;
+  // If we have legacy actionPlan but no new tips, convert them
+  if (sections.actionPlan.length > 0 && sections.communicationTips.length === 0 && sections.bodyLanguageTips.length === 0) {
+    // Split legacy action items between communication and body language
+    sections.actionPlan.forEach((item, index) => {
+      const tipItem = convertActionToTip(item);
+      // Alternate or detect based on content
+      const isBodyLanguage = item.title?.toLowerCase().match(/posture|gesture|eye|body|stance|hand|face|expression|shoulder/);
+      if (isBodyLanguage) {
+        sections.bodyLanguageTips.push(tipItem);
+      } else {
+        sections.communicationTips.push(tipItem);
+      }
+    });
   }
 
   return sections;
 };
 
+// Parse tip items (Communication Tips or Body Language Tips)
+const parseTipItems = (text) => {
+  const items = [];
+  const lines = text.split('\n');
+  let currentTip = null;
+
+  for (const line of lines) {
+    const cleaned = line.trim();
+    if (!cleaned) continue;
+
+    // Skip section headers
+    if (cleaned.match(/^[🎯💡🚀💬✨🪞🗣🧍📹⚡]/) || cleaned.match(/^##?\s/)) {
+      continue;
+    }
+
+    // Check if this is a new tip title (not starting with dash/bullet, not a detail line)
+    const isDetailLine = cleaned.match(/^[-*•]\s/) || 
+                         cleaned.match(/^(What to practice|Why it matters)[:\s-]/i) ||
+                         line.match(/^\s{2,}/);
+
+    if (!isDetailLine && cleaned.length > 5) {
+      // Save previous tip
+      if (currentTip) {
+        items.push(currentTip);
+      }
+      // Start new tip - clean up the title
+      const title = cleaned.replace(/\*\*/g, '').replace(/^\d+[.)]\s*/, '').trim();
+      currentTip = {
+        title: title,
+        whatToPractice: '',
+        whyItMatters: ''
+      };
+    } else if (currentTip && isDetailLine) {
+      // This is a detail for the current tip
+      let detailText = cleaned.replace(/^[-*•]\s*/, '').replace(/\*\*/g, '').trim();
+      
+      if (detailText.match(/^What to practice[:\s-]/i)) {
+        currentTip.whatToPractice = detailText.replace(/^What to practice[:\s-]+/i, '').trim();
+      } else if (detailText.match(/^Why it matters[:\s-]/i)) {
+        currentTip.whyItMatters = detailText.replace(/^Why it matters[:\s-]+/i, '').trim();
+      } else if (!currentTip.whatToPractice) {
+        currentTip.whatToPractice = detailText;
+      } else if (!currentTip.whyItMatters) {
+        currentTip.whyItMatters = detailText;
+      }
+    }
+  }
+
+  // Add last tip
+  if (currentTip) {
+    items.push(currentTip);
+  }
+
+  return items;
+};
+
+// Convert legacy action item to new tip format
+const convertActionToTip = (actionItem) => {
+  return {
+    title: actionItem.title || '',
+    whatToPractice: actionItem.details?.[0] || '',
+    whyItMatters: actionItem.details?.[1] || ''
+  };
+};
+
 const parseListItems = (text) => {
   const items = [];
   const lines = text.split('\n');
-  
+
   for (const line of lines) {
     let cleaned = line.replace(/^[-*•]\s*/, '').replace(/^\d+\.\s*/, '').trim();
     // Remove markdown bold
@@ -143,7 +242,7 @@ const parseListItems = (text) => {
       items.push(cleaned);
     }
   }
-  
+
   return items.length > 0 ? items : (text.trim() ? [text.trim()] : []);
 };
 
@@ -151,7 +250,7 @@ const parseFocusAreas = (text) => {
   const areas = [];
   const lines = text.split('\n');
   let currentArea = null;
-  
+
   for (const line of lines) {
     const cleaned = line.replace(/^[-*•]\s*/, '').replace(/^\d+\.\s*/, '').trim();
     if (cleaned) {
@@ -168,14 +267,14 @@ const parseFocusAreas = (text) => {
       }
     }
   }
-  
+
   if (currentArea) areas.push(currentArea);
-  
+
   // Fallback: split by lines
   if (areas.length === 0) {
     return parseListItems(text).map(item => ({ title: item, description: '', howToImprove: '' }));
   }
-  
+
   return areas;
 };
 
@@ -202,7 +301,7 @@ const parseActionItems = (text) => {
   const lines = normalizedText.split('\n');
   let currentAction = null;
   let introText = []; // Store any text before first action
-  
+
   // Patterns that indicate this is NOT an action item (intro text)
   const introPatterns = [
     /^here are/i,
@@ -221,33 +320,33 @@ const parseActionItems = (text) => {
     /^a few practical/i,
     /^practical steps/i
   ];
-  
+
   for (let i = 0; i < lines.length; i++) {
     const originalLine = lines[i];
     let cleaned = originalLine.trim();
-    
+
     // Skip empty lines
     if (!cleaned) {
       continue;
     }
-    
+
     // Skip section headers
     if (cleaned.match(/^[🎯💡🚀💬✨🪞]/) || cleaned.match(/^##?\s/)) {
       continue;
     }
-    
+
     // Remove markdown bold but keep structure
     cleaned = cleaned.replace(/\*\*/g, '').trim();
-    
+
     // Check if line starts with "Action:" (case-insensitive) - this is definitely an action
     const actionMatch = cleaned.match(/^Action:\s*(.+)/i);
-    
+
     if (actionMatch) {
       // Save previous action if exists
       if (currentAction) {
         items.push(currentAction);
       }
-      
+
       // Start new action with title from "Action: ..."
       const actionTitle = actionMatch[1].trim();
       currentAction = {
@@ -260,7 +359,7 @@ const parseActionItems = (text) => {
       const isSubItem = originalLine.match(/^\s{2,}/) || // Has indentation
         cleaned.match(/^[-*•]\s*(What to do|Why|How|Example|Tip|Why it matters)/i) || // Starts with dash + keyword
         cleaned.match(/^(What to do|Why|How|Example|Tip|Why it matters)[:\s-]/i); // Starts with keyword
-      
+
       if (isSubItem) {
         // Add as detail to current action
         let detailText = cleaned.replace(/^[-*•]\s*/, '').trim();
@@ -277,7 +376,7 @@ const parseActionItems = (text) => {
       // No current action yet - check if this is intro text or an action
       const isIntroText = introPatterns.some(pattern => pattern.test(cleaned)) ||
         (cleaned.length < 100 && !cleaned.match(/^\d+[.)]\s/) && !cleaned.match(/^[A-Z][^:]*:/));
-      
+
       if (isIntroText) {
         // This is intro text - store it but don't create an action
         if (cleaned && cleaned.length > 10) {
@@ -288,13 +387,13 @@ const parseActionItems = (text) => {
         const isNumbered = cleaned.match(/^\d+[.)]\s/);
         const hasActionPattern = cleaned.match(/^[A-Z][^:]{5,}:/) || // Starts with capital, has colon
           (cleaned.length > 15 && cleaned.match(/^[A-Z]/) && !cleaned.includes('.')); // Long line starting with capital
-        
+
         if (isNumbered || hasActionPattern) {
           // Save previous action if exists
           if (currentAction) {
             items.push(currentAction);
           }
-          
+
           // Start new action - remove numbering if exists
           const title = cleaned.replace(/^\d+[.)]\s*/, '').replace(/^Action:\s*/i, '').trim();
           currentAction = {
@@ -309,22 +408,22 @@ const parseActionItems = (text) => {
       }
     }
   }
-  
+
   // Add last action
   if (currentAction) {
     items.push(currentAction);
   }
-  
+
   // If we have intro text but no actions, create a single intro item
   if (items.length === 0 && introText.length > 0) {
     return [{ title: introText.join(' '), details: [], isIntro: true }];
   }
-  
+
   // If no actions found, return empty
   if (items.length === 0) {
     return [];
   }
-  
+
   return items;
 };
 
@@ -335,10 +434,10 @@ const parseQuickWins = (text) => {
 export default function AnalysisResult({ markdown, loading, analysisId, viewingAnalysis }) {
   const { user } = useUser();
   const [expandedSections, setExpandedSections] = useState({
-    overall: false,
     strengths: false,
     focus: false,
-    action: false,
+    communication: false,
+    bodyLanguage: false,
     quick: false
   });
   const [copied, setCopied] = useState(false);
@@ -354,7 +453,7 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
   // Fetch action items from database if not in markdown
   useEffect(() => {
     if (!user?.id || !analysisId) return;
-    
+
     const fetchActionItems = async () => {
       try {
         const res = await fetch(
@@ -373,17 +472,17 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
             const formatted = data.actionItems.map(item => {
               let details = {};
               try {
-                details = typeof item.details === 'string' 
-                  ? JSON.parse(item.details || '{}') 
+                details = typeof item.details === 'string'
+                  ? JSON.parse(item.details || '{}')
                   : (item.details || {});
               } catch (e) {
                 console.warn('Failed to parse action item details:', e);
               }
-              
+
               // Convert details object to array format expected by component
               // Include all_details if available, otherwise build from structured fields
               const detailsArray = [];
-              
+
               // First, try to use all_details if it's an array
               if (Array.isArray(details.all_details) && details.all_details.length > 0) {
                 detailsArray.push(...details.all_details);
@@ -393,18 +492,18 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
                 if (details.why_it_matters) detailsArray.push(details.why_it_matters);
                 if (details.example) detailsArray.push(details.example);
               }
-              
+
               // If still no details, use a default message
               if (detailsArray.length === 0) {
                 detailsArray.push('Keep this focus in mind for your next recording.');
               }
-              
+
               console.log('[AnalysisResult] Formatted action item:', {
                 title: item.title,
                 detailsCount: detailsArray.length,
                 hasAllDetails: Array.isArray(details.all_details)
               });
-              
+
               return {
                 title: item.title,
                 details: detailsArray,
@@ -418,7 +517,7 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
         console.error('Error fetching action items:', error);
       }
     };
-    
+
     // Always fetch from DB as fallback
     fetchActionItems();
   }, [user?.id, analysisId, markdown]);
@@ -502,14 +601,18 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
   }
 
   // Fallback to markdown if parsing fails - but still try to show initial experience
-  const hasValidSections = sections && (sections.overallImpression || (sections.keyStrengths && sections.keyStrengths.length > 0));
-  
+  const hasValidSections = sections && (
+    (sections.keyStrengths && sections.keyStrengths.length > 0) ||
+    (sections.communicationTips && sections.communicationTips.length > 0) ||
+    (sections.bodyLanguageTips && sections.bodyLanguageTips.length > 0)
+  );
+
   if (!hasValidSections) {
     return (
       <div className="analysisResult">
         <div className="analysisResult__header">
           <h3 className="analysisResult__title">Analysis Results</h3>
-          <button 
+          <button
             className="analysisResult__copyBtn"
             onClick={copyToClipboard}
             title="Copy analysis"
@@ -579,9 +682,20 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
   // Get top strength and opportunity for initial view
   const topStrength = sections?.keyStrengths?.[0] || null;
   const topOpportunity = sections?.focusAreas?.[0] || null;
-  const actionItems = (sections?.actionPlan || []).filter(item => !item?.isIntro);
-  const hasActionItems = actionItems.length > 0;
   
+  // Combine communication and body language tips for summary view
+  const allTips = [
+    ...(sections?.communicationTips || []).map(tip => ({ ...tip, type: 'communication' })),
+    ...(sections?.bodyLanguageTips || []).map(tip => ({ ...tip, type: 'bodyLanguage' }))
+  ];
+  // Convert tips to action item format for NextStepsPreview
+  const actionItems = allTips.map(tip => ({
+    title: tip.title,
+    details: [tip.whatToPractice, tip.whyItMatters].filter(Boolean),
+    type: tip.type
+  }));
+  const hasActionItems = actionItems.length > 0;
+
   // Get strength score (try to match to metrics)
   const getStrengthScore = (strength) => {
     if (!strength || !metrics) return null;
@@ -612,17 +726,52 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
 
   const handleViewAllActions = () => {
     setViewMode('full');
-    setExpandedSections(prev => ({ ...prev, action: true }));
+    setExpandedSections(prev => ({ ...prev, communication: true, bodyLanguage: true }));
     setTimeout(() => {
-      const actionSection = document.getElementById('accordion-content-action');
-      if (actionSection) {
-        actionSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const communicationSection = document.getElementById('accordion-content-communication');
+      if (communicationSection) {
+        communicationSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     }, 100);
   };
 
   const renderQuickSummaryView = () => (
     <div className="analysisResult__summaryView">
+      {/* Overall Score Card */}
+      {overallScore && (
+        <div className="analysisResult__scoreCard">
+          <div className="analysisResult__scoreMain">
+            <div className="analysisResult__scoreValue">{overallScore}</div>
+            <div className="analysisResult__scoreLabel">
+              <span>Overall Score</span>
+              {stageTitle && <span className="analysisResult__stageTitle">{stageTitle}</span>}
+            </div>
+          </div>
+          {comparison && (
+            <div className={`analysisResult__comparison analysisResult__comparison--${comparison.type}`}>
+              {comparison.type === 'first' ? (
+                <span className="analysisResult__firstBadge">Your first analysis!</span>
+              ) : comparison.type === 'improved' ? (
+                <>
+                  <TrendingUp size={16} />
+                  <span>+{comparison.diff} from last time</span>
+                </>
+              ) : comparison.type === 'declined' ? (
+                <>
+                  <TrendingDown size={16} />
+                  <span>-{comparison.diff} from last time</span>
+                </>
+              ) : (
+                <>
+                  <Minus size={16} />
+                  <span>Same as last time</span>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {topStrength && (
         <TopStrengthCard
           strength={topStrength}
@@ -645,7 +794,7 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
         />
       )}
 
-      {!topStrength && !topOpportunity && !hasActionItems && (
+      {!topStrength && !topOpportunity && !hasActionItems && !overallScore && (
         <div className="analysisResult__emptySummary">
           <p>Upload a new analysis to unlock your personalized summary.</p>
         </div>
@@ -655,32 +804,32 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
 
   return (
     <div className="analysisResult">
-    <div className="analysisResult__header">
-      <div className="analysisResult__titleGroup">
-        <h3 className="analysisResult__title">Your Video Analysis</h3>
-        <div className="analysisResult__viewMode">
-          <div className="analysisResult__viewToggle" role="tablist" aria-label="Analysis view mode">
-            <button
-              className={`analysisResult__toggleOption ${viewMode === 'summary' ? 'is-active' : ''}`}
-              onClick={() => setViewMode('summary')}
-              role="tab"
-              aria-selected={viewMode === 'summary'}
-            >
-              Quick Summary
-            </button>
-            <button
-              className={`analysisResult__toggleOption ${viewMode === 'full' ? 'is-active' : ''}`}
-              onClick={() => setViewMode('full')}
-              role="tab"
-              aria-selected={viewMode === 'full'}
-            >
-              Full Analysis
-            </button>
-            <span className={`analysisResult__toggleThumb ${viewMode === 'summary' ? 'is-left' : 'is-right'}`} />
+      <div className="analysisResult__header">
+        <div className="analysisResult__titleGroup">
+          <h3 className="analysisResult__title">Your Video Analysis</h3>
+          <div className="analysisResult__viewMode">
+            <div className="analysisResult__viewToggle" role="tablist" aria-label="Analysis view mode">
+              <button
+                className={`analysisResult__toggleOption ${viewMode === 'summary' ? 'is-active' : ''}`}
+                onClick={() => setViewMode('summary')}
+                role="tab"
+                aria-selected={viewMode === 'summary'}
+              >
+                Quick Summary
+              </button>
+              <button
+                className={`analysisResult__toggleOption ${viewMode === 'full' ? 'is-active' : ''}`}
+                onClick={() => setViewMode('full')}
+                role="tab"
+                aria-selected={viewMode === 'full'}
+              >
+                Full Analysis
+              </button>
+              <span className={`analysisResult__toggleThumb ${viewMode === 'summary' ? 'is-left' : 'is-right'}`} />
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
       {viewMode === 'summary' && renderQuickSummaryView()}
 
@@ -700,7 +849,7 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
                   const parts = strength.split(/[.:]/);
                   const title = parts[0]?.trim() || strength.substring(0, 50);
                   const description = parts.length > 1 ? parts.slice(1).join('.').trim() : strength;
-                  
+
                   return (
                     <div key={index} className="analysisResult__strengthCard">
                       <div className="analysisResult__strengthIcon">
@@ -744,103 +893,87 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
             </AccordionSection>
           )}
 
-          {/* Action Plan */}
-          {((sections.actionPlan && sections.actionPlan.length > 0) || actionItemsFromDB.length > 0) && (
+          {/* Communication Tips */}
+          {sections.communicationTips && sections.communicationTips.length > 0 && (
             <AccordionSection
-              id="action"
-              icon={<Rocket size={20} />}
-              title="Action Plan"
-              expanded={expandedSections.action}
-              onToggle={() => toggleSection('action')}
+              id="communication"
+              icon={<Mic size={20} />}
+              title="Communication Tips"
+              expanded={expandedSections.communication}
+              onToggle={() => toggleSection('communication')}
             >
-              <div className="analysisResult__actionPlan">
-                {(sections.actionPlan || actionItemsFromDB).map((action, actionIndex) => {
-                  const actionTitle = typeof action === 'string' ? action : action.title;
-                  const actionDetails = typeof action === 'string' ? [] : (action.details || []);
-                  const isIntro = action.isIntro || false;
-                  
-                  if (isIntro) {
-                    return (
-                      <div key={actionIndex} className="analysisResult__actionIntro">
-                        <p>{actionTitle}</p>
-                      </div>
-                    );
-                  }
-                  
-                  const actualActionIndex = sections.actionPlan
-                    .slice(0, actionIndex)
-                    .filter(a => !a.isIntro).length;
-                  
-                  const parsedDetails = {
-                    whatToDo: null,
-                    whyItMatters: null,
-                    example: null,
-                    other: []
-                  };
-
-                  actionDetails.forEach((detail) => {
-                    const lowerDetail = detail.toLowerCase();
-                    if (lowerDetail.includes('what to do') || (parsedDetails.whatToDo === null && actionDetails.indexOf(detail) === 0)) {
-                      parsedDetails.whatToDo = detail.replace(/^[-*•]\s*(what to do)[:\s-]+/i, '').trim();
-                    } else if (lowerDetail.includes('why it matters') || lowerDetail.includes('why')) {
-                      parsedDetails.whyItMatters = detail.replace(/^[-*•]\s*(why it matters|why)[:\s-]+/i, '').trim();
-                    } else if (lowerDetail.includes('example')) {
-                      parsedDetails.example = detail.replace(/^[-*•]\s*(example)[:\s-]+/i, '').trim();
-                    } else {
-                      parsedDetails.other.push(detail);
-                    }
-                  });
-
-                  const summary =
-                    parsedDetails.whyItMatters ||
-                    parsedDetails.whatToDo ||
-                    parsedDetails.example ||
-                    actionDetails[0] ||
-                    'Keep this focus top-of-mind during your next recording.';
-
-                  const showSummaryToggle = summary.length > 220;
-
-                  return (
-                    <div key={actionIndex} className="analysisResult__actionCard">
-                      <div className="analysisResult__actionBadge">
-                        Focus {actualActionIndex + 1}
-                      </div>
-                      <div className="analysisResult__actionTitle">{actionTitle}</div>
-                      {summary && (
-                        <ExpandableText text={summary} collapsedLines={3} />
-                      )}
-                      {(parsedDetails.whatToDo || parsedDetails.whyItMatters || parsedDetails.example || parsedDetails.other.length > 0) && (
-                        <div className="analysisResult__actionDetails">
-                          {parsedDetails.whatToDo && (
-                            <div className="analysisResult__actionDetail">
-                              <span className="analysisResult__actionDetailLabel">What to practice</span>
-                              <ExpandableText text={parsedDetails.whatToDo} collapsedLines={2} threshold={600} />
-                            </div>
-                          )}
-                          {parsedDetails.whyItMatters && (
-                            <div className="analysisResult__actionDetail">
-                              <span className="analysisResult__actionDetailLabel">Why it matters</span>
-                              <ExpandableText text={parsedDetails.whyItMatters} collapsedLines={2} threshold={600} />
-                            </div>
-                          )}
-                          {parsedDetails.example && (
-                            <div className="analysisResult__actionDetail">
-                              <span className="analysisResult__actionDetailLabel">Example</span>
-                              <ExpandableText text={parsedDetails.example} collapsedLines={2} threshold={600} />
-                            </div>
-                          )}
-                          {parsedDetails.other.map((detail, detailIndex) => (
-                            <div key={detailIndex} className="analysisResult__actionDetail">
-                              <ExpandableText text={detail} collapsedLines={2} threshold={600} />
-                            </div>
-                          ))}
-                        </div>
-                      )}
+              <div className="analysisResult__tipsList">
+                {sections.communicationTips.map((tip, index) => (
+                  <div key={index} className="analysisResult__tipCard">
+                    <div className="analysisResult__tipBadge">
+                      <Mic size={14} />
+                      Tip {index + 1}
                     </div>
-                  );
-                })}
+                    <div className="analysisResult__tipTitle">{tip.title}</div>
+                    {tip.whatToPractice && (
+                      <div className="analysisResult__tipDetail">
+                        <span className="analysisResult__tipDetailLabel">What to practice</span>
+                        <p>{tip.whatToPractice}</p>
+                      </div>
+                    )}
+                    {tip.whyItMatters && (
+                      <div className="analysisResult__tipDetail">
+                        <span className="analysisResult__tipDetailLabel">Why it matters</span>
+                        <p>{tip.whyItMatters}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             </AccordionSection>
+          )}
+
+          {/* Body Language Tips */}
+          {sections.bodyLanguageTips && sections.bodyLanguageTips.length > 0 && (
+            <AccordionSection
+              id="bodyLanguage"
+              icon={<User size={20} />}
+              title="Body Language Tips"
+              expanded={expandedSections.bodyLanguage}
+              onToggle={() => toggleSection('bodyLanguage')}
+            >
+              <div className="analysisResult__tipsList">
+                {sections.bodyLanguageTips.map((tip, index) => (
+                  <div key={index} className="analysisResult__tipCard analysisResult__tipCard--bodyLanguage">
+                    <div className="analysisResult__tipBadge analysisResult__tipBadge--bodyLanguage">
+                      <User size={14} />
+                      Tip {index + 1}
+                    </div>
+                    <div className="analysisResult__tipTitle">{tip.title}</div>
+                    {tip.whatToPractice && (
+                      <div className="analysisResult__tipDetail">
+                        <span className="analysisResult__tipDetailLabel">What to practice</span>
+                        <p>{tip.whatToPractice}</p>
+                      </div>
+                    )}
+                    {tip.whyItMatters && (
+                      <div className="analysisResult__tipDetail">
+                        <span className="analysisResult__tipDetailLabel">Why it matters</span>
+                        <p>{tip.whyItMatters}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </AccordionSection>
+          )}
+
+          {/* Recording Note */}
+          {sections.recordingNote && (
+            <div className="analysisResult__recordingNote">
+              <div className="analysisResult__recordingNoteIcon">
+                <Camera size={16} />
+              </div>
+              <div className="analysisResult__recordingNoteContent">
+                <span className="analysisResult__recordingNoteLabel">Recording Note</span>
+                <p>{sections.recordingNote}</p>
+              </div>
+            </div>
           )}
 
           {/* Quick Wins */}
@@ -889,7 +1022,7 @@ function AccordionSection({ id, icon, title, emoji, expanded, onToggle, children
             {title}
           </h4>
         </div>
-        <ChevronDown 
+        <ChevronDown
           className={`analysisResult__chevron ${expanded ? 'expanded' : ''}`}
           size={20}
         />

@@ -271,7 +271,7 @@ export default function AnalysisPage({
             return dateB - dateA;
           });
 
-          setRecentActionItems(sorted.slice(0, 4));
+          setRecentActionItems(sorted.slice(0, 2));
           
           // Check if we need to poll for practice prompts
           const hasItemsWithoutPrompts = sorted.some(item => 
@@ -401,7 +401,7 @@ export default function AnalysisPage({
           <div className="analysisPage__headerContent">
             <div className="analysisPage__headerText">
               <h1 className="analysisPage__title">Upload your practice video</h1>
-              <p className="analysisPage__subtitle">Each recording unlocks sharper coaching for your focus journey.</p>
+              <p className="analysisPage__subtitle">Each recording helps us give you better, more personalized feedback.</p>
             </div>
           </div>
         )}
@@ -513,7 +513,7 @@ export default function AnalysisPage({
                                 {notice.score !== undefined && (
                                   <span> • score {notice.score.toFixed(1)}/10</span>
                                 )}
-                                <p>Great work! This focus is now completed. We’ll surface a new action item after your next analysis.</p>
+                                <p>Great work! This focus is now completed. You'll get new tips after your next analysis.</p>
                               </div>
                             ))}
                           </div>
@@ -551,7 +551,7 @@ export default function AnalysisPage({
                           <div className="analysisPage__emptyState">
                             <p>
                               {hasCompletedAnalysis
-                                ? 'No action items are available right now. Upload another analysis to receive a new personalized focus.'
+                                ? 'No tips available right now. Upload another video to get personalized next steps.'
                                 : 'Complete your first analysis to unlock personalized next steps.'}
                             </p>
                           </div>
@@ -598,20 +598,23 @@ export default function AnalysisPage({
                       </div>
                     </div>
 
+                    {/* Only show practice prompt section for returning users */}
+                    {hasCompletedAnalysis && recentActionItems.length > 0 && (
+                      <>
                     <div className="analysisPage__promptCard">
                       <div className="analysisPage__cardHeader">
                         <div className="analysisPage__cardHeaderIcon analysisPage__cardHeaderIcon--prompt">
                           <Video size={18} />
                         </div>
                         <div>
-                          <p className="analysisPage__cardTitle">Optional Practice Prompt</p>
+                              <p className="analysisPage__cardTitle">Optional Quick Exercise</p>
                           <span className="analysisPage__cardSubtitle">
-                            {selectedPrompt ? `Focus: ${selectedPrompt.title}` : 'Try a quick drill when you’re ready—totally optional'}
+                                {selectedPrompt ? `Focus: ${selectedPrompt.title}` : "Try a quick drill when you're ready—totally optional"}
                           </span>
                         </div>
                       </div>
                       {selectedPrompt?.source === 'action' && (
-                        <span className="analysisPage__promptBadge">From your action plan</span>
+                            <span className="analysisPage__promptBadge">From your tips</span>
                       )}
                       {selectedPrompt ? (
                         <div className="analysisPage__promptBody">
@@ -622,7 +625,7 @@ export default function AnalysisPage({
                               className="analysisPage__promptClear"
                               onClick={() => setSelectedPrompt(null)}
                             >
-                              Clear drill
+                                  Clear
                             </button>
                           </div>
                           {selectedPrompt.description && <p>{selectedPrompt.description}</p>}
@@ -653,14 +656,10 @@ export default function AnalysisPage({
                         </div>
                       ) : (
                         <div className="analysisPage__promptBody analysisPage__promptBody--empty">
-                          <p>Practice is optional. Tap “Try optional practice” on any focus when you want a 60-second drill.</p>
+                              <p>Tap "Try optional practice" on any tip above to try a quick exercise.</p>
                         </div>
                       )}
                     </div>
-
-                    <p className="analysisPage__reminder">
-                      Need a reminder? Use this prompt to guide your next recording.
-                    </p>
 
                     {selectedPrompt && (
                       <div className={`practiceAck ${practiceAckTouched && !practiceAcknowledged ? 'practiceAck--error' : ''}`}>
@@ -679,6 +678,8 @@ export default function AnalysisPage({
                           <p className="practiceAck__error">Check this once you've attempted the drill.</p>
                         )}
                       </div>
+                        )}
+                      </>
                     )}
 
                     <div className="analysisPage__upload analysisPage__uploadCard">

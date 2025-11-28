@@ -137,39 +137,20 @@ const buildPrompt = (userContext = {}) => {
     return buildModule1BaselinePrompt();
   }
 
-  const goal = userContext.primaryGoal || 'general';
+  const goal = userContext.primaryGoal || 'confidence';
   const confidence = userContext.confidenceLevel || 'medium';
-  const goalSpecific = userContext.goalSpecificContext || {};
 
-  // Map goals to specific focus areas
+  // Map goals to specific focus areas (only active goals in the app)
   const goalFocus = {
+    'content': 'content creation and talking to camera',
+    'leadership': 'leadership presence and executive communication',
     'confidence': 'self-confidence and presence',
-    'interview': 'job interviews',
-    'presentation': 'presentations',
-    'communication': 'interpersonal communication',
-    'leadership': 'leadership presence',
-    'dating': 'dating confidence',
-    'social': 'social confidence',
-    'general': 'overall communication',
+    'presentation': 'presentations and public speaking',
   };
 
-  // Map goal-specific answers to readable context
-  const getGoalSpecificContext = () => {
-    if (!goalSpecific || Object.keys(goalSpecific).length === 0) return '';
-    const labels = {
-      'work': 'work situations', 'social': 'social gatherings', 'speaking': 'public speaking',
-      'technical': 'technical interviews', 'behavioral': 'behavioral interviews', 'panel': 'panel interviews',
-      'small-team': 'small teams', 'large-conference': 'large audiences', 'online': 'virtual presentations',
-    };
-    const parts = [];
-    if (goalSpecific.question1) parts.push(labels[goalSpecific.question1] || goalSpecific.question1);
-    if (goalSpecific.question2) parts.push(goalSpecific.question2.replace(/-/g, ' '));
-    return parts.length > 0 ? `Context: ${parts.join(', ')}` : '';
-  };
-
-  const focusArea = goalFocus[goal] || goalFocus['general'];
-  const goalLabel = goal === 'general' ? 'overall improvement' : goal.replace(/-/g, ' ');
-  const specificContext = getGoalSpecificContext();
+  // Get focus area with fallback to confidence (default goal)
+  const focusArea = goalFocus[goal] || goalFocus['confidence'];
+  const goalLabel = goal.replace(/-/g, ' ');
   const recordingPrompt = userContext.recordingPrompt || null;
   const historicalContextBlock = userContext.historicalContext ? buildHistoricalContextBlock(userContext.historicalContext) : '';
   
@@ -230,81 +211,85 @@ Evaluate how well they executed this specific practice. Score their performance 
   "insights": ["", "", ""]
 }`;
 
-  // Build the prompt with context first, instructions at the end (Gemini 3 best practice)
-  return `Body language coach analyzing a practice video.
+  // Build the prompt with XML structure (Gemini best practice)
+  return `<role>
+Communication and presence coach analyzing a practice video. You evaluate both verbal delivery (speech, clarity, pace) and non-verbal communication (body language, posture, gestures, eye contact).
+</role>
 
-USER CONTEXT
+<user_context>
 Goal: ${goalLabel} (${focusArea})
-${specificContext}
-Confidence: ${confidence}
+Confidence Level: ${confidence}
 Tone: ${tone}
-${historicalContextBlock}
-${practiceFocusBlock}
+${historicalContextBlock}${practiceFocusBlock}
+</user_context>
 
-SCORING SCALE (0-10)
-0-3: Weak (clear problems)
-4-6: Average (room for improvement)
-7-10: Strong (genuinely effective)
+<scoring_reference>
+SCALE (0-10): 0-3 Weak | 4-6 Average | 7-10 Strong
 
-SUB-METRICS TO SCORE
-Voice: volume_stability, tone_variation, pace_control, articulation, warmth
-Presence: eye_contact, facial_relaxation, body_posture, hand_naturalness, openness
-Clarity: structure, focus, example_usage, transition_quality, repetition_control
-Authenticity: naturalness, emotional_transparency, forced_expression_reduction
-Impact: energy, engagement, persuasiveness
-Confidence: filler_word_control, pause_control, physical_tension, vocal_stability, comfort_level
+SUB-METRICS:
+- Voice: volume_stability, tone_variation, pace_control, articulation, warmth
+- Presence: eye_contact, facial_relaxation, body_posture, hand_naturalness, openness
+- Clarity: structure, focus, example_usage, transition_quality, repetition_control
+- Authenticity: naturalness, emotional_transparency, forced_expression_reduction
+- Impact: energy, engagement, persuasiveness
+- Confidence: filler_word_control, pause_control, physical_tension, vocal_stability, comfort_level
 
-DELIVERY METRICS
-speaking_rate_wpm: 90-190 typical
-filler_word_count: count "um", "uh", "like"
-sentiment: positive/neutral/tense
-posture_flag: open/closed/leaning/dynamic
+DELIVERY METRICS:
+- speaking_rate_wpm: 90-190 typical
+- filler_word_count: count "um", "uh", "like", "ummm" and other filler words.
+- sentiment: positive/neutral/tense
+- posture_flag: open/closed/leaning/dynamic
 
-STAGE TITLES (by overall_score)
-0-40: Beginning Communicator
-41-60: Emerging Communicator
-61-75: Developing Communicator
-76-85: Expressive Communicator
-86-95: Confident Communicator
-96-100: Master Communicator
+STAGE TITLES (by overall_score):
+0-40: Beginning Communicator | 41-60: Emerging Communicator | 61-75: Developing Communicator
+76-85: Expressive Communicator | 86-95: Confident Communicator | 96-100: Master Communicator
+</scoring_reference>
 
----
-
-Based on the video above, provide:
-
-**Overall Impression**
-One sentence on how they come across.
+<output_format>
+Based on the video, provide the following sections:
 
 **Key Strengths**
-2-3 strengths with brief explanation.
+2-3 strengths the user demonstrated well, with brief explanation of why each matters.
 
 **Focus Areas**
-2-3 areas needing improvement. Be direct about problems.
+2-3 areas needing improvement. Be direct and specific about the problems observed.
 
-**Action Plan**
-Exactly 3-4 action items. Format each as:
-Action: [Title]
-  - What to do: [specific instruction]
-  - Why it matters: [relevance to their goal]
-  - Example: [concrete situation]
+**Communication Tips**
+2 prioritized tips to improve speech and delivery. Format each as:
+[Title]
+- What to practice: [specific instruction]
+- Why it matters: [how this helps achieve their ${goalLabel} goal]
+
+**Body Language Tips**
+2 prioritized tips to improve presence and non-verbal communication. Format each as:
+[Title]
+- What to practice: [specific instruction]
+- Why it matters: [how this helps achieve their ${goalLabel} goal]
+
+**Recording Note**
+One sentence about camera setup, framing, or lighting ONLY if it significantly affected the analysis quality.
 
 **Quick Wins**
-1-2 immediate actions.
+1-2 simple actions they can try immediately in their next conversation or recording.
 
 End with JSON metrics block:
 \`\`\`json
 ${jsonSchema}
 \`\`\`
+</output_format>
 
-CRITICAL RULES:
-1. Score based ONLY on what you observe. Do not copy example values.
-2. Replace all 0.0 placeholders with actual scores (use decimals like 6.5, 7.8).
-3. Be strict: only 7+ for genuinely strong performance.
-4. If eye contact is poor, score it 0-4. If monotone, score tone_variation 0-4.
+<rules>
+1. Score based ONLY on what you observe in the video. Do not copy placeholder values.
+2. Replace all 0.0 with actual scores (use decimals like 6.5, 7.8).
+3. Be strict: only give 7+ for genuinely strong performance.
+4. If eye contact is poor, score eye_contact 0-4. If monotone, score tone_variation 0-4.
 5. overall_score = (voice×0.15 + presence×0.15 + clarity×0.15 + authenticity×0.15 + impact×0.20 + confidence×0.20) × 10
 6. ${recordingPrompt?.title ? `prompt_focus.score must reflect actual execution of "${recordingPrompt.title}". Score >=7 means pass, <7 means needs practice.` : 'No practice focus for this video.'}
 7. Provide 3 specific insights for the communication journal.
-8. No emojis.`;
+8. Communication Tips focus on SPEECH: pace, clarity, structure, filler words, vocal variety.
+9. Body Language Tips focus on NON-VERBAL: posture, gestures, eye contact, facial expressions, openness.
+10. No emojis in the response.
+</rules>`;
 };
 
 
@@ -602,7 +587,7 @@ export const generatePracticePromptFromAction = async ({
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const fallbackModel = 'gemini-2.5-flash';
   const modelName = process.env.GEMINI_PRACTICE_MODEL || 'gemini-2.5-flash';
-  const goal = userContext.primaryGoal || 'general';
+  const goal = userContext.primaryGoal || 'confidence';
   const confidence = userContext.confidenceLevel || 'medium';
   const detailText = [
     details.what_to_do ? `What to do: ${details.what_to_do}` : null,

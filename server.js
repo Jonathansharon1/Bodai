@@ -100,9 +100,21 @@ app.use(express.json());
 
 // Middleware to extract Clerk user ID from header
 const getClerkUserId = (req) => {
-  // Clerk sends user info in x-clerk-user-id header or we can get it from auth token
-  // For now, we'll use a custom header from frontend
-  return req.headers['x-clerk-user-id'] || req.headers['authorization']?.split(' ')[1];
+  // Clerk user IDs always start with "user_"
+  // NEVER fall back to authorization token - that's a JWT, not a user ID!
+  const userId = req.headers['x-clerk-user-id'];
+  
+  // Validate it looks like a Clerk user ID (starts with "user_")
+  if (userId && userId.startsWith('user_')) {
+    return userId;
+  }
+  
+  // Log warning if we got something that looks like a JWT
+  if (userId && userId.startsWith('eyJ')) {
+    console.warn('[getClerkUserId] Received JWT token instead of user ID - ignoring');
+  }
+  
+  return null;
 };
 
 // Middleware to extract user profile data from headers (sent from frontend)

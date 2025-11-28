@@ -1,13 +1,32 @@
 import 'dotenv/config';
 import { 
   sendProgressUpdateEmail, 
-  sendActionItemReminderEmail 
+  sendActionItemReminderEmail,
+  sendPracticeReminderEmail
 } from './emailService.js';
 import {
   getUserCommunicationProfile,
   getUserActionItems,
-  getUserWithOnboarding
+  getUserWithOnboarding,
+  getUsersNeedingReminders,
+  getUserJourneys
 } from './supabaseService.js';
+
+// Commitment level to inactivity threshold mapping (in days)
+const COMMITMENT_THRESHOLDS = {
+  casual: 14,      // 2 weeks
+  regular: 5,      // 5 days
+  intensive: 2,    // 2 days
+  // Default for unknown commitment levels
+  default: 7       // 1 week
+};
+
+/**
+ * Get the inactivity threshold for a user based on their commitment level
+ */
+const getInactivityThreshold = (commitmentLevel) => {
+  return COMMITMENT_THRESHOLDS[commitmentLevel] || COMMITMENT_THRESHOLDS.default;
+};
 
 /**
  * Send weekly progress update emails to all active users
@@ -24,6 +43,51 @@ export const sendWeeklyProgressEmails = async () => {
 };
 
 /**
+ * Send practice reminder emails based on user's commitment level
+ * This should be called via a cron job (e.g., daily at 10 AM)
+ */
+export const sendCommitmentBasedReminders = async () => {
+  console.log('[Scheduled Emails] Starting commitment-based reminder job...');
+  
+  try {
+    // Get users who need reminders based on their commitment level
+    const usersToRemind = await getUsersNeedingReminders();
+    
+    if (!usersToRemind || usersToRemind.length === 0) {
+      console.log('[Scheduled Emails] No users need reminders at this time');
+      return { sent: 0, skipped: 0 };
+    }
+
+    let sent = 0;
+    let skipped = 0;
+
+    for (const user of usersToRemind) {
+      try {
+        const threshold = getInactivityThreshold(user.commitment_level);
+        const daysSinceLastAnalysis = user.days_since_last_analysis || 0;
+        
+        // Check if user has exceeded their inactivity threshold
+        if (daysSinceLastAnalysis >= threshold) {
+          await sendUserPracticeReminder(user);
+          sent++;
+        } else {
+          skipped++;
+        }
+      } catch (err) {
+        console.error(`[Scheduled Emails] Failed to process reminder for user ${user.clerk_user_id}:`, err.message);
+        skipped++;
+      }
+    }
+
+    console.log(`[Scheduled Emails] Commitment reminders completed: ${sent} sent, ${skipped} skipped`);
+    return { sent, skipped };
+  } catch (error) {
+    console.error('[Scheduled Emails] Failed to run commitment reminders:', error.message);
+    return { sent: 0, skipped: 0, error: error.message };
+  }
+};
+
+/**
  * Send action item reminder emails to users with incomplete action items
  * This should be called via a cron job (e.g., daily at 10 AM)
  */
@@ -35,6 +99,80 @@ export const sendActionItemReminders = async () => {
   // based on your user querying needs
   
   console.log('[Scheduled Emails] Action item reminder job completed');
+};
+
+/**
+ * Send practice reminder to a specific user based on their commitment level
+ */
+export const sendUserPracticeReminder = async (user) => {
+  try {
+    if (!user?.email || !user?.id) {
+      console.warn('[Scheduled Emails] No email or user ID found for reminder');
+      return { success: false, reason: 'missing_user_data' };
+    }
+
+    // Get user's pending action items for practice prompt suggestion
+    const actionItems = await getUserActionItems(user.clerk_user_id, 'pending');
+    
+    // Get the most relevant practice prompt
+    let practicePrompt = null;
+    if (actionItems && actionItems.length > 0) {
+      const itemWithPrompt = actionItems.find(item => item.practice_prompt_title);
+      if (itemWithPrompt) {
+        practicePrompt = {
+          title: itemWithPrompt.practice_prompt_title,
+          description: itemWithPrompt.practice_prompt_description,
+          estimatedTime: itemWithPrompt.practice_prompt_time || '2 minutes'
+        };
+      } else {
+        // Use the action item itself as a prompt
+        practicePrompt = {
+          title: actionItems[0].title,
+          description: actionItems[0].details?.what_to_do || 'Focus on this in your next recording',
+          estimatedTime: '2 minutes'
+        };
+      }
+    }
+
+    // Determine reminder tone based on commitment level
+    const commitmentMessages = {
+      casual: {
+        subject: 'Time for a quick practice session?',
+        intro: 'It\'s been a while since your last practice.'
+      },
+      regular: {
+        subject: 'Keep your momentum going!',
+        intro: 'Don\'t let your progress slip - a quick session keeps skills sharp.'
+      },
+      intensive: {
+        subject: 'Ready for your next rep?',
+        intro: 'Consistent practice is key to rapid improvement.'
+      },
+      default: {
+        subject: 'Time to practice?',
+        intro: 'Regular practice leads to lasting improvement.'
+      }
+    };
+
+    const message = commitmentMessages[user.commitment_level] || commitmentMessages.default;
+
+    await sendPracticeReminderEmail({
+      userId: user.id,
+      userEmail: user.email,
+      userName: user.first_name || user.name || null,
+      commitmentLevel: user.commitment_level || 'regular',
+      daysSinceLastAnalysis: user.days_since_last_analysis || 0,
+      practicePrompt,
+      subject: message.subject,
+      introMessage: message.intro
+    });
+
+    console.log(`[Scheduled Emails] Practice reminder sent to ${user.email} (${user.commitment_level})`);
+    return { success: true };
+  } catch (error) {
+    console.error(`[Scheduled Emails] Failed to send practice reminder:`, error.message);
+    return { success: false, error: error.message };
+  }
 };
 
 /**

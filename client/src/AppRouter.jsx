@@ -10,6 +10,8 @@ import PricingPage from './pages/PricingPage';
 import SubscriptionPage from './pages/SubscriptionPage';
 import CoursesPage from './pages/CoursesPage';
 import SettingsPage from './pages/SettingsPage';
+import SignInPage from './pages/SignInPage';
+import SignUpPage from './pages/SignUpPage';
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
 import Hero from './components/hero/Hero';
@@ -18,7 +20,7 @@ import FeaturesSection from './components/homepage/FeaturesSection';
 import HowItWorksSection from './components/homepage/HowItWorksSection';
 import SocialProofSection from './components/homepage/SocialProofSection';
 import CTASection from './components/homepage/CTASection';
-import { SignInButton, SignedOut } from '@clerk/clerk-react';
+import { SignedOut } from '@clerk/clerk-react';
 
 // Protected Route Component
 function ProtectedRoute({ children, requireOnboarding = false }) {
@@ -277,11 +279,22 @@ export default function AppRouter() {
   const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
   // Detect fresh sign-in
+  // We use a ref to track if we've done the initial load check
+  // This prevents treating a page refresh (where user is already signed in) as a fresh sign-in
+  const hasInitializedRef = React.useRef(false);
+  
   useEffect(() => {
     if (!userLoaded) return;
     
-    // If user just signed in (was null, now has user)
-    if (!previousUserState && user) {
+    // On first load, just record the current user state without triggering redirect
+    if (!hasInitializedRef.current) {
+      hasInitializedRef.current = true;
+      setPreviousUserState(user);
+      return;
+    }
+    
+    // After initialization, if user changes from null to signed-in, that's a fresh sign-in
+    if (previousUserState === null && user) {
       if (location.pathname === '/') {
         sessionStorage.setItem('bodai_just_signed_in', 'true');
       } else {
@@ -708,6 +721,14 @@ export default function AppRouter() {
           navigate={navigate}
           onNewAnalysis={handleNewAnalysis}
         />
+      } />
+
+      {/* Auth Routes - Redirect to dashboard if already signed in */}
+      <Route path="/sign-in/*" element={
+        user ? <Navigate to="/dashboard" replace /> : <SignInPage />
+      } />
+      <Route path="/sign-up/*" element={
+        user ? <Navigate to="/dashboard" replace /> : <SignUpPage />
       } />
 
       {/* Protected Routes */}

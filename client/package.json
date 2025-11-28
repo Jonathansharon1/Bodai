@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "@clerk/clerk-react": "^5.0.0",
+    "canvas-confetti": "^1.9.4",
     "framer-motion": "^11.18.2",
     "lucide-react": "^0.553.0",
     "react": "^18.3.1",

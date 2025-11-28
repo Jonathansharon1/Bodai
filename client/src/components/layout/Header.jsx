@@ -1,5 +1,5 @@
 import React from 'react';
-import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
+import { SignedIn, SignedOut, UserButton } from '@clerk/clerk-react';
 import { Link, useLocation } from 'react-router-dom';
 import Logo from '../Logo';
 
@@ -35,7 +35,7 @@ export default function Header() {
     <header className={headerClass} role="banner">
       <div className="siteHeader__inner">
         <Link className="brand" to="/" aria-label="Bodai home">
-          <Logo size={28} className="brand__logo" />
+          <Logo size={32} className="brand__logo" />
           <div className="brand__text">
             <span className="brand__name">Bodai</span>
             <span className="brand__tagline">AI communication coach</span>
@@ -66,16 +66,12 @@ export default function Header() {
 
           <div className="ctaRow">
             <SignedOut>
-              <SignInButton mode="modal">
-                <button className="nav__login" type="button">
+              <Link to="/sign-in" className="nav__login">
                   Login
-                </button>
-              </SignInButton>
-              <SignInButton mode="modal">
-                <button className="btn btn--primary" type="button">
+              </Link>
+              <Link to="/sign-up" className="btn btn--primary btn--sm">
                   Get Started
-                </button>
-              </SignInButton>
+              </Link>
             </SignedOut>
             <SignedIn>
               <UserButton afterSignOutUrl="/" />

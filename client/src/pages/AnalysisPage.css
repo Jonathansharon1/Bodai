@@ -251,8 +251,9 @@
 }
 
 .analysisPage__videoCard video {
-  max-height: 360px;
-  object-fit: cover;
+  max-height: 400px;
+  object-fit: contain;
+  background: #0f172a;
 }
 
 .analysisPage__videoPlaceholder {

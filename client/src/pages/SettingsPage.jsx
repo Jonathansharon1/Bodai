@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { Mail, Bell, CheckCircle2, AlertCircle } from 'lucide-react';
 import './SettingsPage.css';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 export default function SettingsPage() {
   const { user } = useUser();
@@ -79,7 +80,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="settingsPage">
-        <div className="settingsPage__loading">Loading preferences...</div>
+        <LoadingSpinner message="Loading your preferences..." size="large" />
       </div>
     );
   }

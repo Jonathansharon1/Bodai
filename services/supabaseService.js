@@ -59,7 +59,7 @@ export const getOrCreateUser = async (clerkUserId, userProfile = {}) => {
     .from('users')
     .select('id')
     .eq('clerk_user_id', clerkUserId)
-    .single();
+    .maybeSingle(); // Use maybeSingle() to return null instead of error for 0 rows
 
   if (existingUser) {
     // Update user profile if provided (for syncing Clerk data)
@@ -67,6 +67,12 @@ export const getOrCreateUser = async (clerkUserId, userProfile = {}) => {
       await syncUserProfile(clerkUserId, userProfile);
     }
     return existingUser.id;
+  }
+  
+  // If there was an actual error (not just "no rows"), throw it
+  if (findError && findError.code !== 'PGRST116') {
+    console.error('[getOrCreateUser] Error finding user:', findError);
+    throw new Error(`Failed to find user: ${findError.message}`);
   }
 
   // Build full name from first and last name
@@ -2924,6 +2930,120 @@ export const getUserEmailHistory = async (clerkUserId, limit = 20) => {
     return data || [];
   } catch (err) {
     console.error('[getUserEmailHistory] Exception:', err);
+    return [];
+  }
+};
+
+/**
+ * Get users who need practice reminders based on their commitment level
+ * Returns users with their last analysis date and commitment level
+ */
+export const getUsersNeedingReminders = async () => {
+  if (!supabase) {
+    console.warn('[getUsersNeedingReminders] Supabase not initialized');
+    return [];
+  }
+
+  try {
+    // Get all users with email notifications enabled
+    // Join with their onboarding answers to get commitment level
+    // Join with analyses to get last analysis date
+    const { data: users, error: usersError } = await supabase
+      .from('users')
+      .select(`
+        id,
+        clerk_user_id,
+        email,
+        first_name,
+        name,
+        email_notifications_enabled,
+        onboarding_answers
+      `)
+      .eq('email_notifications_enabled', true)
+      .not('email', 'is', null);
+
+    if (usersError) {
+      console.error('[getUsersNeedingReminders] Error fetching users:', usersError);
+      return [];
+    }
+
+    if (!users || users.length === 0) {
+      return [];
+    }
+
+    // For each user, get their last analysis date
+    const usersWithAnalysisData = await Promise.all(
+      users.map(async (user) => {
+        try {
+          // Get most recent analysis
+          const { data: lastAnalysis } = await supabase
+            .from('analyses')
+            .select('created_at')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          // Get most recent reminder sent
+          const { data: lastReminder } = await supabase
+            .from('email_notifications')
+            .select('sent_at')
+            .eq('user_id', user.id)
+            .eq('email_type', 'practice_reminder')
+            .eq('status', 'sent')
+            .order('sent_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          // Calculate days since last analysis
+          let daysSinceLastAnalysis = null;
+          if (lastAnalysis?.created_at) {
+            const lastAnalysisDate = new Date(lastAnalysis.created_at);
+            const now = new Date();
+            daysSinceLastAnalysis = Math.floor((now - lastAnalysisDate) / (1000 * 60 * 60 * 24));
+          }
+
+          // Don't remind if we already sent a reminder today
+          if (lastReminder?.sent_at) {
+            const lastReminderDate = new Date(lastReminder.sent_at);
+            const now = new Date();
+            const daysSinceReminder = Math.floor((now - lastReminderDate) / (1000 * 60 * 60 * 24));
+            if (daysSinceReminder < 1) {
+              return null; // Skip - already sent today
+            }
+          }
+
+          // Extract commitment level from onboarding answers
+          const commitmentLevel = user.onboarding_answers?.commitment || 
+                                  user.onboarding_answers?.practice_commitment || 
+                                  'regular';
+
+          return {
+            id: user.id,
+            clerk_user_id: user.clerk_user_id,
+            email: user.email,
+            first_name: user.first_name,
+            name: user.name,
+            commitment_level: commitmentLevel,
+            days_since_last_analysis: daysSinceLastAnalysis,
+            last_analysis_date: lastAnalysis?.created_at || null
+          };
+        } catch (err) {
+          console.warn(`[getUsersNeedingReminders] Error processing user ${user.id}:`, err.message);
+          return null;
+        }
+      })
+    );
+
+    // Filter out null results and users who haven't done any analysis yet
+    // (they need onboarding encouragement, not practice reminders)
+    return usersWithAnalysisData.filter(u => 
+      u !== null && 
+      u.days_since_last_analysis !== null &&
+      u.days_since_last_analysis > 0
+    );
+  } catch (err) {
+    console.error('[getUsersNeedingReminders] Exception:', err);
     return [];
   }
 };

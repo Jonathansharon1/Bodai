@@ -1,6 +1,6 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
-import { SignInButton } from '@clerk/clerk-react';
 import './PricingCard.css';
 
 export default function PricingCard({ plan, billingPeriod, onSelect, isSignedIn }) {
@@ -66,11 +66,12 @@ export default function PricingCard({ plan, billingPeriod, onSelect, isSignedIn 
               <ButtonContent />
             </button>
           ) : (
-            <SignInButton mode="modal">
-              <button className={`pricingCard__button pricingCard__button--${plan.ctaVariant}`}>
-                <ButtonContent />
-              </button>
-            </SignInButton>
+            <Link 
+              to="/sign-up" 
+              className={`pricingCard__button pricingCard__button--${plan.ctaVariant}`}
+            >
+              <ButtonContent />
+            </Link>
           )}
           {plan.price > 0 && (
             <p className="pricingCard__note">Cancel anytime—your progress stays saved.</p>

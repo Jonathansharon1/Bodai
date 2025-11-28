@@ -33,21 +33,26 @@ export const RECORDING_PROMPTS = {
       description: 'Speak to the camera as if a close friend needs encouragement. Keep the tone warm and confident.'
     }
   ],
-  interview: [
+  content: [
     {
-      id: 'int_self',
-      title: 'Tell me about yourself',
-      description: 'Answer the common interview opener. Highlight structure: past, present, future.'
+      id: 'cont_hook',
+      title: 'Attention-Grabbing Hook',
+      description: 'Record the first 15 seconds of a video. Capture attention immediately with energy and a clear promise.'
     },
     {
-      id: 'int_challenge',
-      title: 'Biggest Challenge',
-      description: 'Explain a tough project you led, including your actions and results.'
+      id: 'cont_explainer',
+      title: 'Quick Explainer',
+      description: 'Explain a topic you know well in 60 seconds. Focus on clarity, pacing, and engaging delivery.'
     },
     {
-      id: 'int_fit',
-      title: 'Why this role',
-      description: 'Sell yourself for a dream role. Focus on clarity, energy, and concise storytelling.'
+      id: 'cont_story',
+      title: 'Personal Story',
+      description: 'Share a short personal story (1-2 min) that connects with your audience. Be authentic and expressive.'
+    },
+    {
+      id: 'cont_cta',
+      title: 'Call to Action',
+      description: 'Record a compelling call to action (subscribe, follow, buy). Practice confident asks without being pushy.'
     }
   ],
   dating: [

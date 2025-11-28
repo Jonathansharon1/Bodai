@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useUser, SignInButton } from '@clerk/clerk-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { useUser } from '@clerk/clerk-react';
 import { Check, ChevronDown } from 'lucide-react';
 import PricingCard from '../components/pricing/PricingCard';
 import './PricingPage.css';
@@ -11,25 +11,25 @@ const faqs = [
   {
     question: 'What happens after I upload a video?',
     answer: [
-      'AI breaks down your presence, voice, and storytelling within minutes.',
-      'You receive a structured report plus a personalized action plan.',
-      'A micro-practice is suggested to reinforce what to do next.'
+      'Our AI analyzes your body language, voice, and delivery within a minute.',
+      'You get a detailed report with your scores and personalized tips.',
+      'We suggest a quick practice exercise to help you improve.'
     ]
   },
   {
-    question: 'Can I switch or cancel plans anytime?',
+    question: 'Can I change or cancel my plan?',
     answer:
-      'Yes. Upgrade, downgrade, or cancel whenever you like. Your account retains all historical analyses so you can come back later without starting over.'
+      'Yes! You can upgrade, downgrade, or cancel anytime. All your past analyses stay in your account so you can always come back.'
   },
   {
-    question: 'Can I open multiple journeys (focus areas)?',
+    question: 'Can I track multiple goals?',
     answer:
-      'Every plan supports unlimited journeys. Spin up interview prep, leadership, or social confidence tracks and keep independent progress for each.'
+      'Yes, all plans let you create separate practice areas—like interview prep, public speaking, or social skills—and track progress for each one.'
   },
   {
-    question: 'Do you support teams and companies?',
+    question: 'Do you offer team plans?',
     answer:
-      'Executive Mastery unlocks unlimited uploads and we offer tailored onboarding for teams. Reach out via chat to set up a workspace.'
+      'Yes! The Unlimited plan works great for teams. Contact us for special team pricing and setup help.'
   }
 ];
 
@@ -40,13 +40,12 @@ export default function PricingPage() {
   const [openFaqIndex, setOpenFaqIndex] = useState(0);
 
   const sharedFeatures = [
-    'AI body language coach powered by Gemini',
-    'Historical trendlines & progress dashboard',
-    'Personalized action plans (instant tip + micro-practice)',
-    'Goal-aware modules & baseline tracking',
-    'Exportable insights & PDF summaries',
-    'Priority support + practice reminders',
-    'Launch unlimited focus journeys (interview, leadership, social, etc.) and keep historical progress for each'
+    'AI-powered video analysis',
+    'Detailed feedback on body language & voice',
+    'Progress tracking dashboard',
+    'Personalized improvement tips',
+    'Practice exercises included',
+    'Email support'
   ];
 
   const plans = [
@@ -56,53 +55,53 @@ export default function PricingPage() {
       price: 0,
       priceYearly: 0,
       period: 'forever',
-      analysesText: '1 analysis',
+      analysesText: '1 free analysis',
       theme: 'slate',
-      cta: 'Get Started Free',
+      cta: 'Start Free',
       ctaVariant: 'secondary',
       recommended: false
     },
     {
       id: 'starter',
-      name: 'Starter Reps',
+      name: 'Basic',
       price: 8,
       priceYearly: 80,
       period: 'per month',
       analysesText: '6 analyses per month',
       theme: 'teal',
-      cta: 'Lock In My Reps',
+      cta: 'Get Basic',
       ctaVariant: 'primary',
       recommended: false,
-      valueText: 'Perfect for monthly check-ins',
-      badgeText: 'Best for monthly'
+      valueText: 'Great for monthly practice',
+      badgeText: 'Good start'
     },
     {
       id: 'momentum',
-      name: 'Momentum',
+      name: 'Pro',
       price: 15,
       priceYearly: 150,
       period: 'per month',
       analysesText: '16 analyses per month',
       theme: 'indigo',
-      cta: 'Start Momentum',
+      cta: 'Get Pro',
       ctaVariant: 'primary',
       recommended: true,
-      valueText: 'Weekly practice for under $1 per analysis',
+      valueText: 'Less than $1 per analysis',
       badgeText: 'Most popular'
     },
     {
       id: 'executive',
-      name: 'Executive Mastery',
+      name: 'Unlimited',
       price: 39,
       priceYearly: 390,
       period: 'per month',
       analysesText: 'Unlimited analyses',
       theme: 'graphite',
-      cta: 'Train Without Limits',
+      cta: 'Get Unlimited',
       ctaVariant: 'primary',
       recommended: false,
-      valueText: 'Coaches & daily practitioners',
-      badgeText: 'Teams & power users'
+      valueText: 'Best for daily practice',
+      badgeText: 'Best value'
     }
   ];
 
@@ -126,11 +125,10 @@ export default function PricingPage() {
     <div className="pricingPage">
       <div className="pricingPage__container">
         <section className="pricingPage__hero">
-          <p className="pricingPage__eyebrow">Pricing</p>
-          <h1 className="pricingPage__title">World-class coaching feedback without the executive price tag</h1>
+          <p className="pricingPage__eyebrow">Simple Pricing</p>
+          <h1 className="pricingPage__title">Pick a plan that fits how often you practice</h1>
           <p className="pricingPage__subtitle">
-            Every plan includes the same AI engine, personalized action plans, and progress dashboards.
-            Choose how often you want to practice.
+            All plans include the same powerful AI analysis. The only difference is how many videos you can upload.
           </p>
 
           <div className="pricingPage__billingToggle">
@@ -152,9 +150,9 @@ export default function PricingPage() {
 
         <section className="pricingPage__included">
           <div className="included__header">
-            <p className="included__eyebrow">Included in every plan</p>
-            <h2>All the coaching power. One toolkit.</h2>
-            <p>Every plan unlocks the full AI analysis pipeline, personalized drills, and progress intelligence.</p>
+            <p className="included__eyebrow">Every plan includes</p>
+            <h2>Everything you need to improve</h2>
+            <p>Get the full AI analysis experience regardless of which plan you choose.</p>
           </div>
           <ul className="included__list">
             {sharedFeatures.map((feature) => (
@@ -181,25 +179,25 @@ export default function PricingPage() {
         <section className="pricingPage__payAsYouGo">
           <div className="payAsYouGo__card">
             <div className="payAsYouGo__content">
-              <p className="payAsYouGo__eyebrow">Need flexibility?</p>
-              <h3 className="payAsYouGo__title">Pay as you go</h3>
+              <p className="payAsYouGo__eyebrow">Just need one?</p>
+              <h3 className="payAsYouGo__title">Pay per video</h3>
               <p className="payAsYouGo__description">
-                Ideal if you only upload a few times per year. Purchase a single AI analysis whenever you want—no subscription.
+                Don't need a subscription? Buy individual analyses anytime.
               </p>
               <div className="payAsYouGo__price">
                 <span className="payAsYouGo__amount">$1.50</span>
-                <span className="payAsYouGo__period">per analysis</span>
+                <span className="payAsYouGo__period">per video</span>
               </div>
-              <p className="payAsYouGo__hint">After five sessions a month, Starter Reps is more cost effective.</p>
+              <p className="payAsYouGo__hint">Tip: If you analyze 6+ videos per month, Basic is cheaper.</p>
             </div>
             {isSignedIn ? (
               <button className="payAsYouGo__button" onClick={() => navigate('/new-analysis')}>
                 Purchase a single analysis
               </button>
             ) : (
-              <SignInButton mode="modal">
-                <button className="payAsYouGo__button">Purchase a single analysis</button>
-              </SignInButton>
+              <Link to="/sign-up" className="payAsYouGo__button">
+                Purchase a single analysis
+              </Link>
             )}
           </div>
         </section>

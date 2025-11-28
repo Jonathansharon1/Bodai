@@ -1,90 +1,206 @@
+/* Onboarding Page - Matching Auth Pages Design */
+
 .onboardingPage {
   min-height: 100vh;
-  background: linear-gradient(135deg, #F2F7FA 0%, #EFF5F7 50%, #FFFFFF 100%);
-  padding: 40px 20px;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  background: #f8fafc;
 }
 
-.onboardingPage__container {
-  max-width: 800px;
-  width: 100%;
-  background: #FFFFFF;
-  border-radius: 24px;
-  box-shadow: 0 20px 60px rgba(0, 78, 100, 0.12);
+/* Background */
+.onboardingPage__bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
   overflow: hidden;
 }
 
+.onboardingPage__bgGradient {
+  position: absolute;
+  inset: 0;
+  background: 
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(37, 99, 235, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(139, 92, 246, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse 40% 30% at 10% 80%, rgba(16, 185, 129, 0.05) 0%, transparent 50%);
+}
+
+.onboardingPage__bgOrb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.6;
+}
+
+.onboardingPage__bgOrb--1 {
+  width: 500px;
+  height: 500px;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.15) 0%, rgba(139, 92, 246, 0.1) 100%);
+  top: -150px;
+  right: -100px;
+  animation: float 20s ease-in-out infinite;
+}
+
+.onboardingPage__bgOrb--2 {
+  width: 350px;
+  height: 350px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(6, 182, 212, 0.08) 100%);
+  bottom: -80px;
+  left: -80px;
+  animation: float 15s ease-in-out infinite reverse;
+}
+
+.onboardingPage__bgOrb--3 {
+  width: 250px;
+  height: 250px;
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(249, 115, 22, 0.06) 100%);
+  top: 40%;
+  left: 10%;
+  animation: float 18s ease-in-out infinite 2s;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(30px, -30px) scale(1.05);
+  }
+}
+
+/* Header */
 .onboardingPage__header {
-  background: linear-gradient(135deg, #004E64 0%, #006B8F 100%);
-  padding: 48px 40px;
-  text-align: center;
-  color: #FFFFFF;
+  position: relative;
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  padding: 24px 40px;
 }
 
-.onboardingPage__badge {
-  display: inline-block;
-  padding: 8px 20px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 20px;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  margin-bottom: 20px;
-  backdrop-filter: blur(10px);
+.onboardingPage__logo {
+  text-decoration: none;
 }
 
-.onboardingPage__title {
-  font-size: clamp(32px, 5vw, 42px);
+.onboardingPage__logoText {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-size: 28px;
   font-weight: 700;
-  letter-spacing: -0.02em;
-  margin: 0 0 16px;
-  line-height: 1.2;
+  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-.onboardingPage__subtitle {
-  font-size: 18px;
-  line-height: 1.6;
-  margin: 0;
-  opacity: 0.95;
-  max-width: 600px;
-  margin-left: auto;
-  margin-right: auto;
+/* Main Content */
+.onboardingPage__main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 24px 60px;
+  position: relative;
+  z-index: 10;
 }
 
 .onboardingPage__content {
-  padding: 48px 40px;
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.onboardingPage__footer {
-  padding: 24px 40px;
-  background: #F2F7FA;
-  border-top: 1px solid #E9ECEF;
+/* Headline */
+.onboardingPage__headline {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.onboardingPage__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2563eb;
+  margin-bottom: 20px;
+}
+
+.onboardingPage__badge svg {
+  color: #7c3aed;
+}
+
+.onboardingPage__title {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-size: clamp(28px, 5vw, 36px);
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 12px;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.onboardingPage__titleAccent {
+  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.onboardingPage__subtitle {
+  font-size: 16px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Card */
+.onboardingPage__card {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px);
+  border-radius: 24px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.06),
+    0 8px 16px rgba(0, 0, 0, 0.04);
+  padding: 32px;
+  margin-bottom: 24px;
+}
+
+/* Trust Note */
+.onboardingPage__trust {
+  font-size: 13px;
+  color: #94a3b8;
+  margin: 0;
   text-align: center;
 }
 
-.onboardingPage__footerText {
-  font-size: 14px;
-  color: #6E6E6E;
-  margin: 0;
-}
-
-@media (max-width: 768px) {
-  .onboardingPage {
-    padding: 20px 16px;
-  }
-
+/* Responsive */
+@media (max-width: 640px) {
   .onboardingPage__header {
-    padding: 36px 24px;
+    padding: 20px 20px;
   }
-
-  .onboardingPage__content {
-    padding: 32px 24px;
+  
+  .onboardingPage__main {
+    padding: 16px 16px 40px;
   }
-
-  .onboardingPage__footer {
-    padding: 20px 24px;
+  
+  .onboardingPage__headline {
+    margin-bottom: 24px;
+  }
+  
+  .onboardingPage__title {
+    font-size: 26px;
+  }
+  
+  .onboardingPage__card {
+    padding: 24px 20px;
+    border-radius: 20px;
   }
 }
-

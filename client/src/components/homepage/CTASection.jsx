@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { SignInButton } from '@clerk/clerk-react';
+import { useNavigate, Link } from 'react-router-dom';
 import { ArrowRight, Rocket } from 'lucide-react';
 import './CTASection.css';
 
@@ -65,18 +64,13 @@ export default function CTASection({ isSignedIn = false }) {
               </>
             ) : (
               <>
-                <SignInButton mode="modal">
-                  <button className="btn btn--primary ctaSection__button">
-                    Get Started Free
-                    <ArrowRight size={20} />
-                  </button>
-                </SignInButton>
-                <button 
-                  className="btn btn--ghost ctaSection__button"
-                  onClick={() => navigate('/pricing')}
-                >
+                <Link to="/sign-up" className="btn btn--primary ctaSection__button">
+                  Get Started Free
+                  <ArrowRight size={20} />
+                </Link>
+                <Link to="/pricing" className="btn btn--ghost ctaSection__button">
                   View Pricing
-                </button>
+                </Link>
               </>
             )}
           </div>

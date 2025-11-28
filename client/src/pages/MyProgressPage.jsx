@@ -22,6 +22,7 @@ import {
 import './MyProgressPage.css';
 import JourneySwitcher from '../components/JourneySwitcher';
 import PracticeCommitmentAlert from '../components/PracticeCommitmentAlert';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 // All 25 parameters organized by category
 const KPI_FIELDS = [
@@ -279,7 +280,23 @@ export default function MyProgressPage({
     () => journeys.find(journey => journey.id === activeJourneyId) || null,
     [journeys, activeJourneyId]
   );
-  const focusLabel = activeJourney?.display_name || activeJourney?.focus_label || activeJourney?.focus_slug;
+  
+  const getGoalLabel = (goal) => {
+    const goalMap = {
+      'confidence': 'Build Confidence',
+      'content': 'Content Creator',
+      'presentation': 'Presentation Skills',
+      'communication': 'Better Communication',
+      'leadership': 'Executive Presence',
+      'dating': 'Dating & Romantic',
+      'social': 'Social Confidence',
+      'general': 'General Improvement'
+    };
+    return goalMap[goal] || goal;
+  };
+  
+  const focusSlug = activeJourney?.focus_slug;
+  const focusLabel = focusSlug ? getGoalLabel(focusSlug) : (activeJourney?.display_name || activeJourney?.focus_label || null);
   const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
   const location = useLocation();
 
@@ -802,7 +819,7 @@ export default function MyProgressPage({
   if (loading) {
     return (
       <div className="myProgressPage">
-        <div className="myProgressPage__loading">Loading your progress...</div>
+        <LoadingSpinner message="Loading your progress..." size="large" />
       </div>
     );
   }

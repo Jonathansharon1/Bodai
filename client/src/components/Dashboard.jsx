@@ -6,6 +6,7 @@ import {
   Dumbbell,
   Briefcase,
   Mic,
+  Video,
   MessageCircle,
   Award,
   Heart,
@@ -38,6 +39,9 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import OnboardingQuestions from './OnboardingQuestions';
+import CelebrationModal from './CelebrationModal';
+import BeforeAfterComparison from './BeforeAfterComparison';
+import LoadingSpinner from './LoadingSpinner';
 import './Dashboard.css';
 import JourneySwitcher from './JourneySwitcher';
 import PracticeCommitmentAlert from './PracticeCommitmentAlert';
@@ -100,6 +104,12 @@ export default function Dashboard({
   const [journeyModalOpen, setJourneyModalOpen] = useState(false);
   const [journeyModalError, setJourneyModalError] = useState(null);
   const [journeyModalSubmitting, setJourneyModalSubmitting] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationData, setCelebrationData] = useState(null);
+  const [celebrationShownForSession, setCelebrationShownForSession] = useState(() => {
+    // Check if we've already shown celebration for this session
+    return sessionStorage.getItem('bodai_celebration_shown') === 'true';
+  });
   const activeJourney = useMemo(
     () => journeys.find(journey => journey.id === activeJourneyId) || null,
     [journeys, activeJourneyId]
@@ -343,7 +353,7 @@ function ExpandableDashboardText({ text, collapsedLines = 2 }) {
   const getGoalIcon = (goal) => {
     const goalIcons = {
       'confidence': Dumbbell,
-      'interview': Briefcase,
+      'content': Video,
       'presentation': Mic,
       'communication': MessageCircle,
       'leadership': Award,
@@ -356,11 +366,11 @@ function ExpandableDashboardText({ text, collapsedLines = 2 }) {
 
   const getGoalLabel = (goal) => {
     const goalMap = {
-      'confidence': 'Build Self-Confidence',
-      'interview': 'Job Interview Preparation',
-      'presentation': 'Improve Presentations',
+      'confidence': 'Build Confidence',
+      'content': 'Content Creator',
+      'presentation': 'Presentation Skills',
       'communication': 'Better Communication',
-      'leadership': 'Leadership Presence',
+      'leadership': 'Executive Presence',
       'dating': 'Dating & Romantic',
       'social': 'Social Confidence',
       'general': 'General Improvement'
@@ -481,7 +491,9 @@ function ExpandableDashboardText({ text, collapsedLines = 2 }) {
   const latestMetrics = progressData.profile?.latest_metrics;
   const latestInsight = progressData.profile?.latest_insight;
   const focusSlug = activeJourney?.focus_slug || userProfile?.primary_goal || localUserContext?.primaryGoal;
-  const focusLabel = activeJourney?.display_name || activeJourney?.focus_label || (focusSlug ? getGoalLabel(focusSlug) : null);
+  // Derive focusLabel: prefer getGoalLabel if we have a valid slug, otherwise use journey's display_name
+  // This ensures we show the proper translated label instead of generic "Custom journey"
+  const focusLabel = focusSlug ? getGoalLabel(focusSlug) : (activeJourney?.display_name || activeJourney?.focus_label || null);
   const focusConfidence = activeJourney?.confidence_level || userProfile?.confidence_level || localUserContext?.confidenceLevel;
 
   // Get user's name for personalization
@@ -497,63 +509,111 @@ function ExpandableDashboardText({ text, collapsedLines = 2 }) {
     if (Math.abs(change) < 0.5) return null; // Ignore changes less than 0.5 points
     return {
       value: Math.abs(change).toFixed(1),
-      isPositive: change > 0
+      isPositive: change > 0,
+      currentScore,
+      previousScore,
+      improvement: change
     };
   }, [latestMetrics, progressData.metrics]);
 
-  // Generate dynamic, encouraging title based on journey focus
+  // Show celebration modal when score improves
+  useEffect(() => {
+    if (scoreTrend?.isPositive && !celebrationShownForSession && !loading) {
+      // Only show celebration for improvements of 0.5+ points
+      if (scoreTrend.improvement >= 0.5) {
+        setCelebrationData({
+          improvement: scoreTrend.improvement,
+          currentScore: scoreTrend.currentScore,
+          previousScore: scoreTrend.previousScore,
+          metric: 'overall'
+        });
+        setShowCelebration(true);
+        setCelebrationShownForSession(true);
+        sessionStorage.setItem('bodai_celebration_shown', 'true');
+      }
+    }
+  }, [scoreTrend, celebrationShownForSession, loading]);
+
+  const handleCloseCelebration = () => {
+    setShowCelebration(false);
+  };
+
+  // Check if user is new (no analyses yet)
+  const isNewUser = !progressData.metrics || progressData.metrics.length === 0;
+
+  // Generate dynamic, encouraging title based on user's goal and whether they're new
   const getDashboardTitle = () => {
-    if (!focusLabel && !userName) {
-      return "Your Body Language Journey";
+    // For new users, always show a welcome message
+    if (isNewUser) {
+      if (userName) {
+        return `Welcome, ${userName}!`;
+      }
+      return "Welcome to BodAI!";
     }
 
-    // Map focus labels to short, punchy title templates
+    if (!focusLabel && !userName) {
+      return "Your Dashboard";
+    }
+
+    // Map focus labels to short, punchy title templates for returning users
     const titleTemplates = {
       'Build Self-Confidence': [
         userName ? `Hey ${userName}! Ready to shine?` : "Ready to shine?",
-        userName ? `${userName}'s Confidence Journey` : "Your Confidence Journey",
+        userName ? `Welcome back, ${userName}!` : "Welcome back!",
+        userName ? `${userName}, let's build confidence` : "Let's build confidence"
+      ],
+      'Build Confidence': [
+        userName ? `Hey ${userName}! Ready to shine?` : "Ready to shine?",
         userName ? `Welcome back, ${userName}!` : "Welcome back!",
         userName ? `${userName}, let's build confidence` : "Let's build confidence"
       ],
       'Job Interview Preparation': [
         userName ? `Hey ${userName}! Let's ace it` : "Let's ace it",
-        userName ? `${userName}'s Interview Prep` : "Interview Prep",
         userName ? `Welcome back, ${userName}!` : "Welcome back!",
         userName ? `${userName}, ready to impress?` : "Ready to impress?"
       ],
       'Improve Presentations': [
         userName ? `Hey ${userName}! Let's captivate` : "Let's captivate",
-        userName ? `${userName}'s Presentation Journey` : "Presentation Journey",
+        userName ? `Welcome back, ${userName}!` : "Welcome back!",
+        userName ? `${userName}, ready to present?` : "Ready to present?"
+      ],
+      'Presentation Skills': [
+        userName ? `Hey ${userName}! Let's captivate` : "Let's captivate",
         userName ? `Welcome back, ${userName}!` : "Welcome back!",
         userName ? `${userName}, ready to present?` : "Ready to present?"
       ],
       'Better Communication': [
         userName ? `Hey ${userName}! Let's connect` : "Let's connect",
-        userName ? `${userName}'s Communication Journey` : "Communication Journey",
         userName ? `Welcome back, ${userName}!` : "Welcome back!",
         userName ? `${userName}, ready to grow?` : "Ready to grow?"
       ],
       'Leadership Presence': [
         userName ? `Hey ${userName}! Let's lead` : "Let's lead",
-        userName ? `${userName}'s Leadership Journey` : "Leadership Journey",
         userName ? `Welcome back, ${userName}!` : "Welcome back!",
         userName ? `${userName}, ready to inspire?` : "Ready to inspire?"
       ],
+      'Executive Presence': [
+        userName ? `Hey ${userName}! Let's lead` : "Let's lead",
+        userName ? `Welcome back, ${userName}!` : "Welcome back!",
+        userName ? `${userName}, ready to inspire?` : "Ready to inspire?"
+      ],
+      'Content Creator': [
+        userName ? `Hey ${userName}! Let's create` : "Let's create",
+        userName ? `Welcome back, ${userName}!` : "Welcome back!",
+        userName ? `${userName}, ready to record?` : "Ready to record?"
+      ],
       'Dating & Romantic': [
         userName ? `Hey ${userName}! Let's connect` : "Let's connect",
-        userName ? `${userName}'s Dating Journey` : "Dating Journey",
         userName ? `Welcome back, ${userName}!` : "Welcome back!",
         userName ? `${userName}, ready to impress?` : "Ready to impress?"
       ],
       'Social Confidence': [
         userName ? `Hey ${userName}! Let's socialize` : "Let's socialize",
-        userName ? `${userName}'s Social Journey` : "Social Journey",
         userName ? `Welcome back, ${userName}!` : "Welcome back!",
         userName ? `${userName}, ready to shine?` : "Ready to shine?"
       ],
       'General Improvement': [
         userName ? `Hey ${userName}! Let's grow` : "Let's grow",
-        userName ? `${userName}'s Growth Journey` : "Growth Journey",
         userName ? `Welcome back, ${userName}!` : "Welcome back!",
         userName ? `${userName}, ready to improve?` : "Ready to improve?"
       ]
@@ -570,21 +630,31 @@ function ExpandableDashboardText({ text, collapsedLines = 2 }) {
 
     // Fallback: generic encouraging title
     if (userName) {
-      return `Hey ${userName}! Your communication journey continues`;
+      return `Welcome back, ${userName}!`;
     }
-    return "Your Body Language Journey";
+    return "Your Dashboard";
   };
 
   if (loading) {
     return (
       <div className="dashboard">
-        <div className="dashboard__loading">Loading your progress...</div>
+        <LoadingSpinner message="Loading your dashboard..." size="large" />
       </div>
     );
   }
 
   return (
     <div className="dashboard">
+      {/* Celebration Modal */}
+      <CelebrationModal
+        isOpen={showCelebration}
+        onClose={handleCloseCelebration}
+        improvement={celebrationData?.improvement || 0}
+        metric={celebrationData?.metric || 'overall'}
+        currentScore={celebrationData?.currentScore || 0}
+        previousScore={celebrationData?.previousScore || 0}
+      />
+
       <JourneySwitcher
         className="dashboard__journeyTabs"
         journeys={journeys}
@@ -601,11 +671,60 @@ function ExpandableDashboardText({ text, collapsedLines = 2 }) {
       <div className="dashboard__header">
         <div className="dashboard__headerContent">
           <h1 className="dashboard__title">{getDashboardTitle()}</h1>
-          <button className="btn btn--primary" onClick={onNewAnalysis}>
-            + New Analysis
-          </button>
+          {!isNewUser && (
+            <button className="btn btn--primary" onClick={onNewAnalysis}>
+              + New Analysis
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Welcome Section for New Users - AT THE TOP */}
+      {isNewUser && (
+        <div className="dashboard__welcome dashboard__welcome--prominent">
+          <div className="dashboard__welcomeCard">
+            <div className="dashboard__welcomeHeader">
+              <Sparkles size={32} className="dashboard__welcomeIcon" />
+              <div>
+                <h2 className="dashboard__welcomeTitle">Let's get started!</h2>
+                <p className="dashboard__welcomeSubtitle">Your first analysis is free. Here's how it works:</p>
+              </div>
+            </div>
+            
+            <div className="dashboard__welcomeSteps">
+              <div className="dashboard__welcomeStep">
+                <span className="dashboard__stepNumber">1</span>
+                <div className="dashboard__stepContent">
+                  <strong>Record a short video</strong>
+                  <p>30 seconds to 2 minutes of you speaking naturally</p>
+                </div>
+              </div>
+              <div className="dashboard__welcomeStep">
+                <span className="dashboard__stepNumber">2</span>
+                <div className="dashboard__stepContent">
+                  <strong>Upload and get instant feedback</strong>
+                  <p>Our AI analyzes your body language and voice</p>
+                </div>
+              </div>
+              <div className="dashboard__welcomeStep">
+                <span className="dashboard__stepNumber">3</span>
+                <div className="dashboard__stepContent">
+                  <strong>Review your personalized tips</strong>
+                  <p>Get actionable advice tailored to your goals</p>
+                </div>
+              </div>
+            </div>
+            
+            <button className="btn btn--primary btn--large dashboard__welcomeCta" onClick={onNewAnalysis}>
+              Upload Your First Video
+            </button>
+            
+            <p className="dashboard__welcomeNote">
+              Takes about a minute. Your video is analyzed securely and never shared.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Profile Card */}
       {latestMetrics && (
@@ -655,6 +774,15 @@ function ExpandableDashboardText({ text, collapsedLines = 2 }) {
             )}
           </div>
         </div>
+      )}
+
+      {/* Before/After Comparison - Show when user has 2+ analyses */}
+      {progressData.metrics && progressData.metrics.length >= 2 && (
+        <BeforeAfterComparison
+          firstAnalysis={progressData.metrics[0]}
+          latestAnalysis={progressData.metrics[progressData.metrics.length - 1]}
+          allMetrics={progressData.metrics}
+        />
       )}
 
       {/* Progress Chart */}
@@ -928,7 +1056,7 @@ function ExpandableDashboardText({ text, collapsedLines = 2 }) {
           <div className="journalCard">
             <h3 className="journalCard__title">
               <ListTodo size={20} />
-              Action Items
+              Next Steps
             </h3>
             <div className="journalCard__list">
               {progressData.actionItems && progressData.actionItems.length > 0 ? (
@@ -955,7 +1083,7 @@ function ExpandableDashboardText({ text, collapsedLines = 2 }) {
                   </div>
                 ))
               ) : (
-                <p className="journalCard__empty">No action items yet. Complete your first analysis to see action items here.</p>
+                <p className="journalCard__empty">No tips yet. Complete your first analysis to get personalized next steps.</p>
               )}
             </div>
           </div>
@@ -991,33 +1119,19 @@ function ExpandableDashboardText({ text, collapsedLines = 2 }) {
         </div>
       </div>
 
-      {/* Empty State */}
-      {!latestMetrics && progressData.metrics.length === 0 && (
-        <div className="dashboard__empty">
-          <div className="dashboard__emptyIcon">
-            <BarChart3 size={64} />
-          </div>
-          <h2>No analyses yet</h2>
-          <p>Upload your first video to get personalized body language insights and start tracking your progress</p>
-          <button className="btn btn--primary" onClick={onNewAnalysis}>
-            Start Your First Analysis
-          </button>
-        </div>
-      )}
-
       {journeyModalOpen && (
         <div className="journeyModalOverlay">
           <div className="journeyModalCard">
             <div className="journeyModal__header">
               <div>
-                <p className="journeyModal__eyebrow">New focus journey</p>
-                <h3>Create a new focus journey</h3>
+                <p className="journeyModal__eyebrow">New practice goal</p>
+                <h3>Set a new practice goal</h3>
               </div>
               <button
                 type="button"
                 className="journeyModal__close"
                 onClick={() => !journeyModalSubmitting && setJourneyModalOpen(false)}
-                aria-label="Close new journey modal"
+                aria-label="Close modal"
               >
                 ×
               </button>

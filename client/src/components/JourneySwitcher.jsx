@@ -40,7 +40,7 @@ export default function JourneySwitcher({
           <div>
             <p className="journeyTabs__emptyTitle">No focuses yet</p>
             <p className="journeyTabs__emptySubtitle">
-              Start a personalized journey (presentations, confidence, interviews, dating, and more) to unlock tailored coaching.
+              Choose a goal (presentations, confidence, interviews, and more) to get personalized coaching.
             </p>
           </div>
           {onAddJourney && (
