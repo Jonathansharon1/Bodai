@@ -2,14 +2,15 @@ import React from 'react';
 
 const formatGoalLabel = (slug) => {
   const labels = {
-    confidence: 'Build Self-Confidence',
-    interview: 'Job Interview Prep',
-    presentation: 'Presentations & Speeches',
+    confidence: 'Build Confidence',
+    content: 'Content Creator',
+    presentation: 'Presentation Skills',
     communication: 'Better Communication',
-    leadership: 'Leadership Presence',
+    leadership: 'Executive Presence',
     dating: 'Dating & Romantic',
     social: 'Social Confidence',
-    general: 'General Improvement'
+    general: 'General Improvement',
+    interview: 'Job Interview Prep' // Legacy support
   };
   if (!slug) return 'Focus';
   return labels[slug] || slug.charAt(0).toUpperCase() + slug.slice(1);
@@ -69,10 +70,7 @@ export default function JourneySwitcher({
             onClick={() => journey.id !== activeJourneyId && onSelectJourney?.(journey.id)}
           >
             <span className="journeyTab__title">{label}</span>
-            <span className="journeyTab__meta">
-              {journey.status === 'archived' ? 'Archived' : 'Active'}
-              {journey.is_default && journey.status !== 'archived' && ' · Default'}
-            </span>
+   
           </button>
         );
       })}

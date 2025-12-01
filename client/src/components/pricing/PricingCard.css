@@ -27,23 +27,6 @@
   gap: 20px;
 }
 
-.pricingCard__badge {
-  align-self: flex-start;
-  padding: 6px 16px;
-  font-size: 12px;
-  font-weight: 600;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.06);
-  color: var(--text-dark);
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-}
-
-.pricingCard--recommended .pricingCard__badge {
-  background: rgba(99, 102, 241, 0.18);
-  color: #4338ca;
-}
-
 .pricingCard__header {
   display: flex;
   flex-direction: column;
@@ -100,16 +83,29 @@
   margin: 0;
 }
 
-.pricingCard__analyses {
-  display: inline-flex;
-  padding: 8px 18px;
-  border-radius: 999px;
-  font-size: 14px;
-  font-weight: 600;
-  background: rgba(99, 102, 241, 0.12);
+.pricingCard__stats {
+  margin-top: 4px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.pricingCard__stats ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
   color: var(--text-dark);
-  letter-spacing: 0.02em;
-  align-self: flex-start;
+}
+
+.pricingCard__stats li::before {
+  content: '•';
+  display: inline-block;
+  margin-right: 6px;
+  color: #64748b;
 }
 
 .pricingCard__cta {
@@ -163,22 +159,7 @@
   margin: 0;
 }
 
-.pricingCard--slate .pricingCard__analyses {
-  background: rgba(148, 163, 184, 0.25);
-}
-
-.pricingCard--teal .pricingCard__analyses {
-  background: rgba(45, 212, 191, 0.22);
-}
-
-.pricingCard--indigo .pricingCard__analyses {
-  background: rgba(99, 102, 241, 0.25);
-}
-
-.pricingCard--graphite .pricingCard__analyses {
-  background: rgba(15, 23, 42, 0.1);
-  color: var(--text-dark);
-}
+/* We keep card theme modifiers for potential future use, but the stats bubble is neutral */
 
 @media (max-width: 768px) {
   .pricingCard {

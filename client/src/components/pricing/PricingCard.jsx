@@ -37,10 +37,6 @@ export default function PricingCard({ plan, billingPeriod, onSelect, isSignedIn 
   return (
     <div className={cardClassNames}>
       <div className="pricingCard__shell">
-        {plan.badgeText && (
-          <span className="pricingCard__badge">{plan.badgeText}</span>
-        )}
-
         <div className="pricingCard__header">
           <h3 className="pricingCard__name">{plan.name}</h3>
           {plan.valueText && <p className="pricingCard__summary">{plan.valueText}</p>}
@@ -49,12 +45,17 @@ export default function PricingCard({ plan, billingPeriod, onSelect, isSignedIn 
         <div className="pricingCard__pricePanel">
           <div className="price__amount">
             <span className="price__number">
-              {plan.price === 0 ? 'Free' : `$${displayPrice}`}
+              {`$${displayPrice}`}
             </span>
-            {plan.price !== 0 && <span className="price__period">/mo</span>}
+            <span className="price__period">/mo</span>
           </div>
           <p className="price__note">{billingText}</p>
-          <div className="pricingCard__analyses">{plan.analysesText}</div>
+          <div className="pricingCard__stats">
+            <ul>
+              {plan.analysesPerMonth && <li>{plan.analysesPerMonth}</li>}
+              {plan.durationText && <li>{plan.durationText}</li>}
+            </ul>
+          </div>
         </div>
 
         <div className="pricingCard__cta">

@@ -7,7 +7,8 @@ import {
   TrendingUp, 
   Gem, 
   Settings,
-  Home
+  Home,
+  Target
 } from 'lucide-react';
 import Logo from '../Logo';
 import './Sidebar.css';
@@ -39,6 +40,12 @@ const SIDEBAR_ITEMS = [
     path: 'grades',
   },
   {
+    id: 'practice',
+    label: 'Practice',
+    icon: Target,
+    path: 'practice',
+  },
+  {
     id: 'subscription',
     label: 'Subscription',
     icon: Gem,
@@ -63,6 +70,7 @@ export default function Sidebar() {
     if (path === '/dashboard') return 'dashboard';
     if (path === '/analyses') return 'analyses';
     if (path === '/grades') return 'grades';
+    if (path === '/practice') return 'practice';
     if (path === '/subscription') return 'subscription';
     if (path === '/settings') return 'settings';
     return 'dashboard';

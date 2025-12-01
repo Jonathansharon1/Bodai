@@ -19,6 +19,7 @@ import VideoPlayer from '../components/VideoPlayer';
 import AnalysisResult from '../components/AnalysisResult';
 import ReflectionPrompt from '../components/ReflectionPrompt';
 import LoadingView from '../components/LoadingView';
+import FirstUploadGuide from '../components/FirstUploadGuide';
 import './AnalysisPage.css';
 import { getPromptById } from '../config/recordingPrompts';
 
@@ -130,6 +131,13 @@ export default function AnalysisPage({
   const [selectedPrompt, setSelectedPrompt] = useState(null);
   const [practiceAcknowledged, setPracticeAcknowledged] = useState(false);
   const [practiceAckTouched, setPracticeAckTouched] = useState(false);
+  const [showFirstUploadGuide, setShowFirstUploadGuide] = useState(() => {
+    // Show guide on first visit to /new-analysis if user hasn't completed an analysis
+    if (!hasCompletedAnalysis && !id) {
+      return !localStorage.getItem('bodai_first_upload_guide_seen');
+    }
+    return false;
+  });
 
   useEffect(() => {
     if (currentAnalysisData) return;
@@ -352,6 +360,11 @@ export default function AnalysisPage({
 
   return (
     <div className="analysisPage">
+      <FirstUploadGuide 
+        isOpen={showFirstUploadGuide}
+        onClose={() => setShowFirstUploadGuide(false)}
+        userGoal={activeGoal}
+      />
       {/* Top Navigation Bar */}
       <div className="analysisPage__topNav">
         <div className="analysisPage__topNavContent">
@@ -609,7 +622,7 @@ export default function AnalysisPage({
                         <div>
                               <p className="analysisPage__cardTitle">Optional Quick Exercise</p>
                           <span className="analysisPage__cardSubtitle">
-                                {selectedPrompt ? `Focus: ${selectedPrompt.title}` : "Try a quick drill when you're ready—totally optional"}
+                                {selectedPrompt ? `Focus: ${selectedPrompt.title}` : "Try a quick drill when you're ready(optional)"}
                           </span>
                         </div>
                       </div>
@@ -656,29 +669,12 @@ export default function AnalysisPage({
                         </div>
                       ) : (
                         <div className="analysisPage__promptBody analysisPage__promptBody--empty">
-                              <p>Tap "Try optional practice" on any tip above to try a quick exercise.</p>
+                              <p>Tap "Try optional practice" on any tip above to try a quick exercise before your next analysis.</p>
                         </div>
                       )}
                     </div>
 
-                    {selectedPrompt && (
-                      <div className={`practiceAck ${practiceAckTouched && !practiceAcknowledged ? 'practiceAck--error' : ''}`}>
-                        <label>
-                          <input
-                            type="checkbox"
-                            checked={practiceAcknowledged}
-                            onChange={(event) => {
-                              setPracticeAcknowledged(event.target.checked);
-                              setPracticeAckTouched(true);
-                            }}
-                          />
-                          <span>I ran this drill before analyzing this session.</span>
-                        </label>
-                        {practiceAckTouched && !practiceAcknowledged && (
-                          <p className="practiceAck__error">Check this once you've attempted the drill.</p>
-                        )}
-                      </div>
-                        )}
+                        
                       </>
                     )}
 

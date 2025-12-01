@@ -17,6 +17,7 @@ import './MyAnalysesPage.css';
 import { getPromptById } from '../config/recordingPrompts';
 import JourneySwitcher from '../components/JourneySwitcher';
 import LoadingSpinner from '../components/LoadingSpinner';
+import EmptyState from '../components/EmptyState';
 
 export default function MyAnalysesPage({
   onViewAnalysis,
@@ -185,13 +186,15 @@ export default function MyAnalysesPage({
             <span>New Analysis</span>
           </button>
         </div>
-        <div className="myAnalysesPage__empty">
-          <p>
-            {focusLabel
-              ? `No analyses yet for ${focusLabel}. Upload a video to begin tracking this focus.`
-              : 'No analyses yet. Start your first analysis to see it here.'}
-          </p>
-        </div>
+        <EmptyState
+          variant="analyses"
+          title={focusLabel ? `No ${focusLabel} analyses yet` : "No analyses yet"}
+          description={focusLabel
+            ? `Upload a video to begin tracking your ${focusLabel} communication journey. Get instant AI-powered feedback on your body language, voice, and presence.`
+            : "Start your first analysis to see your video insights here. Get instant AI-powered feedback on your body language, voice, and presence."}
+          actionLabel="Upload Your First Video"
+          onAction={() => navigate('/new-analysis')}
+        />
       </div>
     );
   }

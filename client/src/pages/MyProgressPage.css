@@ -930,6 +930,15 @@
   color: #0f172a;
 }
 
+.focusCard__practiceButton {
+  margin-top: 20px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
 .focusCard__toggle {
   margin-top: 14px;
   width: 100%;
@@ -999,6 +1008,152 @@
 .focusPlan__item--meta p {
   color: #475569;
   font-weight: 600;
+}
+
+/* Practice Missions Section */
+.focusCard__missions {
+  margin-top: 20px;
+  padding: 20px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 2px solid #fbbf24;
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.2);
+}
+
+.focusCard__missionsHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  position: relative;
+}
+
+.focusCard__missionsRefresh {
+  margin-left: auto;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(217, 119, 6, 0.3);
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #d97706;
+  transition: all 0.2s ease;
+  font-size: 14px;
+}
+
+.focusCard__missionsRefresh:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 1);
+  border-color: rgba(217, 119, 6, 0.5);
+  transform: scale(1.05);
+}
+
+.focusCard__missionsRefresh:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.focusCard__missionsRefreshSpinner {
+  display: inline-block;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.focusCard__missionsIcon {
+  color: #d97706;
+  flex-shrink: 0;
+}
+
+.focusCard__missionsTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: #92400e;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.focusCard__missionsSubtitle {
+  font-size: 13px;
+  color: #78350f;
+  margin: 0 0 16px 0;
+  font-weight: 500;
+}
+
+.focusCard__missionsList {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.focusCard__missionItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 12px;
+  border: 1px solid rgba(217, 119, 6, 0.2);
+  transition: all 0.2s ease;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #0f172a;
+}
+
+.focusCard__missionItem:hover {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(217, 119, 6, 0.4);
+  transform: translateX(4px);
+}
+
+.focusCard__missionIcon {
+  color: #d97706;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.focusCard__missionItem span {
+  flex: 1;
+}
+
+.focusCard__missionsLoading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  gap: 12px;
+}
+
+.focusCard__missionsLoadingSpinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(217, 119, 6, 0.2);
+  border-top: 3px solid #d97706;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.focusCard__missionsLoading p {
+  margin: 0;
+  color: #78350f;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.focusCard__missionsEmpty {
+  padding: 20px;
+  text-align: center;
+  color: #78350f;
+  font-size: 14px;
+  font-style: italic;
 }
 
 /* What's Getting Better - STANDARD CARDS */

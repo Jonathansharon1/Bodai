@@ -5,7 +5,7 @@
 
 export const parseActionItems = (text) => {
   if (!text) return [];
-
+  
   // Try new Communication/Body Language Tips format first
   const modernItems = parseTipSections(text);
   if (modernItems.length > 0) {

@@ -5,6 +5,57 @@ import { BrowserRouter } from 'react-router-dom';
 import './index.css';
 import App from './App';
 
+// Clear Clerk redirect URLs BEFORE anything else runs
+// This must happen before ClerkProvider initializes
+(function clearClerkRedirectsImmediately() {
+  try {
+    const pathname = window.location.pathname;
+    const isAuthPage = pathname === '/sign-in' || 
+                       pathname === '/sign-up' || 
+                       pathname.startsWith('/sign-in/') || 
+                       pathname.startsWith('/sign-up/');
+    
+    if (!isAuthPage) {
+      console.log('[index.js] Clearing Clerk redirect URLs for pathname:', pathname);
+      
+      // Clear from sessionStorage
+      Object.keys(sessionStorage).forEach(key => {
+        const lowerKey = key.toLowerCase();
+        if (lowerKey.includes('clerk') && 
+            (lowerKey.includes('redirect') || 
+             lowerKey.includes('aftersign') ||
+             lowerKey.includes('signin') ||
+             lowerKey.includes('signup'))) {
+          console.log('[index.js] Removing Clerk redirect key from sessionStorage:', key);
+          sessionStorage.removeItem(key);
+        }
+      });
+      
+      // Clear from localStorage
+      Object.keys(localStorage).forEach(key => {
+        const lowerKey = key.toLowerCase();
+        if (lowerKey.includes('clerk') && 
+            (lowerKey.includes('redirect') || lowerKey.includes('aftersign'))) {
+          console.log('[index.js] Removing Clerk redirect key from localStorage:', key);
+          localStorage.removeItem(key);
+        }
+      });
+      
+      // Clear from URL params
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.has('__clerk_redirect_url') || urlParams.has('redirect_url')) {
+        console.log('[index.js] Found redirect URL in params, clearing it');
+        urlParams.delete('__clerk_redirect_url');
+        urlParams.delete('redirect_url');
+        const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+        window.history.replaceState({}, '', newUrl);
+      }
+    }
+  } catch (e) {
+    console.error('[index.js] Error clearing Clerk redirects:', e);
+  }
+})();
+
 // For React Scripts (create-react-app), use REACT_APP_ prefix
 // For Vite, use VITE_ prefix instead
 const PUBLISHABLE_KEY = process.env.REACT_APP_CLERK_PUBLISHABLE_KEY;
@@ -182,6 +233,54 @@ const clerkAppearance = {
     termsPageUrl: '/terms',
   },
 };
+
+// Clear Clerk redirect URLs IMMEDIATELY on page load, before React renders
+// This prevents Clerk from redirecting when refreshing pages
+(function clearClerkRedirects() {
+  try {
+    // Only clear if we're NOT on sign-in/sign-up pages
+    const pathname = window.location.pathname;
+    const isAuthPage = pathname === '/sign-in' || 
+                       pathname === '/sign-up' || 
+                       pathname.startsWith('/sign-in/') || 
+                       pathname.startsWith('/sign-up/');
+    
+    if (!isAuthPage) {
+      // Clear from sessionStorage
+      Object.keys(sessionStorage).forEach(key => {
+        const lowerKey = key.toLowerCase();
+        if (lowerKey.includes('clerk') && 
+            (lowerKey.includes('redirect') || 
+             lowerKey.includes('aftersign') ||
+             lowerKey.includes('signin') ||
+             lowerKey.includes('signup'))) {
+          sessionStorage.removeItem(key);
+        }
+      });
+      
+      // Clear from localStorage
+      Object.keys(localStorage).forEach(key => {
+        const lowerKey = key.toLowerCase();
+        if (lowerKey.includes('clerk') && 
+            (lowerKey.includes('redirect') || 
+             lowerKey.includes('aftersign'))) {
+          localStorage.removeItem(key);
+        }
+      });
+      
+      // Clear from URL params
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.has('__clerk_redirect_url') || urlParams.has('redirect_url')) {
+        urlParams.delete('__clerk_redirect_url');
+        urlParams.delete('redirect_url');
+        const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+        window.history.replaceState({}, '', newUrl);
+      }
+    }
+  } catch (e) {
+    // Ignore errors
+  }
+})();
 
 const container = document.getElementById('root');
 const root = createRoot(container);

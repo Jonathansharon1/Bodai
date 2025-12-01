@@ -156,8 +156,50 @@ export default function OnboardingQuestions({ onComplete }) {
     ? (submitting ? 'Getting started...' : 'Get Started') 
     : 'Continue';
 
+  const getStepContext = () => {
+    switch(step) {
+      case 1:
+        return {
+          explanation: "This helps us personalize your experience and tailor feedback to your specific goals.",
+          preview: goal ? `You'll get personalized tips for ${GOALS.find(g => g.id === goal)?.label || 'your goal'}` : null
+        };
+      case 2:
+        return {
+          explanation: "Understanding your confidence level helps us adjust our feedback style and recommendations.",
+          preview: confidence ? `We'll adapt our coaching to match your ${CONFIDENCE_LEVELS.find(c => c.id === confidence)?.label.toLowerCase() || 'confidence'} level` : null
+        };
+      case 3:
+        return {
+          explanation: "This helps us suggest the right practice schedule and set realistic expectations.",
+          preview: practiceFrequency ? `We'll recommend a practice plan that fits your ${PRACTICE_FREQUENCY.find(p => p.id === practiceFrequency)?.label.toLowerCase() || 'schedule'} schedule` : null
+        };
+      default:
+        return { explanation: "", preview: null };
+    }
+  };
+
+  const stepContext = getStepContext();
+
   return (
     <div className="onboardingQuestions">
+      {/* Progress Bar */}
+      <div className="onboardingQuestions__progressBar">
+        <div 
+          className="onboardingQuestions__progressFill"
+          style={{ width: `${(step / totalSteps) * 100}%` }}
+        />
+      </div>
+
+      {/* Context Explanation */}
+      {stepContext.explanation && (
+        <div className="onboardingQuestions__context">
+          <p className="onboardingQuestions__contextText">{stepContext.explanation}</p>
+          {stepContext.preview && (
+            <p className="onboardingQuestions__preview">{stepContext.preview}</p>
+          )}
+        </div>
+      )}
+
       {step === 1 && (
         <div className="onboardingQuestions__step">
           <label className="onboardingQuestions__label">

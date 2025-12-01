@@ -51,6 +51,7 @@ export const sendEmail = async ({
   }
 
   try {
+    console.log(`[Email] Attempting to send ${emailType} to ${to} from ${EMAIL_FROM}`);
     const result = await resend.emails.send({
       from: `${EMAIL_FROM_NAME} <${EMAIL_FROM}>`,
       to: [to],
@@ -58,6 +59,26 @@ export const sendEmail = async ({
       html,
       text: text || html.replace(/<[^>]*>/g, ''), // Strip HTML for text version
     });
+
+    // Debug: Log the full result structure
+    console.log(`[Email] Resend API response for ${emailType}:`, JSON.stringify({
+      hasError: !!result.error,
+      hasData: !!result.data,
+      dataId: result.data?.id,
+      errorMessage: result.error?.message
+    }));
+
+    // Check if the result indicates success
+    if (result.error) {
+      console.error(`[Email] Resend API returned error for ${emailType} to ${to}:`, result.error);
+      throw new Error(result.error.message || JSON.stringify(result.error));
+    }
+
+    // Check if we got a valid response
+    if (!result.data || !result.data.id) {
+      console.error(`[Email] Resend API returned invalid response for ${emailType} to ${to}:`, JSON.stringify(result, null, 2));
+      throw new Error('Invalid response from Resend API: missing data.id');
+    }
 
     // Log email in database
     if (userId) {
@@ -70,7 +91,7 @@ export const sendEmail = async ({
           status: 'sent',
           metadata: {
             ...metadata,
-            resendId: result.data?.id
+            resendId: result.data.id
           }
         });
       } catch (logError) {
@@ -78,10 +99,13 @@ export const sendEmail = async ({
       }
     }
 
-    console.log(`[Email] Sent ${emailType} to ${to} (ID: ${result.data?.id})`);
+    console.log(`[Email] ✅ Sent ${emailType} to ${to} (ID: ${result.data.id})`);
     return { success: true, data: result.data };
   } catch (error) {
-    console.error(`[Email] Failed to send ${emailType} to ${to}:`, error.message);
+    console.error(`[Email] ❌ Failed to send ${emailType} to ${to}:`, error.message);
+    if (error.stack) {
+      console.error('[Email] Error stack:', error.stack);
+    }
 
     // Log failed email
     if (userId) {

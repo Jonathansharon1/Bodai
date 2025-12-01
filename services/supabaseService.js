@@ -208,6 +208,7 @@ export const syncUserProfile = async (clerkUserId, userProfile = {}) => {
 
 const GOAL_LABELS = {
   confidence: 'Build Self-Confidence',
+  content: 'Content Creator',
   interview: 'Job Interview Preparation',
   presentation: 'Improve Presentations',
   communication: 'Better Communication',
@@ -510,8 +511,11 @@ export const getUserWithSubscription = async (clerkUserId) => {
 const getSubscriptionLimits = (subscriptionType) => {
   const limits = {
     free: { analyses: 1 },
-    basic: { analyses: 12 },
+    // Starter / Basic: light practice
+    basic: { analyses: 8 },
+    // Pro: serious practice
     premium: { analyses: 20 },
+    // Unlimited: heavy users / teams
     pro: { analyses: -1 } // unlimited
   };
   return limits[subscriptionType] || limits.free;
@@ -820,6 +824,11 @@ if (analysisData.rawMetrics) {
     'raw_metrics'
   ];
 
+  // Track which columns we've already warned about to avoid spam
+  if (!global.warnedMissingColumns) {
+    global.warnedMissingColumns = new Set();
+  }
+
   let attemptData = { ...insertData };
   let data = null;
 
@@ -837,7 +846,11 @@ if (analysisData.rawMetrics) {
 
     const missingColumn = removableColumns.find(col => result.error.message?.includes(col));
     if (missingColumn) {
-      console.warn(`⚠️  ${missingColumn} column not found in database! Please run the latest migration.`);
+      // Only warn once per column per server session
+      if (!global.warnedMissingColumns.has(missingColumn)) {
+        console.warn(`⚠️  Database column '${missingColumn}' not found. Run migration: migration_add_analysis_versioning.sql`);
+        global.warnedMissingColumns.add(missingColumn);
+      }
       const { [missingColumn]: _, ...rest } = attemptData;
       attemptData = rest;
       continue;
@@ -1525,6 +1538,11 @@ export const saveActionItems = async (userId, analysisId, actionItems, options =
       'practice_prompt_version'
     ];
 
+    // Track which columns we've already warned about to avoid spam
+    if (!global.warnedMissingColumns) {
+      global.warnedMissingColumns = new Set();
+    }
+
     let attemptPayload = { ...insertPayload };
     while (true) {
       const result = await supabase
@@ -1540,7 +1558,12 @@ export const saveActionItems = async (userId, analysisId, actionItems, options =
 
       const missingColumn = removableColumns.find(col => result.error.message?.includes(col));
       if (missingColumn) {
-        console.warn(`⚠️  ${missingColumn} column missing on action_items. Please run migrations.`);
+        // Only warn once per column per server session
+        const warningKey = `action_items.${missingColumn}`;
+        if (!global.warnedMissingColumns.has(warningKey)) {
+          console.warn(`⚠️  Database column 'action_items.${missingColumn}' not found. Run migration: migration_add_practice_prompt_fields.sql`);
+          global.warnedMissingColumns.add(warningKey);
+        }
         const { [missingColumn]: _, ...rest } = attemptPayload;
         attemptPayload = rest;
         continue;
@@ -1850,6 +1873,404 @@ export const saveSelfReflection = async (clerkUserId, reflection = {}) => {
 
   console.log('[saveSelfReflection] Successfully saved reflection:', data.id);
   return data;
+};
+
+/**
+ * Save practice missions for a user/parameter/journey
+ * If missions already exist, they will be replaced (due to UNIQUE constraint)
+ */
+export const savePracticeMissions = async (clerkUserId, {
+  journeyId = null,
+  parameterKey,
+  parameterLabel,
+  parameterDescription = null,
+  currentScore,
+  targetScore = 7.5,
+  missions, // Array of mission strings
+  trend = null,
+  userContext = {},
+  aiModelVersion = null,
+  analysisId = null
+}) => {
+  if (!supabase) {
+    console.warn('Supabase not initialized. Cannot save practice missions.');
+    return null;
+  }
+
+  const userId = await getOrCreateUser(clerkUserId);
+  if (!userId) {
+    throw new Error('Failed to get or create user');
+  }
+
+  // Delete existing missions for this user/parameter/journey combination
+  // (due to UNIQUE constraint, we need to delete first)
+  const deleteQuery = supabase
+    .from('practice_missions')
+    .delete()
+    .eq('user_id', userId)
+    .eq('parameter_key', parameterKey);
+  
+  if (journeyId) {
+    deleteQuery.eq('journey_id', journeyId);
+  } else {
+    deleteQuery.is('journey_id', null);
+  }
+
+  await deleteQuery;
+
+  // Insert new missions
+  // Build insert payload, conditionally including analysis_id if it exists in schema
+  const insertPayload = {
+    user_id: userId,
+    journey_id: journeyId,
+    parameter_key: parameterKey,
+    parameter_label: parameterLabel,
+    parameter_description: parameterDescription,
+    current_score: currentScore,
+    target_score: targetScore,
+    missions: missions, // JSONB array
+    trend_direction: trend?.direction || null,
+    trend_change: trend?.change || null,
+    user_context: userContext,
+    ai_model_version: aiModelVersion,
+    score_at_generation: currentScore,
+    is_stale: false
+  };
+
+  // Only include analysis_id if provided (column may not exist in older migrations)
+  // We'll try to include it, but if the column doesn't exist, we'll catch the error and retry without it
+  if (analysisId) {
+    insertPayload.analysis_id = analysisId;
+  }
+
+  let { data, error } = await supabase
+    .from('practice_missions')
+    .insert(insertPayload)
+    .select()
+    .single();
+
+  // If error is about missing columns, retry without them
+  if (error && error.message) {
+    const missingColumns = [];
+    if (error.message.includes('analysis_id')) {
+      missingColumns.push('analysis_id');
+      delete insertPayload.analysis_id;
+    }
+    if (error.message.includes('is_stale')) {
+      missingColumns.push('is_stale');
+      delete insertPayload.is_stale;
+    }
+    if (error.message.includes('score_at_generation')) {
+      missingColumns.push('score_at_generation');
+      delete insertPayload.score_at_generation;
+    }
+    
+    if (missingColumns.length > 0) {
+      console.warn(`[savePracticeMissions] Columns not found: ${missingColumns.join(', ')}, retrying without them`);
+      const retryResult = await supabase
+        .from('practice_missions')
+        .insert(insertPayload)
+        .select()
+        .single();
+      data = retryResult.data;
+      error = retryResult.error;
+    }
+  }
+
+  if (error) {
+    console.error('Error saving practice missions:', error);
+    throw new Error(`Failed to save practice missions: ${error.message}`);
+  }
+
+  console.log(`Saved ${missions.length} practice missions for parameter ${parameterKey}`);
+  return data;
+};
+
+/**
+ * Get practice missions for a user/parameter/journey
+ * Also checks if missions are stale based on current score
+ */
+export const getPracticeMissions = async (clerkUserId, parameterKey, journeyId = null, currentScore = null) => {
+  if (!supabase) {
+    return null;
+  }
+
+  const userId = await getOrCreateUser(clerkUserId);
+  if (!userId) {
+    return null;
+  }
+
+  let query = supabase
+    .from('practice_missions')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('parameter_key', parameterKey);
+
+  if (journeyId) {
+    query = query.eq('journey_id', journeyId);
+  } else {
+    query = query.is('journey_id', null);
+  }
+
+  const { data, error } = await query.maybeSingle();
+
+  if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
+    console.error('Error fetching practice missions:', error);
+    return null;
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  // Check if missions are stale (score changed by ±1.0 points or more)
+  if (currentScore !== null && data.score_at_generation !== null) {
+    const scoreDiff = Math.abs(parseFloat(currentScore) - parseFloat(data.score_at_generation));
+    if (scoreDiff >= 1.0) {
+      // Mark as stale in database if not already marked
+      if (!data.is_stale) {
+        await supabase
+          .from('practice_missions')
+          .update({ is_stale: true, updated_at: new Date().toISOString() })
+          .eq('id', data.id);
+      }
+      data.is_stale = true;
+      data.score_diff = scoreDiff;
+    }
+  }
+
+  return data;
+};
+
+/**
+ * Get all practice missions for a user/journey
+ */
+export const getAllPracticeMissions = async (clerkUserId, journeyId = null) => {
+  if (!supabase) {
+    return [];
+  }
+
+  const userId = await getOrCreateUser(clerkUserId);
+  if (!userId) {
+    return [];
+  }
+
+  let query = supabase
+    .from('practice_missions')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (journeyId) {
+    query = query.eq('journey_id', journeyId);
+  } else {
+    query = query.is('journey_id', null);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('Error fetching all practice missions:', error);
+    return [];
+  }
+
+  return data || [];
+};
+
+/**
+ * Mark a mission as completed
+ */
+export const completeMission = async (clerkUserId, practiceMissionId, missionIndex, parameterKey, journeyId = null, notes = null) => {
+  if (!supabase) {
+    throw new Error('Supabase not initialized');
+  }
+
+  const userId = await getOrCreateUser(clerkUserId);
+  if (!userId) {
+    throw new Error('Failed to get or create user');
+  }
+
+  const { data, error } = await supabase
+    .from('mission_completions')
+    .insert({
+      user_id: userId,
+      practice_mission_id: practiceMissionId,
+      mission_index: missionIndex,
+      parameter_key: parameterKey,
+      journey_id: journeyId,
+      notes: notes
+    })
+    .select()
+    .single();
+
+  if (error) {
+    // If it's a unique constraint violation, mission was already completed
+    if (error.code === '23505') {
+      console.log(`Mission ${missionIndex} for practice_mission ${practiceMissionId} already completed`);
+      return null;
+    }
+    console.error('Error completing mission:', error);
+    throw new Error(`Failed to complete mission: ${error.message}`);
+  }
+
+  console.log(`Mission ${missionIndex} completed for practice_mission ${practiceMissionId}`);
+  return data;
+};
+
+/**
+ * Get completion status for practice missions
+ */
+export const getMissionCompletions = async (clerkUserId, practiceMissionId = null, journeyId = null) => {
+  if (!supabase) {
+    return [];
+  }
+
+  const userId = await getOrCreateUser(clerkUserId);
+  if (!userId) {
+    return [];
+  }
+
+  let query = supabase
+    .from('mission_completions')
+    .select('*')
+    .eq('user_id', userId)
+    .order('completed_at', { ascending: false });
+
+  if (practiceMissionId) {
+    query = query.eq('practice_mission_id', practiceMissionId);
+  }
+
+  if (journeyId) {
+    query = query.eq('journey_id', journeyId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('Error fetching mission completions:', error);
+    return [];
+  }
+
+  return data || [];
+};
+
+/**
+ * Get completion statistics for a user
+ */
+export const getMissionCompletionStats = async (clerkUserId, journeyId = null) => {
+  if (!supabase) {
+    return {
+      totalCompleted: 0,
+      totalMissions: 0,
+      completionRate: 0,
+      streakDays: 0,
+      lastCompletedAt: null
+    };
+  }
+
+  const userId = await getOrCreateUser(clerkUserId);
+  if (!userId) {
+    return {
+      totalCompleted: 0,
+      totalMissions: 0,
+      completionRate: 0,
+      streakDays: 0,
+      lastCompletedAt: null
+    };
+  }
+
+  // Get all completions
+  let completionsQuery = supabase
+    .from('mission_completions')
+    .select('completed_at')
+    .eq('user_id', userId)
+    .order('completed_at', { ascending: false });
+
+  if (journeyId) {
+    completionsQuery = completionsQuery.eq('journey_id', journeyId);
+  }
+
+  const { data: completions, error: completionsError } = await completionsQuery;
+
+  if (completionsError) {
+    console.error('Error fetching completion stats:', completionsError);
+    return {
+      totalCompleted: 0,
+      totalMissions: 0,
+      completionRate: 0,
+      streakDays: 0,
+      lastCompletedAt: null
+    };
+  }
+
+  // Get all practice missions to calculate total
+  const allMissions = await getAllPracticeMissions(clerkUserId, journeyId);
+  const totalMissions = allMissions.reduce((sum, mission) => {
+    const missionsArray = Array.isArray(mission.missions) ? mission.missions : [];
+    return sum + missionsArray.length;
+  }, 0);
+
+  const totalCompleted = completions?.length || 0;
+  const completionRate = totalMissions > 0 ? (totalCompleted / totalMissions) * 100 : 0;
+  const lastCompletedAt = completions && completions.length > 0 ? completions[0].completed_at : null;
+
+  // Calculate streak (consecutive days with at least one completion)
+  let streakDays = 0;
+  if (completions && completions.length > 0) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const completionDates = new Set(
+      completions.map(c => {
+        const date = new Date(c.completed_at);
+        date.setHours(0, 0, 0, 0);
+        return date.getTime();
+      })
+    );
+
+    let currentDate = new Date(today);
+    while (completionDates.has(currentDate.getTime())) {
+      streakDays++;
+      currentDate.setDate(currentDate.getDate() - 1);
+    }
+  }
+
+  return {
+    totalCompleted,
+    totalMissions,
+    completionRate: Math.round(completionRate * 10) / 10,
+    streakDays,
+    lastCompletedAt
+  };
+};
+
+/**
+ * Uncomplete a mission (remove completion)
+ */
+export const uncompleteMission = async (clerkUserId, practiceMissionId, missionIndex) => {
+  if (!supabase) {
+    throw new Error('Supabase not initialized');
+  }
+
+  const userId = await getOrCreateUser(clerkUserId);
+  if (!userId) {
+    throw new Error('Failed to get or create user');
+  }
+
+  const { error } = await supabase
+    .from('mission_completions')
+    .delete()
+    .eq('user_id', userId)
+    .eq('practice_mission_id', practiceMissionId)
+    .eq('mission_index', missionIndex);
+
+  if (error) {
+    console.error('Error uncompleting mission:', error);
+    throw new Error(`Failed to uncomplete mission: ${error.message}`);
+  }
+
+  console.log(`Mission ${missionIndex} uncompleted for practice_mission ${practiceMissionId}`);
+  return true;
 };
 
 export const getSelfReflections = async (clerkUserId, limit = 20, journeyId = null) => {

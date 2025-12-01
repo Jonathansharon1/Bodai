@@ -226,6 +226,39 @@
   margin: 20px 0 0;
 }
 
+/* Sample Script Section */
+.dashboard__sampleScript {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+  margin: 24px 0;
+}
+
+.dashboard__sampleScriptTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+  margin: 0 0 12px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dashboard__sampleScriptContent {
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  border-left: 3px solid #2563eb;
+}
+
+.dashboard__sampleScriptContent p {
+  font-size: 15px;
+  color: #0f172a;
+  line-height: 1.6;
+  margin: 0;
+  font-style: italic;
+}
+
 /* Goals Card */
 .dashboard__goalsCard {
   margin-bottom: 32px;
@@ -787,6 +820,139 @@
 
 .journalCard__expandToggle:hover {
   color: #1d4ed8;
+}
+
+/* Next Action Card */
+.dashboard__nextActionCard {
+  margin-bottom: 32px;
+  position: relative;
+  z-index: 1;
+}
+
+.nextActionCard {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 20px;
+  padding: 28px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.nextActionCard--priority {
+  border: 2px solid #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1), 0 4px 16px rgba(0, 0, 0, 0.04);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%);
+}
+
+.nextActionCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  border-color: rgba(37, 99, 235, 0.3);
+}
+
+.nextActionCard--priority:hover {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15), 0 8px 24px rgba(37, 99, 235, 0.2);
+}
+
+.nextActionCard__priorityBadge {
+  position: absolute;
+  top: -12px;
+  left: 28px;
+  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+  z-index: 1;
+}
+
+.nextActionCard__header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.nextActionCard__icon {
+  color: #2563eb;
+  flex-shrink: 0;
+}
+
+.nextActionCard__title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 4px;
+  letter-spacing: -0.02em;
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+}
+
+.nextActionCard__subtitle {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0;
+}
+
+.nextActionCard__content {
+  margin-bottom: 24px;
+}
+
+.nextActionCard__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.nextActionCard__chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.1);
+}
+
+.nextActionCard__chip--accent {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+}
+
+.nextActionCard__chip--priority {
+  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+  color: white;
+}
+
+.nextActionCard__actionTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 8px;
+  letter-spacing: -0.01em;
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+}
+
+.nextActionCard__actionDescription {
+  font-size: 14px;
+  color: #475569;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.nextActionCard__actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 /* Achievements Card */

@@ -107,7 +107,8 @@ export const validateAnalysisResponse = (response) => {
     }
   }
   
-  // Check action items count (should be 3-4)
+  // Check action items count (should be 6-8: 3-4 communication tips + 3-4 body language tips)
+  // Note: The new prompt format includes separate Communication Tips and Body Language Tips sections
   if (response.text) {
     try {
       const actionItems = parseActionItems(response.text);
@@ -118,23 +119,24 @@ export const validateAnalysisResponse = (response) => {
           severity: 'warning',
           message: 'No action items found in response',
           found: 0,
-          expected: '3-4'
+          expected: '6-8 (3-4 communication + 3-4 body language)'
         });
-      } else if (actionItems.length < 3) {
+      } else if (actionItems.length < 4) {
         issues.push({ 
           type: 'insufficient_action_items', 
           severity: 'warning',
-          message: `Only ${actionItems.length} action items found (expected 3-4)`,
+          message: `Only ${actionItems.length} action items found (expected 6-8: 3-4 communication + 3-4 body language)`,
           found: actionItems.length,
-          expected: '3-4'
+          expected: '6-8'
         });
-      } else if (actionItems.length > 5) {
+      } else if (actionItems.length > 10) {
+        // Only flag if significantly more than expected (allowing for Recording Note, Quick Wins, etc.)
         issues.push({ 
           type: 'too_many_action_items', 
           severity: 'info',
-          message: `${actionItems.length} action items found (expected 3-4)`,
+          message: `${actionItems.length} action items found (expected 6-8 tips, may include extra items like Recording Note)`,
           found: actionItems.length,
-          expected: '3-4'
+          expected: '6-8'
         });
       }
     } catch (parseError) {

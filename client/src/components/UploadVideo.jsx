@@ -1,7 +1,8 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { CheckCircle2, Video, X, Circle, Square } from 'lucide-react';
 
-const MAX_UPLOAD_MB = 250;
+// Keep frontend upload limit in sync with server MAX_VIDEO_SIZE_MB default (500MB)
+const MAX_UPLOAD_MB = 500;
 
 const extractVideoMetadata = (file) => {
   return new Promise((resolve, reject) => {

@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   Target,
   Dumbbell,
@@ -42,6 +42,7 @@ import OnboardingQuestions from './OnboardingQuestions';
 import CelebrationModal from './CelebrationModal';
 import BeforeAfterComparison from './BeforeAfterComparison';
 import LoadingSpinner from './LoadingSpinner';
+import EmptyState from './EmptyState';
 import './Dashboard.css';
 import JourneySwitcher from './JourneySwitcher';
 import PracticeCommitmentAlert from './PracticeCommitmentAlert';
@@ -91,6 +92,7 @@ export default function Dashboard({
 }) {
   const { user } = useUser();
   const location = useLocation();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState(null);
   const [localUserContext, setLocalUserContext] = useState(null);
@@ -115,10 +117,61 @@ export default function Dashboard({
     [journeys, activeJourneyId]
   );
 
+  // Use refs to prevent duplicate API calls
+  const fetchInProgressRef = useRef(false);
+  const lastFetchParamsRef = useRef({ journeyId: null, refreshTrigger: null, pathname: null });
+
+  // Memoize fetchProgressData to prevent unnecessary re-renders
+  const fetchProgressData = useCallback(async (journeyIdParam = activeJourneyId) => {
+    if (!user) return;
+    
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (journeyIdParam) {
+        params.append('journeyId', journeyIdParam);
+      }
+      const endpoint = `${process.env.REACT_APP_API_URL || 'http://localhost:5000/api/communication/progress'}${params.toString() ? `?${params.toString()}` : ''}`;
+      console.log('Fetching dashboard data from:', endpoint, 'with journeyId:', journeyIdParam);
+      const res = await fetch(endpoint, {
+        headers: {
+          'X-Clerk-User-Id': user.id,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        console.log('Dashboard data fetched:', {
+          profile: !!data.profile,
+          latest_metrics: !!data.profile?.latest_metrics,
+          metrics: data.metrics?.length || 0,
+          insights: data.insights?.length || 0,
+          achievements: data.achievements?.length || 0,
+          actionItems: data.actionItems?.length || 0
+        });
+        setProgressData({
+          profile: data.profile || null,
+          metrics: data.metrics || [],
+          insights: data.insights || [],
+          achievements: data.achievements || [],
+          actionItems: data.actionItems || []
+        });
+      } else {
+        console.error('Failed to fetch dashboard data:', res.status, res.statusText);
+        const errorData = await res.json().catch(() => ({}));
+        console.error('Error details:', errorData);
+      }
+    } catch (err) {
+      console.error('Failed to fetch progress data:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [user, activeJourneyId]);
+
   useEffect(() => {
     if (user) {
       fetchUserProfile();
-      fetchProgressData(activeJourneyId);
       // Also check localStorage for fallback
       const savedContext = localStorage.getItem('bodai_user_context');
       if (savedContext) {
@@ -133,10 +186,20 @@ export default function Dashboard({
     }
   }, [user]);
 
-  // Clear and refetch data when activeJourneyId changes (journey switching)
+  // Consolidated effect to handle all data fetching scenarios
   useEffect(() => {
-    if (user && activeJourneyId !== null) {
-      // Clear existing data immediately to avoid showing stale data
+    if (!user) return;
+
+    // Determine if we need to fetch based on what changed
+    const shouldFetch = 
+      activeJourneyId !== lastFetchParamsRef.current.journeyId ||
+      refreshTrigger !== lastFetchParamsRef.current.refreshTrigger ||
+      (location.pathname === '/dashboard' && location.pathname !== lastFetchParamsRef.current.pathname);
+
+    if (!shouldFetch || fetchInProgressRef.current) return;
+
+    // Clear data if journey changed
+    if (activeJourneyId !== lastFetchParamsRef.current.journeyId && activeJourneyId !== null) {
       setProgressData({
         profile: null,
         metrics: [],
@@ -145,32 +208,31 @@ export default function Dashboard({
         actionItems: []
       });
       setLoading(true);
-      // Fetch new data for the selected journey
-      fetchProgressData(activeJourneyId);
     }
-  }, [activeJourneyId, user]);
 
-  // Refresh when refreshTrigger changes
-  useEffect(() => {
-    if (user && refreshTrigger !== undefined) {
-      // Add a small delay to ensure backend has saved the data
-      const timeoutId = setTimeout(() => {
-        fetchProgressData(activeJourneyId);
-      }, 500);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [refreshTrigger, user, activeJourneyId]);
+    // Determine delay based on trigger
+    const delay = refreshTrigger !== undefined ? 500 : 
+                  location.pathname === '/dashboard' ? 300 : 0;
 
-  // Refresh when navigating to dashboard route
-  useEffect(() => {
-    if (user && location.pathname === '/dashboard') {
-      // Add a small delay to ensure backend has saved the data
+    fetchInProgressRef.current = true;
       const timeoutId = setTimeout(() => {
-        fetchProgressData(activeJourneyId);
-      }, 300);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [location.pathname, user, activeJourneyId]);
+      fetchProgressData(activeJourneyId).finally(() => {
+        fetchInProgressRef.current = false;
+        lastFetchParamsRef.current = {
+          journeyId: activeJourneyId,
+          refreshTrigger,
+          pathname: location.pathname
+        };
+      });
+    }, delay);
+
+    return () => {
+      clearTimeout(timeoutId);
+      if (timeoutId) {
+        fetchInProgressRef.current = false;
+      }
+    };
+  }, [user, activeJourneyId, refreshTrigger, location.pathname, fetchProgressData]);
 
   const fetchUserProfile = async () => {
     if (!user) return;
@@ -224,59 +286,6 @@ export default function Dashboard({
       setJourneyModalError(err.message || 'Failed to create focus. Please try again.');
     } finally {
       setJourneyModalSubmitting(false);
-    }
-  };
-
-  const fetchProgressData = async (journeyIdParam = activeJourneyId) => {
-    if (!user) return;
-    
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (journeyIdParam) {
-        params.append('journeyId', journeyIdParam);
-      }
-      const endpoint = `${process.env.REACT_APP_API_URL || 'http://localhost:5000/api/communication/progress'}${params.toString() ? `?${params.toString()}` : ''}`;
-      console.log('Fetching dashboard data from:', endpoint, 'with journeyId:', journeyIdParam);
-      const res = await fetch(endpoint, {
-        headers: {
-          'X-Clerk-User-Id': user.id,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        console.log('Dashboard data fetched:', {
-          profile: !!data.profile,
-          latest_metrics: !!data.profile?.latest_metrics,
-          metrics: data.metrics?.length || 0,
-          insights: data.insights?.length || 0,
-          achievements: data.achievements?.length || 0,
-          actionItems: data.actionItems?.length || 0
-        });
-        if (data.metrics && data.metrics.length > 0) {
-          console.log('Metrics sample:', data.metrics[0]);
-        }
-        if (data.profile?.latest_metrics) {
-          console.log('Latest metrics:', data.profile.latest_metrics);
-        }
-        setProgressData({
-          profile: data.profile || null,
-          metrics: data.metrics || [],
-          insights: data.insights || [],
-          achievements: data.achievements || [],
-          actionItems: data.actionItems || []
-        });
-      } else {
-        console.error('Failed to fetch dashboard data:', res.status, res.statusText);
-        const errorData = await res.json().catch(() => ({}));
-        console.error('Error details:', errorData);
-      }
-    } catch (err) {
-      console.error('Failed to fetch progress data:', err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -598,9 +607,9 @@ function ExpandableDashboardText({ text, collapsedLines = 2 }) {
         userName ? `${userName}, ready to inspire?` : "Ready to inspire?"
       ],
       'Content Creator': [
-        userName ? `Hey ${userName}! Let's create` : "Let's create",
+        userName ? `Hey ${userName}! Ready to create?` : "Ready to create?",
         userName ? `Welcome back, ${userName}!` : "Welcome back!",
-        userName ? `${userName}, ready to record?` : "Ready to record?"
+        userName ? `${userName}, let's make great content` : "Let's make great content"
       ],
       'Dating & Romantic': [
         userName ? `Hey ${userName}! Let's connect` : "Let's connect",
@@ -672,9 +681,9 @@ function ExpandableDashboardText({ text, collapsedLines = 2 }) {
         <div className="dashboard__headerContent">
           <h1 className="dashboard__title">{getDashboardTitle()}</h1>
           {!isNewUser && (
-            <button className="btn btn--primary" onClick={onNewAnalysis}>
-              + New Analysis
-            </button>
+          <button className="btn btn--primary" onClick={onNewAnalysis}>
+            + New Analysis
+          </button>
           )}
         </div>
       </div>
@@ -686,7 +695,7 @@ function ExpandableDashboardText({ text, collapsedLines = 2 }) {
             <div className="dashboard__welcomeHeader">
               <Sparkles size={32} className="dashboard__welcomeIcon" />
               <div>
-                <h2 className="dashboard__welcomeTitle">Let's get started!</h2>
+                <h2 className="dashboard__welcomeTitle">Ready for your first analysis?</h2>
                 <p className="dashboard__welcomeSubtitle">Your first analysis is free. Here's how it works:</p>
               </div>
             </div>
@@ -695,28 +704,52 @@ function ExpandableDashboardText({ text, collapsedLines = 2 }) {
               <div className="dashboard__welcomeStep">
                 <span className="dashboard__stepNumber">1</span>
                 <div className="dashboard__stepContent">
-                  <strong>Record a short video</strong>
-                  <p>30 seconds to 2 minutes of you speaking naturally</p>
+                  <strong>Click 'New Analysis' button above</strong>
+                  <p>Or use the button below to get started</p>
                 </div>
               </div>
               <div className="dashboard__welcomeStep">
                 <span className="dashboard__stepNumber">2</span>
                 <div className="dashboard__stepContent">
-                  <strong>Upload and get instant feedback</strong>
-                  <p>Our AI analyzes your body language and voice</p>
+                  <strong>Record 30 seconds to 2 minutes of you speaking</strong>
+                  <p>Speak naturally about anything - see sample scripts below</p>
                 </div>
               </div>
               <div className="dashboard__welcomeStep">
                 <span className="dashboard__stepNumber">3</span>
                 <div className="dashboard__stepContent">
-                  <strong>Review your personalized tips</strong>
-                  <p>Get actionable advice tailored to your goals</p>
+                  <strong>Get instant AI feedback</strong>
+                  <p>Review personalized tips tailored to your goals</p>
                 </div>
               </div>
             </div>
+
+            {/* Sample Script Suggestion */}
+            {focusSlug && (
+              <div className="dashboard__sampleScript">
+                <h3 className="dashboard__sampleScriptTitle">Not sure what to say? Try this:</h3>
+                <div className="dashboard__sampleScriptContent">
+                  {focusSlug === 'content' && (
+                    <p>"Hi everyone! Welcome to my channel. Today I want to share something that's been on my mind lately. [Share a personal story or explain a topic you know well]. I'd love to hear your thoughts in the comments below!"</p>
+                  )}
+                  {focusSlug === 'leadership' && (
+                    <p>"Team, I wanted to take a moment to discuss our goals for this quarter. We've made great progress, and I believe we can achieve even more by focusing on [specific area]. Let me share my vision..."</p>
+                  )}
+                  {focusSlug === 'confidence' && (
+                    <p>"I wanted to share something I've learned recently. [Share a personal experience or something you're passionate about]. It's helped me grow, and I think it might be valuable for others too."</p>
+                  )}
+                  {focusSlug === 'presentation' && (
+                    <p>"Good morning! Today I'm excited to talk about [your topic]. I'll cover three main points: first, [point 1], second, [point 2], and finally, [point 3]. Let's dive in..."</p>
+                  )}
+                  {!['content', 'leadership', 'confidence', 'presentation'].includes(focusSlug) && (
+                    <p>"Hi! I wanted to share something that's important to me. [Talk about a topic you're passionate about, a recent experience, or explain something you know well]. I'd love to hear your perspective on this."</p>
+                  )}
+                </div>
+              </div>
+            )}
             
             <button className="btn btn--primary btn--large dashboard__welcomeCta" onClick={onNewAnalysis}>
-              Upload Your First Video
+              Start Your First Analysis
             </button>
             
             <p className="dashboard__welcomeNote">
@@ -1049,45 +1082,71 @@ function ExpandableDashboardText({ text, collapsedLines = 2 }) {
         </div>
       )}
 
-      {/* Two Column Layout */}
-      <div className="dashboard__grid">
-        {/* Action Items To-Do List */}
-        <div className="dashboard__journalCard">
-          <div className="journalCard">
-            <h3 className="journalCard__title">
-              <ListTodo size={20} />
-              Next Steps
+      {/* One Next Action Card - Enhanced with Priority */}
+      {(() => {
+        // Prioritize: Practice Missions > Action Items with practice prompts > Regular action items
+        const practiceMissions = progressData.actionItems?.filter(item => item.practice_prompt_generated) || [];
+        const regularActionItems = progressData.actionItems?.filter(item => !item.practice_prompt_generated) || [];
+        
+        const topActionItem = practiceMissions.length > 0 
+          ? practiceMissions[0]
+          : (regularActionItems.length > 0 ? regularActionItems[0] : null);
+        
+        const nextAction = topActionItem;
+        if (!nextAction) return null;
+        
+        const isPracticeMission = nextAction.practice_prompt_generated;
+        
+        return (
+          <div className="dashboard__nextActionCard">
+            <div className={`nextActionCard ${isPracticeMission ? 'nextActionCard--priority' : ''}`}>
+              {isPracticeMission && (
+                <div className="nextActionCard__priorityBadge">
+                  <Sparkles size={14} />
+                  <span>Priority Practice</span>
+                </div>
+              )}
+              <div className="nextActionCard__header">
+                <Target size={24} className="nextActionCard__icon" />
+                <div>
+                  <h3 className="nextActionCard__title">
+                    {isPracticeMission ? 'Your Priority Practice' : 'Your Next Action'}
             </h3>
-            <div className="journalCard__list">
-              {progressData.actionItems && progressData.actionItems.length > 0 ? (
-                progressData.actionItems.slice(0, 10).map((item, idx) => (
-                  <div key={item.id || idx} className="journalCard__actionCard">
-                    <div className="journalCard__actionIcon">
-                      <Sparkles size={16} />
+                  <p className="nextActionCard__subtitle">
+                    {isPracticeMission 
+                      ? 'Start with this practice mission to improve your weakest area'
+                      : 'Focus on this to improve your communication'}
+                  </p>
                     </div>
-                    <div className="journalCard__actionBody">
-                      <div className="journalCard__actionMeta">
-                        <span className="journalCard__chip">{formatMetricLabel(item.practice_prompt_target_metric)}</span>
-                        <span className={`journalCard__chip ${item.status === 'completed' ? 'journalCard__chip--muted' : 'journalCard__chip--accent'}`}>
-                          {item.status === 'completed' ? 'Completed' : 'Active focus'}
+              </div>
+              <div className="nextActionCard__content">
+                <div className="nextActionCard__meta">
+                  <span className="nextActionCard__chip">{formatMetricLabel(nextAction.practice_prompt_target_metric)}</span>
+                  <span className={`nextActionCard__chip ${isPracticeMission ? 'nextActionCard__chip--priority' : 'nextActionCard__chip--accent'}`}>
+                    {isPracticeMission ? 'Practice Mission' : 'Action Item'}
                         </span>
                       </div>
-                      <div className="journalCard__actionTitle">{item.title}</div>
-                      <ExpandableDashboardText text={formatActionDescription(item)} />
-                      {item.analyses && (
-                        <div className="journalCard__itemMeta">
-                          Added {new Date(item.analyses.created_at).toLocaleDateString()} • {item.analyses.video_filename}
+                <h4 className="nextActionCard__actionTitle">{nextAction.title}</h4>
+                <p className="nextActionCard__actionDescription">{formatActionDescription(nextAction)}</p>
                         </div>
-                      )}
+              <div className="nextActionCard__actions">
+                <button 
+                  className="btn btn--primary" 
+                  onClick={() => navigate('/practice')}
+                >
+                  {isPracticeMission ? 'Start Practice Mission' : 'Start Practicing'}
+                </button>
+                <button 
+                  className="btn btn--ghost" 
+                  onClick={() => navigate('/practice')}
+                >
+                  View All Practice
+                </button>
                     </div>
                   </div>
-                ))
-              ) : (
-                <p className="journalCard__empty">No tips yet. Complete your first analysis to get personalized next steps.</p>
-              )}
             </div>
-          </div>
-        </div>
+        );
+      })()}
 
         {/* Achievements */}
         <div className="dashboard__achievementsCard">
@@ -1112,9 +1171,13 @@ function ExpandableDashboardText({ text, collapsedLines = 2 }) {
                   );
                 })
               ) : (
-                <p className="achievementsCard__empty">No achievements yet. Keep practicing to unlock badges!</p>
+              <EmptyState
+                variant="achievements"
+                title="No achievements yet"
+                description="Keep practicing and completing analyses to unlock badges and track your milestones!"
+                showIllustration={false}
+              />
               )}
-            </div>
           </div>
         </div>
       </div>

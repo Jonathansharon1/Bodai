@@ -4,7 +4,7 @@ import cors from 'cors';
 import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { analyzeBodyLanguage } from './services/geminiService.js';
+import { analyzeBodyLanguage, generatePracticeMissions } from './services/geminiService.js';
 import crypto from 'crypto';
 import { 
   getOrCreateUser, 
@@ -46,7 +46,15 @@ import {
   getWeeklyPracticeCount,
   getUserEmailPreferences,
   updateUserEmailPreferences,
-  getUserEmailHistory
+  getUserEmailHistory,
+  syncUserProfile,
+  savePracticeMissions,
+  getPracticeMissions,
+  getAllPracticeMissions,
+  completeMission,
+  getMissionCompletions,
+  getMissionCompletionStats,
+  uncompleteMission
 } from './services/supabaseService.js';
 import { processAnalysisMetrics, METRICS_PROCESSOR_VERSION } from './services/scoringService.js';
 import { uploadVideoToS3, getVideoUrl } from './services/s3Service.js';
@@ -58,11 +66,15 @@ import { validateAnalysisResponse } from './services/responseValidator.js';
 
 const app = express();
 const port = process.env.PORT || 5000;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-pro';
-const MAX_VIDEO_SIZE_MB = Number(process.env.MAX_VIDEO_SIZE_MB || 250);
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3-pro-preview';
+// Default max video size (in MB) – safely below Gemini Files API 2GB limit
+// Can be overridden via MAX_VIDEO_SIZE_MB env var if needed
+const MAX_VIDEO_SIZE_MB = Number(process.env.MAX_VIDEO_SIZE_MB || 500);
 const MAX_VIDEO_SIZE_BYTES = MAX_VIDEO_SIZE_MB * 1024 * 1024;
-const MIN_VIDEO_DURATION_SECONDS = Number(process.env.MIN_VIDEO_DURATION_SECONDS || 20);
-const MAX_VIDEO_DURATION_SECONDS = Number(process.env.MAX_VIDEO_DURATION_SECONDS || 600);
+// Allow 30–2700 second videos by default (0.5–45 minutes)
+// These can be overridden via env vars if we want to experiment
+const MIN_VIDEO_DURATION_SECONDS = Number(process.env.MIN_VIDEO_DURATION_SECONDS || 30);
+const MAX_VIDEO_DURATION_SECONDS = Number(process.env.MAX_VIDEO_DURATION_SECONDS || 2700);
 const METRICS_VERSION = process.env.METRICS_VERSION || 'metrics.v2025.01';
 
 const logAnalysisGate = (reason, details = {}) => {
@@ -93,6 +105,29 @@ const upload = multer({
 // Health check
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true });
+});
+
+// Simple endpoint for Teams & Enterprise contact form
+app.post('/api/contact/teams', async (req, res) => {
+  try {
+    const payload = {
+      name: req.body?.name || null,
+      email: req.body?.email || null,
+      company: req.body?.company || null,
+      teamSize: req.body?.teamSize || null,
+      useCase: req.body?.useCase || null,
+      message: req.body?.message || null,
+      createdAt: new Date().toISOString()
+    };
+
+    console.log('[TeamsContact] New teams/enterprise inquiry:', payload);
+
+    // In the future we can persist this to Supabase or send an email notification.
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error('[TeamsContact] Failed to handle teams contact form:', err);
+    return res.status(500).json({ error: 'Failed to submit your request' });
+  }
 });
 
 // Parse JSON body for user context
@@ -362,6 +397,27 @@ app.post('/api/analyze-video', upload.single('video'), async (req, res) => {
       reason: 'video_too_large'
     });
   }
+
+// Simple helper to estimate analysis cost based on video duration.
+// This is not used for billing yet – it's for internal monitoring / future pricing tweaks.
+function estimateAnalysisCostUsd(durationSeconds) {
+  if (!durationSeconds || typeof durationSeconds !== 'number') return 0;
+
+  // Based on Gemini 3 Pro pricing and 1 FPS at 70 tokens/frame (approximate)
+  const frames = Math.max(1, Math.round(durationSeconds));
+  const inputTokens = frames * 70;
+
+  // Assume average 3,000 output tokens per analysis
+  const outputTokens = 3000;
+
+  const inputCostPerToken = 2 / 1_000_000; // $2 per 1M tokens
+  const outputCostPerToken = 12 / 1_000_000; // $12 per 1M tokens
+
+  const inputCost = inputTokens * inputCostPerToken;
+  const outputCost = outputTokens * outputCostPerToken;
+
+  return Number((inputCost + outputCost).toFixed(4));
+}
     
     const videoBuffer = req.file.buffer; // Node.js Buffer holding the video bytes
     const mimeType = req.file.mimetype;  // e.g., 'video/mp4'
@@ -872,6 +928,24 @@ app.post('/api/analyze-video', upload.single('video'), async (req, res) => {
                 console.log('Communication insights saved');
               }
               
+              // Mark old pending action items as completed when a new analysis is finished
+              // Action items are meant for the "next video", so once a new analysis is done, old ones should be completed
+              try {
+                const oldActionItems = await getUserActionItems(clerkUserId, 'pending', journeyId);
+                if (oldActionItems && oldActionItems.length > 0) {
+                  console.log(`[analyze-video] Marking ${oldActionItems.length} old pending action items as completed (new analysis finished)`);
+                  for (const oldItem of oldActionItems) {
+                    // Only mark as completed if it's from a previous analysis (not the current one)
+                    if (oldItem.analysis_id && oldItem.analysis_id !== analysisId) {
+                      await updateActionItemStatus(clerkUserId, oldItem.id, 'completed');
+                    }
+                  }
+                }
+              } catch (archiveError) {
+                console.error('Error archiving old action items:', archiveError);
+                // Don't fail the request if archiving fails
+              }
+
               // Parse and save action items from analysis result
               if (resultMarkdown) {
                 try {
@@ -883,7 +957,7 @@ app.post('/api/analyze-video', upload.single('video'), async (req, res) => {
                     const savedActionItems = await saveActionItems(userId, analysisId, actionItems, { 
                       userContext, 
                       journeyId,
-                      maxActionItems: 1,
+                      maxActionItems: 4,  // Increased from 1 to save more action items (Communication + Body Language tips)
                       generatePracticePrompts: true,
                       focusMetricKey
                     });
@@ -1537,6 +1611,263 @@ app.get('/api/communication/insights', async (req, res) => {
   } catch (err) {
     console.error('Error fetching communication insights:', err);
     return res.status(500).json({ error: 'Failed to fetch communication insights' });
+  }
+});
+
+// Generate or retrieve practice missions for a specific parameter
+app.post('/api/practice-missions/generate', async (req, res) => {
+  try {
+    const clerkUserId = getClerkUserId(req);
+    if (!clerkUserId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const {
+      parameterKey,
+      parameterLabel,
+      parameterDescription,
+      currentScore,
+      targetScore = 7.5,
+      trend = null,
+      journeyId = null,
+      forceRegenerate = false // If true, regenerate even if missions exist
+    } = req.body;
+
+    if (!parameterKey || !parameterLabel || currentScore === undefined) {
+      return res.status(400).json({ error: 'Missing required fields: parameterKey, parameterLabel, currentScore' });
+    }
+
+    // Check if missions already exist in database
+    if (!forceRegenerate) {
+      const existingMissions = await getPracticeMissions(clerkUserId, parameterKey, journeyId, parseFloat(currentScore));
+      if (existingMissions && existingMissions.missions && Array.isArray(existingMissions.missions) && existingMissions.missions.length > 0) {
+        // Check if missions are stale (score changed by ±1.0 points or more)
+        if (existingMissions.is_stale) {
+          console.log(`[api/practice-missions] Missions for ${parameterKey} are stale (score changed by ${existingMissions.score_diff?.toFixed(1)} points), regenerating...`);
+          // Fall through to regeneration logic below
+        } else {
+          console.log(`[api/practice-missions] Returning existing missions for ${parameterKey} from database`);
+          return res.json({ 
+            missions: existingMissions.missions,
+            fromCache: true,
+            createdAt: existingMissions.created_at,
+            isStale: false,
+            practiceMissionId: existingMissions.id,
+            id: existingMissions.id
+          });
+        }
+      }
+    }
+
+    // Get user context
+    const userData = await getUserWithOnboarding(clerkUserId);
+    const userContext = {
+      primaryGoal: userData?.primary_goal || 'confidence',
+      confidenceLevel: userData?.confidence_level || 'medium'
+    };
+
+    // Get previous missions from database to avoid repetition
+    const allMissions = await getAllPracticeMissions(clerkUserId, journeyId);
+    const previousMissionsForParam = allMissions
+      .filter(m => m.parameter_key === parameterKey)
+      .flatMap(m => m.missions || []);
+
+    console.log(`[api/practice-missions] Generating new missions for ${parameterKey} (score: ${currentScore})`);
+
+    const missions = await generatePracticeMissions({
+      parameterKey,
+      parameterLabel,
+      parameterDescription: parameterDescription || '',
+      currentScore: parseFloat(currentScore),
+      targetScore: parseFloat(targetScore),
+      userContext,
+      trend,
+      previousMissions: previousMissionsForParam
+    });
+
+    if (!missions || missions.length === 0) {
+      return res.status(500).json({ error: 'Failed to generate practice missions' });
+    }
+
+    // Get the latest analysis ID for this journey to track which analysis generated these missions
+    let latestAnalysisId = null;
+    try {
+      const analyses = await getUserAnalyses(clerkUserId, 1, journeyId);
+      if (analyses && analyses.length > 0) {
+        latestAnalysisId = analyses[0].id;
+      }
+    } catch (err) {
+      console.warn('[api/practice-missions] Could not fetch latest analysis ID:', err);
+    }
+
+    // Save missions to database and get the ID
+    let savedMissionId = null;
+    try {
+      const savedMission = await savePracticeMissions(clerkUserId, {
+        journeyId,
+        parameterKey,
+        parameterLabel,
+        parameterDescription: parameterDescription || null,
+        currentScore: parseFloat(currentScore),
+        targetScore: parseFloat(targetScore),
+        missions,
+        trend,
+        userContext,
+        aiModelVersion: process.env.GEMINI_MODEL || 'gemini-3-pro-preview',
+        analysisId: latestAnalysisId
+      });
+      savedMissionId = savedMission?.id || null;
+      console.log(`[api/practice-missions] Saved ${missions.length} missions to database (ID: ${savedMissionId})`);
+    } catch (saveError) {
+      console.error('[api/practice-missions] Failed to save missions to database:', saveError);
+      // Try to get existing mission ID as fallback
+      try {
+        const existing = await getPracticeMissions(clerkUserId, parameterKey, journeyId);
+        savedMissionId = existing?.id || null;
+      } catch (err) {
+        console.warn('[api/practice-missions] Could not fetch existing mission:', err);
+      }
+    }
+
+    return res.json({ 
+      missions,
+      fromCache: false,
+      practiceMissionId: savedMissionId,
+      id: savedMissionId
+    });
+  } catch (err) {
+    console.error('[api/practice-missions] Error generating practice missions:', err);
+    return res.status(500).json({ error: 'Failed to generate practice missions' });
+  }
+});
+
+// Get all practice missions for a user/journey
+app.get('/api/practice-missions', async (req, res) => {
+  try {
+    const clerkUserId = getClerkUserId(req);
+    if (!clerkUserId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const journeyId = req.query.journeyId || null;
+
+    const allMissions = await getAllPracticeMissions(clerkUserId, journeyId);
+
+    // Format missions for frontend
+    const formattedMissions = {};
+    allMissions.forEach(mission => {
+      formattedMissions[mission.parameter_key] = {
+        missions: mission.missions || [],
+        isStale: mission.is_stale || false,
+        fromCache: true,
+        createdAt: mission.created_at,
+        practiceMissionId: mission.id,
+        id: mission.id,
+        currentScore: mission.current_score,
+        scoreAtGeneration: mission.score_at_generation
+      };
+    });
+
+    return res.json({ missions: formattedMissions });
+  } catch (err) {
+    console.error('[api/practice-missions] Error fetching practice missions:', err);
+    return res.status(500).json({ error: 'Failed to fetch practice missions' });
+  }
+});
+
+// Complete a practice mission
+app.post('/api/practice-missions/complete', async (req, res) => {
+  try {
+    const clerkUserId = getClerkUserId(req);
+    if (!clerkUserId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const { practiceMissionId, missionIndex, parameterKey, journeyId = null, notes = null } = req.body;
+
+    if (!practiceMissionId || missionIndex === undefined || !parameterKey) {
+      return res.status(400).json({ error: 'Missing required fields: practiceMissionId, missionIndex, parameterKey' });
+    }
+
+    const completion = await completeMission(
+      clerkUserId,
+      practiceMissionId,
+      missionIndex,
+      parameterKey,
+      journeyId,
+      notes
+    );
+
+    if (!completion) {
+      return res.status(200).json({ message: 'Mission already completed', alreadyCompleted: true });
+    }
+
+    return res.json({ completion, success: true });
+  } catch (err) {
+    console.error('[api/practice-missions/complete] Error completing mission:', err);
+    return res.status(500).json({ error: 'Failed to complete mission' });
+  }
+});
+
+// Uncomplete a practice mission
+app.post('/api/practice-missions/uncomplete', async (req, res) => {
+  try {
+    const clerkUserId = getClerkUserId(req);
+    if (!clerkUserId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const { practiceMissionId, missionIndex } = req.body;
+
+    if (!practiceMissionId || missionIndex === undefined) {
+      return res.status(400).json({ error: 'Missing required fields: practiceMissionId, missionIndex' });
+    }
+
+    await uncompleteMission(clerkUserId, practiceMissionId, missionIndex);
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[api/practice-missions/uncomplete] Error uncompleting mission:', err);
+    return res.status(500).json({ error: 'Failed to uncomplete mission' });
+  }
+});
+
+// Get mission completions
+app.get('/api/practice-missions/completions', async (req, res) => {
+  try {
+    const clerkUserId = getClerkUserId(req);
+    if (!clerkUserId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const practiceMissionId = req.query.practiceMissionId || null;
+    const journeyId = req.query.journeyId || null;
+
+    const completions = await getMissionCompletions(clerkUserId, practiceMissionId, journeyId);
+
+    return res.json({ completions });
+  } catch (err) {
+    console.error('[api/practice-missions/completions] Error fetching completions:', err);
+    return res.status(500).json({ error: 'Failed to fetch mission completions' });
+  }
+});
+
+// Get mission completion statistics
+app.get('/api/practice-missions/stats', async (req, res) => {
+  try {
+    const clerkUserId = getClerkUserId(req);
+    if (!clerkUserId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const journeyId = req.query.journeyId || null;
+
+    const stats = await getMissionCompletionStats(clerkUserId, journeyId);
+
+    return res.json({ stats });
+  } catch (err) {
+    console.error('[api/practice-missions/stats] Error fetching stats:', err);
+    return res.status(500).json({ error: 'Failed to fetch completion statistics' });
   }
 });
 

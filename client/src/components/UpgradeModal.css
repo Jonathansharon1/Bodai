@@ -4,24 +4,25 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   padding: 20px;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(2px);
 }
 
 .upgradeModal__content {
-  background: var(--surface);
-  border-radius: 24px;
-  padding: 40px;
-  max-width: 500px;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 28px;
+  max-width: 420px;
   width: 100%;
   position: relative;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
   animation: modalSlideIn 0.3s ease-out;
+  border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 @keyframes modalSlideIn {
@@ -59,42 +60,72 @@
 .upgradeModal__icon {
   display: flex;
   justify-content: center;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
+}
+
+.upgradeModal__iconWrapper {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #46B5D1 0%, #2563eb 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(70, 181, 209, 0.25);
+}
+
+.upgradeModal__iconMain {
+  color: white;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
 }
 
 .upgradeModal__title {
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--text-dark);
+  font-size: 22px;
+  font-weight: 600;
+  color: #1e293b;
   text-align: center;
-  margin: 0 0 16px;
-  letter-spacing: -0.02em;
+  margin: 0 0 8px;
+  letter-spacing: -0.01em;
 }
 
 .upgradeModal__message {
-  font-size: 16px;
-  color: var(--text-muted);
+  font-size: 14px;
+  color: #64748b;
   text-align: center;
-  line-height: 1.6;
-  margin: 0 0 32px;
+  line-height: 1.5;
+  margin: 0 0 20px;
 }
 
 .upgradeModal__benefits {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  margin-bottom: 32px;
-  padding: 24px;
-  background: rgba(0, 78, 100, 0.05);
+  gap: 10px;
+  margin-bottom: 24px;
+  padding: 16px;
+  background: #f8fafc;
   border-radius: 12px;
+  border: 1px solid #e2e8f0;
 }
 
 .upgradeModal__benefit {
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 15px;
-  color: var(--text-dark);
+  gap: 10px;
+  font-size: 14px;
+  color: #1e293b;
+  font-weight: 500;
+}
+
+.upgradeModal__benefitIcon {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #46B5D1 0%, #2563eb 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: white;
 }
 
 .upgradeModal__actions {
@@ -118,35 +149,44 @@
 }
 
 .upgradeModal__button--primary {
-  background: var(--accent);
-  color: var(--text-light);
+  background: linear-gradient(135deg, #46B5D1 0%, #2563eb 100%);
+  color: white;
 }
 
 .upgradeModal__button--primary:hover {
-  background: var(--accent-hover);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(0, 78, 100, 0.3);
+  background: linear-gradient(135deg, #3AA0BD 0%, #1D4ED8 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(70, 181, 209, 0.4);
 }
 
 .upgradeModal__button--secondary {
   background: transparent;
   color: var(--text-muted);
-  border: 1px solid rgba(0, 78, 100, 0.2);
+  border: 1px solid rgba(70, 181, 209, 0.2);
+  font-weight: 500;
+  opacity: 0.8;
 }
 
 .upgradeModal__button--secondary:hover {
-  background: rgba(0, 78, 100, 0.05);
+  background: rgba(70, 181, 209, 0.05);
   color: var(--text-dark);
+  opacity: 1;
+  border-color: rgba(70, 181, 209, 0.3);
 }
 
 /* Responsive */
 @media (max-width: 768px) {
   .upgradeModal__content {
-    padding: 32px 24px;
+    padding: 24px 20px;
+    max-width: 90%;
   }
   
   .upgradeModal__title {
-    font-size: 24px;
+    font-size: 20px;
+  }
+  
+  .upgradeModal__message {
+    font-size: 13px;
   }
 }
 

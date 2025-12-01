@@ -978,14 +978,14 @@ a:hover {
 .loadingView__progressFill {
   height: 100%;
   background: linear-gradient(90deg,
-      var(--accent-secondary) 0%,
-      var(--accent-tertiary) 50%,
-      var(--accent-secondary) 100%);
+      #46B5D1 0%,
+      #2563eb 50%,
+      #46B5D1 100%);
   background-size: 200% 100%;
   border-radius: 10px;
   transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   animation: progressShimmer 2s ease-in-out infinite;
-  box-shadow: 0 0 10px rgba(70, 181, 209, 0.3);
+  box-shadow: 0 0 12px rgba(70, 181, 209, 0.4);
 }
 
 @keyframes progressShimmer {
@@ -1003,7 +1003,7 @@ a:hover {
 .loadingView__currentStep {
   font-size: 1rem;
   font-weight: 500;
-  color: var(--accent);
+  color: #46B5D1;
   margin: 0;
   letter-spacing: 0.01em;
   min-height: 1.5em;
@@ -1023,12 +1023,12 @@ a:hover {
   width: 100%;
   max-width: 550px;
   background: #ffffff;
-  border: 2px solid #e2e8f0;
+  border: 2px solid rgba(70, 181, 209, 0.2);
   border-radius: 20px;
   padding: 2.5rem 2rem;
   box-shadow:
-    0 10px 40px rgba(0, 78, 100, 0.08),
-    0 4px 16px rgba(0, 78, 100, 0.04);
+    0 10px 40px rgba(70, 181, 209, 0.1),
+    0 4px 16px rgba(70, 181, 209, 0.05);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1038,9 +1038,10 @@ a:hover {
 
 .loadingView__factCard:hover {
   transform: translateY(-2px);
+  border-color: rgba(70, 181, 209, 0.3);
   box-shadow:
-    0 12px 48px rgba(0, 78, 100, 0.12),
-    0 6px 20px rgba(0, 78, 100, 0.06);
+    0 12px 48px rgba(70, 181, 209, 0.15),
+    0 6px 20px rgba(70, 181, 209, 0.08);
 }
 
 .loadingView__factCard.fade-in {
@@ -1080,8 +1081,8 @@ a:hover {
   height: 100px;
   border-radius: 50%;
   background: linear-gradient(135deg,
-      rgba(70, 181, 209, 0.1) 0%,
-      rgba(255, 140, 100, 0.1) 100%);
+      rgba(70, 181, 209, 0.12) 0%,
+      rgba(37, 99, 235, 0.08) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1148,6 +1149,22 @@ a:hover {
   letter-spacing: -0.01em;
 }
 
+.loadingView__timeEstimate {
+  margin-top: 24px;
+  text-align: center;
+}
+
+.loadingView__timeText {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0;
+}
+
+.loadingView__timeText strong {
+  color: #46B5D1;
+  font-weight: 600;
+}
+
 .loadingView__hint {
   margin: 0;
   font-size: 0.875rem;
@@ -1155,6 +1172,7 @@ a:hover {
   font-weight: 400;
   letter-spacing: 0.01em;
   opacity: 0.8;
+  margin-top: 12px;
 }
 
 /* Responsive */

@@ -6,6 +6,7 @@ import AnalysisPage from './pages/AnalysisPage';
 import Dashboard from './components/Dashboard';
 import MyAnalysesPage from './pages/MyAnalysesPage';
 import MyProgressPage from './pages/MyProgressPage';
+import PracticePage from './pages/PracticePage';
 import PricingPage from './pages/PricingPage';
 import SubscriptionPage from './pages/SubscriptionPage';
 import CoursesPage from './pages/CoursesPage';
@@ -20,7 +21,9 @@ import FeaturesSection from './components/homepage/FeaturesSection';
 import HowItWorksSection from './components/homepage/HowItWorksSection';
 import SocialProofSection from './components/homepage/SocialProofSection';
 import CTASection from './components/homepage/CTASection';
+import WelcomeScreen from './components/WelcomeScreen';
 import { SignedOut } from '@clerk/clerk-react';
+import TeamsContactPage from './pages/TeamsContactPage';
 
 // Protected Route Component
 function ProtectedRoute({ children, requireOnboarding = false }) {
@@ -30,6 +33,65 @@ function ProtectedRoute({ children, requireOnboarding = false }) {
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [userContext, setUserContext] = useState(null);
+
+  // Clear Clerk redirect URLs IMMEDIATELY on mount, before any other logic runs
+  // This must run first to prevent Clerk from applying stored redirect URLs
+  useEffect(() => {
+    // Only clear if we're on a protected route (not sign-in/sign-up)
+    const isAuthPage = location.pathname === '/sign-in' || 
+                       location.pathname === '/sign-up' || 
+                       location.pathname.startsWith('/sign-in/') || 
+                       location.pathname.startsWith('/sign-up/');
+    
+    if (!isAuthPage) {
+      try {
+        // Clear ALL Clerk-related redirect URLs from sessionStorage
+        const keysToRemove = [];
+        Object.keys(sessionStorage).forEach(key => {
+          const lowerKey = key.toLowerCase();
+          if (lowerKey.includes('clerk') && 
+              (lowerKey.includes('redirect') || 
+               lowerKey.includes('aftersign') ||
+               lowerKey.includes('signin') ||
+               lowerKey.includes('signup'))) {
+            keysToRemove.push(key);
+          }
+        });
+        keysToRemove.forEach(key => {
+          console.log('[ProtectedRoute] Clearing Clerk redirect key:', key);
+          sessionStorage.removeItem(key);
+        });
+        
+        // Also clear from localStorage (Clerk might store there too)
+        Object.keys(localStorage).forEach(key => {
+          const lowerKey = key.toLowerCase();
+          if (lowerKey.includes('clerk') && 
+              (lowerKey.includes('redirect') || lowerKey.includes('aftersign'))) {
+            console.log('[ProtectedRoute] Clearing Clerk redirect key from localStorage:', key);
+            localStorage.removeItem(key);
+          }
+        });
+        
+        // Clear redirect URLs from URL params
+        const urlParams = new URLSearchParams(window.location.search);
+        let urlChanged = false;
+        if (urlParams.has('__clerk_redirect_url')) {
+          urlParams.delete('__clerk_redirect_url');
+          urlChanged = true;
+        }
+        if (urlParams.has('redirect_url')) {
+          urlParams.delete('redirect_url');
+          urlChanged = true;
+        }
+        if (urlChanged) {
+          const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+          window.history.replaceState({}, '', newUrl);
+        }
+      } catch (e) {
+        console.error('[ProtectedRoute] Error clearing redirect URLs:', e);
+      }
+    }
+  }, [location.pathname]); // Run whenever pathname changes
 
   useEffect(() => {
     if (!userLoaded) return;
@@ -121,15 +183,51 @@ function ProtectedRoute({ children, requireOnboarding = false }) {
   useEffect(() => {
     if (!userLoaded || checkingOnboarding || !user) return;
 
+    // Only redirect if we're actually on the onboarding page and have completed it
+    // OR if we need onboarding but haven't completed it (and we're not already on onboarding)
+    const isOnOnboardingPage = location.pathname === '/onboarding';
+    const currentPath = location.pathname;
+    
+    // Add detailed logging to understand what's happening
+    console.log('[ProtectedRoute] Redirect check:', {
+      requireOnboarding,
+      hasCompletedOnboarding,
+      isOnOnboardingPage,
+      currentPath,
+      userLoaded,
+      checkingOnboarding
+    });
+    
     if (requireOnboarding && !hasCompletedOnboarding) {
       // Redirect to onboarding if required but not completed
-      if (location.pathname !== '/onboarding') {
+      if (!isOnOnboardingPage) {
+        console.log('[ProtectedRoute] Redirecting to onboarding - requireOnboarding=true, hasCompletedOnboarding=false, current path:', currentPath);
         navigate('/onboarding', { replace: true });
       }
-    } else if (!requireOnboarding && hasCompletedOnboarding && location.pathname === '/onboarding') {
-      // Already completed onboarding, redirect to dashboard
-      navigate('/dashboard', { replace: true });
+    } else if (!requireOnboarding && hasCompletedOnboarding) {
+      // Only handle onboarding redirect if we're actually on the onboarding page
+      // This prevents redirects when on other pages like /practice, /grades, etc.
+      // CRITICAL: Only redirect if we're actually on /onboarding route
+      // This ProtectedRoute instance is for /onboarding route (requireOnboarding=false)
+      if (isOnOnboardingPage) {
+        // Already completed onboarding, redirect to dashboard
+        // BUT ONLY if we're actually on the onboarding page
+        console.log('[ProtectedRoute] Redirecting from onboarding to dashboard - already completed, current path:', currentPath, 'requireOnboarding:', requireOnboarding);
+        navigate('/dashboard', { replace: true });
+      } else {
+        // We're not on onboarding page, so don't redirect
+        // This allows users to stay on /practice, /grades, etc. when refreshing
+        // This should never happen for /onboarding route's ProtectedRoute, but log it anyway
+        console.log('[ProtectedRoute] NOT redirecting - staying on:', currentPath, '(not on onboarding page, requireOnboarding=false, hasCompletedOnboarding=true)');
+      }
+    } else {
+      // Log when we're NOT redirecting to help debug
+      if (requireOnboarding && hasCompletedOnboarding && !isOnOnboardingPage) {
+        console.log('[ProtectedRoute] NOT redirecting - staying on:', currentPath, '(requireOnboarding=true, hasCompletedOnboarding=true, not on onboarding page)');
+      }
     }
+    // IMPORTANT: If we're on other pages (like /practice, /grades, /analyses), do NOT redirect
+    // This allows users to stay on those pages when refreshing
   }, [userLoaded, checkingOnboarding, user, requireOnboarding, hasCompletedOnboarding, location.pathname, navigate]);
 
   if (!userLoaded || checkingOnboarding) {
@@ -191,6 +289,7 @@ function ProtectedRoute({ children, requireOnboarding = false }) {
     }
   }
 
+  // Only show redirecting message if we're actually on the onboarding page
   if (!requireOnboarding && hasCompletedOnboarding && location.pathname === '/onboarding') {
     // Show loading while redirecting
     return (
@@ -214,34 +313,83 @@ function ProtectedRoute({ children, requireOnboarding = false }) {
       </div>
     );
   }
+  
+  // IMPORTANT: Do NOT redirect if we're on other pages - just render the children
+  // This allows users to stay on /practice, /grades, /analyses, etc. when refreshing
 
   return children;
 }
 
-// Homepage Route Component - handles redirects and conditional rendering
-function HomepageRoute({ user, isLoaded, navigate, onNewAnalysis }) {
-  const [shouldRedirect, setShouldRedirect] = useState(false);
+// Onboarding Page with Welcome Screen Check
+function OnboardingPageWithWelcome({ onComplete }) {
+  const { user } = useUser();
+  const navigate = useNavigate();
+  const [showWelcome, setShowWelcome] = useState(() => {
+    // Check if user has seen welcome screen
+    return !localStorage.getItem('bodai_welcome_seen');
+  });
 
-  useEffect(() => {
-    if (!isLoaded) return;
+  const handleWelcomeContinue = () => {
+    setShowWelcome(false);
+  };
 
-    if (user) {
-      // Check if this is a fresh sign-in
-      const justSignedIn = sessionStorage.getItem('bodai_just_signed_in');
-      if (justSignedIn === 'true') {
-        sessionStorage.removeItem('bodai_just_signed_in');
-        setShouldRedirect(true);
-        navigate('/dashboard', { replace: true });
-        return;
-      }
-    }
-  }, [user, isLoaded, navigate]);
+  const handleWelcomeSkip = () => {
+    setShowWelcome(false);
+    navigate('/dashboard');
+  };
 
-  if (shouldRedirect) {
-    return null;
+  if (showWelcome && user) {
+    return (
+      <WelcomeScreen 
+        onContinue={handleWelcomeContinue}
+        onSkip={handleWelcomeSkip}
+      />
+    );
   }
 
+  return <OnboardingPage onComplete={onComplete} />;
+}
+
+// Homepage Route Component - handles conditional rendering
+// Note: Authenticated users can visit the homepage - Clerk handles redirects from sign-in/sign-up pages
+function HomepageRoute({ user, isLoaded, navigate, onNewAnalysis }) {
+  const location = useLocation();
   const isSignedIn = !!user;
+
+  // Prevent unwanted redirects when on homepage
+  useEffect(() => {
+    if (location.pathname === '/' && isLoaded) {
+      console.log('[HomepageRoute] Mounted on homepage, user signed in:', !!user);
+      
+      // Clear any potential redirect URLs from Clerk in URL params
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.has('__clerk_redirect_url') || urlParams.has('redirect_url')) {
+        console.log('[HomepageRoute] Found redirect URL in params, clearing it');
+        urlParams.delete('__clerk_redirect_url');
+        urlParams.delete('redirect_url');
+        const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+        window.history.replaceState({}, '', newUrl);
+      }
+      
+      // Clear any Clerk redirect state from sessionStorage
+      try {
+        Object.keys(sessionStorage).forEach(key => {
+          if (key.includes('redirect') || key.includes('clerk_redirect')) {
+            console.log('[HomepageRoute] Found redirect key in sessionStorage:', key, '- clearing it');
+            sessionStorage.removeItem(key);
+          }
+        });
+      } catch (e) {
+        // Ignore errors
+      }
+      
+      // Monitor for any navigation away from homepage
+      const currentPath = window.location.pathname;
+      if (currentPath !== '/') {
+        console.warn('[HomepageRoute] WARNING: Current path is not "/" but', currentPath, '- this should not happen!');
+      }
+    }
+  }, [location.pathname, isLoaded, user]);
 
   return (
     <>
@@ -275,35 +423,10 @@ export default function AppRouter() {
   const [activeJourneyId, setActiveJourneyId] = useState(null);
   const [practiceCompletionNotices, setPracticeCompletionNotices] = useState([]);
   const [hasCompletedAnalysis, setHasCompletedAnalysis] = useState(() => localStorage.getItem('bodai_has_completed_analysis') === 'true');
-  const [previousUserState, setPreviousUserState] = useState(null);
   const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
-  // Detect fresh sign-in
-  // We use a ref to track if we've done the initial load check
-  // This prevents treating a page refresh (where user is already signed in) as a fresh sign-in
-  const hasInitializedRef = React.useRef(false);
-  
-  useEffect(() => {
-    if (!userLoaded) return;
-    
-    // On first load, just record the current user state without triggering redirect
-    if (!hasInitializedRef.current) {
-      hasInitializedRef.current = true;
-      setPreviousUserState(user);
-      return;
-    }
-    
-    // After initialization, if user changes from null to signed-in, that's a fresh sign-in
-    if (previousUserState === null && user) {
-      if (location.pathname === '/') {
-        sessionStorage.setItem('bodai_just_signed_in', 'true');
-      } else {
-        sessionStorage.removeItem('bodai_just_signed_in');
-      }
-    }
-    
-    setPreviousUserState(user);
-  }, [user, userLoaded, previousUserState, location.pathname]);
+  // Note: Clerk handles redirects via afterSignInUrl and afterSignUpUrl
+  // We don't need custom redirect logic here - authenticated users can visit the homepage
 
   // Load user context from localStorage on mount
   useEffect(() => {
@@ -398,8 +521,33 @@ export default function AppRouter() {
   }, [fetchJourneys]);
 
   useEffect(() => {
-    if (!journeysLoading && user?.id && journeys.length === 0 && location.pathname !== '/onboarding') {
+    // Only redirect to onboarding if:
+    // 1. Journeys are fully loaded (not loading) - `journeysLoading` is false
+    // 2. User is signed in
+    // 3. There are no journeys
+    // 4. We're NOT already on onboarding
+    // 5. We're NOT on the homepage (/) - allow users to stay on homepage
+    // 6. We're NOT on other protected routes (like /practice, /grades, etc.) - allow users to stay on those pages
+    // IMPORTANT: This prevents redirecting when refreshing any page
+    const protectedRoutes = ['/dashboard', '/practice', '/grades', '/analyses', '/my-progress', '/settings', '/subscription', '/new-analysis'];
+    const isOnProtectedRoute = protectedRoutes.some(route => location.pathname.startsWith(route));
+    const isAnalysisRoute = location.pathname.startsWith('/analysis/');
+    const isHomepage = location.pathname === '/';
+    const isAuthPage = location.pathname === '/sign-in' || location.pathname === '/sign-up' || 
+                       location.pathname.startsWith('/sign-in/') || location.pathname.startsWith('/sign-up/');
+    
+    // Only redirect to onboarding if we're on a route that should redirect (not homepage, not protected routes, not auth pages)
+    if (!journeysLoading && user?.id && journeys.length === 0 && 
+        location.pathname !== '/onboarding' && 
+        !isOnProtectedRoute && 
+        !isAnalysisRoute &&
+        !isHomepage &&
+        !isAuthPage) {
+      console.log('[AppRouter] Redirecting to onboarding - no journeys found, current path:', location.pathname);
       navigate('/onboarding');
+    } else if ((isOnProtectedRoute || isHomepage) && journeys.length === 0 && !journeysLoading) {
+      // If we're on a protected route or homepage but have no journeys, don't redirect - just let the page handle it
+      console.log('[AppRouter] On protected route or homepage with no journeys, staying on:', location.pathname);
     }
   }, [journeysLoading, journeys.length, user?.id, navigate, location.pathname]);
 
@@ -724,17 +872,21 @@ export default function AppRouter() {
       } />
 
       {/* Auth Routes - Redirect to dashboard if already signed in */}
+      {/* Use key prop to prevent re-mounting when user state changes */}
       <Route path="/sign-in/*" element={
-        user ? <Navigate to="/dashboard" replace /> : <SignInPage />
+        user ? <Navigate to="/dashboard" replace /> : <SignInPage key="sign-in-page" />
       } />
       <Route path="/sign-up/*" element={
-        user ? <Navigate to="/dashboard" replace /> : <SignUpPage />
+        user ? <Navigate to="/dashboard" replace /> : <SignUpPage key="sign-up-page" />
       } />
+
+      {/* Teams & Enterprise contact (public) */}
+      <Route path="/contact-teams" element={<TeamsContactPage />} />
 
       {/* Protected Routes */}
       <Route path="/onboarding" element={
         <ProtectedRoute>
-          <OnboardingPage onComplete={handleQuestionsComplete} />
+          <OnboardingPageWithWelcome onComplete={handleQuestionsComplete} />
         </ProtectedRoute>
       } />
 
@@ -846,6 +998,22 @@ export default function AppRouter() {
                 activeJourneyId={activeJourneyId}
                 onSelectJourney={handleJourneySelect}
                 refreshTrigger={dashboardRefreshTrigger}
+              />
+            </div>
+          </>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/practice" element={
+        <ProtectedRoute requireOnboarding>
+          <>
+            <Sidebar />
+            <div className="dashboardLayout">
+              <PracticePage 
+                journeys={journeys}
+                journeysLoading={journeysLoading}
+                activeJourneyId={activeJourneyId}
+                onSelectJourney={handleJourneySelect}
               />
             </div>
           </>

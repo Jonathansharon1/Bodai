@@ -93,7 +93,8 @@ export default function BeforeAfterComparison({
           <Trophy size={20} className="beforeAfter__icon" />
           <h3 className="beforeAfter__title">Your Progress Journey</h3>
           <button className="beforeAfter__toggle" aria-label={expanded ? 'Collapse' : 'Expand'}>
-            {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+            <span className="beforeAfter__toggleText">{expanded ? 'Hide Details' : 'View Details'}</span>
+            {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
           </button>
         </div>
         
@@ -109,10 +110,6 @@ export default function BeforeAfterComparison({
             <span className="beforeAfter__stat">
               <span className="beforeAfter__statValue">{comparisonData.totalSessions}</span>
               <span className="beforeAfter__statLabel">sessions</span>
-            </span>
-            <span className="beforeAfter__stat">
-              <span className="beforeAfter__statValue positive">{comparisonData.improvements}</span>
-              <span className="beforeAfter__statLabel">improved</span>
             </span>
           </div>
         </div>

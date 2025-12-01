@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { SignIn } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
 import { Star } from 'lucide-react';
@@ -12,6 +12,34 @@ const TESTIMONIAL = {
 };
 
 export default function SignInPage() {
+  // Memoize Clerk component to prevent re-mounting and duplicate verification codes
+  // Stable key ensures Clerk doesn't re-initialize when parent re-renders
+  const clerkSignIn = useMemo(() => {
+    // Use current pathname or dashboard as redirect, but don't store it persistently
+    // This prevents Clerk from storing redirect URLs that get applied on refresh
+    const redirectUrl = window.location.pathname !== '/sign-in' && 
+                        !window.location.pathname.startsWith('/sign-in/') 
+                        ? window.location.pathname 
+                        : '/dashboard';
+    
+    return (
+      <SignIn 
+        key="clerk-sign-in-stable" // Stable key prevents re-mounting
+        routing="path" 
+        path="/sign-in"
+        signUpUrl="/sign-up"
+        afterSignInUrl={redirectUrl}
+        redirectUrl={redirectUrl}
+        appearance={{
+          elements: {
+            rootBox: 'authPage__clerkRoot',
+            card: 'authPage__clerkCard',
+          }
+        }}
+      />
+    );
+  }, []); // Empty deps - component should only mount once
+
   return (
     <div className="authPage">
       {/* Background Elements */}
@@ -49,18 +77,7 @@ export default function SignInPage() {
 
           {/* Clerk Sign In Component */}
           <div className="authPage__formWrapper">
-            <SignIn 
-              routing="path" 
-              path="/sign-in"
-              signUpUrl="/sign-up"
-              afterSignInUrl="/dashboard"
-              appearance={{
-                elements: {
-                  rootBox: 'authPage__clerkRoot',
-                  card: 'authPage__clerkCard',
-                }
-              }}
-            />
+            {clerkSignIn}
           </div>
 
           {/* Testimonial */}

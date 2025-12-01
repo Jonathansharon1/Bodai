@@ -10,7 +10,7 @@ const BODY_LANGUAGE_FACTS = [
   {
     icon: Smile,
     text: "A genuine smile uses both the mouth and eyes, creating 'crow's feet' wrinkles.",
-    color: "#FF8C64"
+    color: "#46B5D1"
   },
   {
     icon: Hand,
@@ -20,12 +20,12 @@ const BODY_LANGUAGE_FACTS = [
   {
     icon: Brain,
     text: "Mirroring someone's body language builds rapport and connection subconsciously.",
-    color: "#004E64"
+    color: "#2563eb"
   },
   {
     icon: TrendingUp,
     text: "Upright posture with shoulders back increases perceived confidence by 40%.",
-    color: "#FF8C64"
+    color: "#46B5D1"
   },
   {
     icon: Eye,
@@ -35,21 +35,22 @@ const BODY_LANGUAGE_FACTS = [
   {
     icon: Hand,
     text: "Hand gestures can increase audience retention by up to 60% in presentations.",
-    color: "#004E64"
+    color: "#2563eb"
   },
   {
     icon: Smile,
     text: "Smiling releases endorphins and can actually make you feel happier, not just appear happier.",
-    color: "#FF8C64"
+    color: "#46B5D1"
   }
 ];
 
 const PROCESSING_STEPS = [
-  'Processing video...',
-  'Analyzing body language...',
-  'Detecting gestures and gaze...',
-  'Generating insights...',
-  'Preparing your results...'
+  { label: 'Uploading video...', duration: 5 },
+  { label: 'Analyzing video...', duration: 20 },
+  { label: 'Detecting body language and gestures...', duration: 15 },
+  { label: 'Analyzing voice and speech patterns...', duration: 15 },
+  { label: 'Generating personalized insights...', duration: 10 },
+  { label: 'Almost done!', duration: 5 }
 ];
 
 export default function LoadingView({ active = true }) {
@@ -58,15 +59,29 @@ export default function LoadingView({ active = true }) {
   const [progress, setProgress] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
 
-  // Rotate through processing steps
+  // Rotate through processing steps with realistic timing
   useEffect(() => {
     if (!active) return;
     
-    const stepInterval = setInterval(() => {
-      setCurrentStep(prev => (prev + 1) % PROCESSING_STEPS.length);
-    }, 2500);
+    let stepTimeout;
+    const advanceStep = () => {
+      setCurrentStep(prev => {
+        const next = (prev + 1) % PROCESSING_STEPS.length;
+        if (next < PROCESSING_STEPS.length && next > 0) {
+          const duration = PROCESSING_STEPS[next].duration * 1000;
+          stepTimeout = setTimeout(advanceStep, duration);
+        }
+        return next;
+      });
+    };
+    
+    // Start first step immediately, then advance based on durations
+    const firstDuration = PROCESSING_STEPS[0].duration * 1000;
+    stepTimeout = setTimeout(advanceStep, firstDuration);
 
-    return () => clearInterval(stepInterval);
+    return () => {
+      if (stepTimeout) clearTimeout(stepTimeout);
+    };
   }, [active]);
 
   // Rotate through fun facts with animation
@@ -124,7 +139,7 @@ export default function LoadingView({ active = true }) {
 
         {/* Current Step */}
         <p className="loadingView__currentStep">
-          {PROCESSING_STEPS[currentStep]}
+          {PROCESSING_STEPS[currentStep].label}
         </p>
 
         {/* Fun Fact Section */}
@@ -137,10 +152,14 @@ export default function LoadingView({ active = true }) {
           </div>
         </div>
 
-        {/* Bottom Hint */}
-        <p className="loadingView__hint">
-          This may take up to a 1-2 minutes depending on video length
-        </p>
+        {/* Time Estimate */}
+        <div className="loadingView__timeEstimate">
+          <p className="loadingView__timeText">
+            Usually takes <strong>1-2 minutes</strong>
+          </p>
+        </div>
+
+
       </div>
     </div>
   );

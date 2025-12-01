@@ -185,7 +185,7 @@ const parseTipItems = (text) => {
       // Save previous tip
       if (currentTip) {
         items.push(currentTip);
-      }
+    }
       // Start new tip - clean up the title
       const title = cleaned.replace(/\*\*/g, '').replace(/^\d+[.)]\s*/, '').trim();
       currentTip = {
@@ -908,21 +908,21 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
                     <div className="analysisResult__tipBadge">
                       <Mic size={14} />
                       Tip {index + 1}
-                    </div>
+                      </div>
                     <div className="analysisResult__tipTitle">{tip.title}</div>
                     {tip.whatToPractice && (
                       <div className="analysisResult__tipDetail">
                         <span className="analysisResult__tipDetailLabel">What to practice</span>
                         <p>{tip.whatToPractice}</p>
                       </div>
-                    )}
+                      )}
                     {tip.whyItMatters && (
                       <div className="analysisResult__tipDetail">
                         <span className="analysisResult__tipDetailLabel">Why it matters</span>
                         <p>{tip.whyItMatters}</p>
-                      </div>
-                    )}
-                  </div>
+                            </div>
+                          )}
+                            </div>
                 ))}
               </div>
             </AccordionSection>
@@ -949,26 +949,26 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
                       <div className="analysisResult__tipDetail">
                         <span className="analysisResult__tipDetailLabel">What to practice</span>
                         <p>{tip.whatToPractice}</p>
-                      </div>
-                    )}
+                            </div>
+                          )}
                     {tip.whyItMatters && (
                       <div className="analysisResult__tipDetail">
                         <span className="analysisResult__tipDetailLabel">Why it matters</span>
                         <p>{tip.whyItMatters}</p>
                       </div>
                     )}
-                  </div>
-                ))}
-              </div>
+                            </div>
+                          ))}
+                        </div>
             </AccordionSection>
-          )}
+                      )}
 
           {/* Recording Note */}
           {sections.recordingNote && (
             <div className="analysisResult__recordingNote">
               <div className="analysisResult__recordingNoteIcon">
                 <Camera size={16} />
-              </div>
+                    </div>
               <div className="analysisResult__recordingNoteContent">
                 <span className="analysisResult__recordingNoteLabel">Recording Note</span>
                 <p>{sections.recordingNote}</p>

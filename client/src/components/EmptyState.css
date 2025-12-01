@@ -1,0 +1,276 @@
+/* Enhanced Empty State Component */
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 32px;
+  text-align: center;
+  min-height: 400px;
+  position: relative;
+  overflow: hidden;
+}
+
+.emptyState::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 50% 30%, rgba(37, 99, 235, 0.03) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.emptyState__illustration {
+  position: relative;
+  margin-bottom: 40px;
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.emptyState__iconWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+}
+
+.emptyState__iconBg {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  opacity: 0.2;
+  animation: pulse 2s ease-in-out infinite;
+  filter: blur(30px);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.emptyState__icon {
+  position: relative;
+  z-index: 2;
+  color: #2563eb;
+  animation: floatVertical 3s ease-in-out infinite;
+  filter: drop-shadow(0 4px 20px rgba(37, 99, 235, 0.4));
+  transition: filter 0.3s ease;
+  display: block;
+  transform-origin: center center;
+}
+
+.emptyState--practice .emptyState__icon {
+  color: #2563eb;
+  filter: drop-shadow(0 4px 20px rgba(37, 99, 235, 0.4)) drop-shadow(0 0 30px rgba(37, 99, 235, 0.3));
+}
+
+.emptyState--analyses .emptyState__icon {
+  color: #8b5cf6;
+  filter: drop-shadow(0 4px 20px rgba(139, 92, 246, 0.4)) drop-shadow(0 0 30px rgba(139, 92, 246, 0.3));
+}
+
+.emptyState--progress .emptyState__icon {
+  color: #10b981;
+  filter: drop-shadow(0 4px 20px rgba(16, 185, 129, 0.4)) drop-shadow(0 0 30px rgba(16, 185, 129, 0.3));
+}
+
+.emptyState--achievements .emptyState__icon {
+  color: #f59e0b;
+  filter: drop-shadow(0 4px 20px rgba(245, 158, 11, 0.4)) drop-shadow(0 0 30px rgba(245, 158, 11, 0.3));
+}
+
+.emptyState__content {
+  position: relative;
+  z-index: 2;
+  max-width: 500px;
+  animation: fadeInUp 0.6s ease-out 0.2s both;
+}
+
+.emptyState__title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 16px 0;
+  line-height: 1.2;
+  background: linear-gradient(135deg, #0f172a 0%, #475569 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.emptyState__description {
+  font-size: 18px;
+  color: #64748b;
+  line-height: 1.6;
+  margin: 0 0 32px 0;
+  max-width: 450px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.emptyState__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 32px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.25);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.emptyState__action::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.emptyState__action:hover::before {
+  left: 100%;
+}
+
+.emptyState__action:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(37, 99, 235, 0.35);
+}
+
+.emptyState__action:active {
+  transform: translateY(0);
+}
+
+.emptyState__actionArrow {
+  transition: transform 0.3s ease;
+}
+
+.emptyState__action:hover .emptyState__actionArrow {
+  transform: translateX(4px);
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes floatVertical {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.15;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.1);
+    opacity: 0.25;
+  }
+}
+
+@keyframes glow {
+  0%, 100% {
+    filter: drop-shadow(0 4px 20px rgba(37, 99, 235, 0.4)) drop-shadow(0 0 30px rgba(37, 99, 235, 0.3));
+  }
+  50% {
+    filter: drop-shadow(0 4px 30px rgba(37, 99, 235, 0.6)) drop-shadow(0 0 40px rgba(37, 99, 235, 0.5));
+  }
+}
+
+.emptyState--practice .emptyState__icon {
+  animation: floatVertical 3s ease-in-out infinite, glow 2s ease-in-out infinite;
+}
+
+.emptyState--analyses .emptyState__icon {
+  animation: floatVertical 3s ease-in-out infinite, glowAnalyses 2s ease-in-out infinite;
+}
+
+.emptyState--progress .emptyState__icon {
+  animation: floatVertical 3s ease-in-out infinite, glowProgress 2s ease-in-out infinite;
+}
+
+.emptyState--achievements .emptyState__icon {
+  animation: floatVertical 3s ease-in-out infinite, glowAchievements 2s ease-in-out infinite;
+}
+
+@keyframes glowAnalyses {
+  0%, 100% {
+    filter: drop-shadow(0 4px 20px rgba(139, 92, 246, 0.4)) drop-shadow(0 0 30px rgba(139, 92, 246, 0.3));
+  }
+  50% {
+    filter: drop-shadow(0 4px 30px rgba(139, 92, 246, 0.6)) drop-shadow(0 0 40px rgba(139, 92, 246, 0.5));
+  }
+}
+
+@keyframes glowProgress {
+  0%, 100% {
+    filter: drop-shadow(0 4px 20px rgba(16, 185, 129, 0.4)) drop-shadow(0 0 30px rgba(16, 185, 129, 0.3));
+  }
+  50% {
+    filter: drop-shadow(0 4px 30px rgba(16, 185, 129, 0.6)) drop-shadow(0 0 40px rgba(16, 185, 129, 0.5));
+  }
+}
+
+@keyframes glowAchievements {
+  0%, 100% {
+    filter: drop-shadow(0 4px 20px rgba(245, 158, 11, 0.4)) drop-shadow(0 0 30px rgba(245, 158, 11, 0.3));
+  }
+  50% {
+    filter: drop-shadow(0 4px 30px rgba(245, 158, 11, 0.6)) drop-shadow(0 0 40px rgba(245, 158, 11, 0.5));
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .emptyState {
+    padding: 60px 24px;
+    min-height: 350px;
+  }
+
+  .emptyState__icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .emptyState__iconBg {
+    width: 100px;
+    height: 100px;
+  }
+
+  .emptyState__title {
+    font-size: 24px;
+  }
+
+  .emptyState__description {
+    font-size: 16px;
+  }
+
+  .emptyState__action {
+    padding: 14px 24px;
+    font-size: 15px;
+  }
+}
+

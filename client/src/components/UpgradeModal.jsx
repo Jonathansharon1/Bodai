@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, AlertCircle, ArrowRight, Sparkles } from 'lucide-react';
+import { X, Zap, ArrowRight, Check, TrendingUp, BarChart3 } from 'lucide-react';
 import './UpgradeModal.css';
 
 export default function UpgradeModal({ isOpen, onClose, message }) {
@@ -21,29 +21,16 @@ export default function UpgradeModal({ isOpen, onClose, message }) {
         </button>
         
         <div className="upgradeModal__icon">
-          <AlertCircle size={48} color="#F59E0B" />
+          <div className="upgradeModal__iconWrapper">
+            <Zap size={40} className="upgradeModal__iconMain" />
+          </div>
         </div>
         
-        <h2 className="upgradeModal__title">No Analyses Remaining</h2>
+        <h2 className="upgradeModal__title">You've reached your limit</h2>
         
         <p className="upgradeModal__message">
-          {message || "You've used all your analyses for this month. Upgrade to continue analyzing your body language and improving your communication skills."}
+          {message || "Upgrade your plan to keep analyzing new videos and tracking your progress."}
         </p>
-        
-        <div className="upgradeModal__benefits">
-          <div className="upgradeModal__benefit">
-            <Sparkles size={20} color="#46B5D1" />
-            <span>Get more analyses per month</span>
-          </div>
-          <div className="upgradeModal__benefit">
-            <Sparkles size={20} color="#46B5D1" />
-            <span>Track your progress with advanced insights</span>
-          </div>
-          <div className="upgradeModal__benefit">
-            <Sparkles size={20} color="#46B5D1" />
-            <span>Unlock premium features</span>
-          </div>
-        </div>
         
         <div className="upgradeModal__actions">
           <button className="upgradeModal__button upgradeModal__button--primary" onClick={handleUpgrade}>

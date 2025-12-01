@@ -298,7 +298,7 @@ const DEFAULT_GENERATION_CONFIG = {
   topP: 0.1,          // Reduced from 0.2 for narrower sampling
   topK: 8,            // Reduced from 16 for fewer token choices
   candidateCount: 1,
-  maxOutputTokens: 2048
+  maxOutputTokens: 8192  // Increased from 2048 to prevent truncation (prompt requires ~6-8 tips + JSON + other sections)
 };
 
 const DEFAULT_METRICS_SCHEMA_VERSION = 'metrics.schema.v1';
@@ -318,9 +318,11 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
     
     const INLINE_LIMIT_BYTES = 20 * 1024 * 1024; // 20MB
     const fallbackModel = 'gemini-2.5-flash';
-    const modelName = options.model || 'gemini-2.5-pro';
+    const modelName = options.model || process.env.GEMINI_MODEL || 'gemini-3-pro-preview';
     let effectiveModel = modelName;
     const ai = new GoogleGenAI({ apiKey: API_KEY });
+    
+    console.log(`[Gemini] Starting video analysis - Requested model: ${modelName}, Fallback: ${fallbackModel}`);
     
     // Build dynamic prompt based on user context
     const userContext = options.userContext || {};
@@ -373,7 +375,8 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
             file: tmpPath,
             config: { mimeType },
           });
-          const tryModel = modelName;
+          const tryModel = effectiveModel || modelName;
+          console.log(`[Gemini] Calling API with model: ${tryModel} (Files API, video size: ${(videoBuffer.byteLength / 1024 / 1024).toFixed(2)}MB)`);
           return await ai.models.generateContent({
             model: tryModel,
             generationConfig,
@@ -398,10 +401,19 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
             effectiveModel = modelName;
             return await exec();
           } catch (err) {
+            const errorCode = err?.status || err?.code;
+            const errorMsg = err?.message || '';
+            console.warn(`[Gemini] ${effectiveModel || modelName} failed (files API run, attempt ${attempt})`, {
+              status: errorCode,
+              code: err?.code,
+              message: errorMsg.substring(0, 200) // Truncate long messages
+            });
             // Fallback to flash after 2 failed attempts on overload
             const canFallback = modelName !== fallbackModel;
             if (attempt >= 1 && shouldRetry(err) && canFallback) {
+              console.warn(`[Gemini] Falling back to ${fallbackModel} after ${effectiveModel || modelName} failure (files API run, attempt ${attempt})`);
               effectiveModel = fallbackModel;
+              console.log(`[Gemini] Calling API with fallback model: ${fallbackModel} (Files API)`);
               return await ai.models.generateContent({
                 model: fallbackModel,
                 generationConfig,
@@ -441,8 +453,10 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
         ...(Object.keys(videoMetadata).length ? { videoMetadata } : {}),
       };
       const exec = async () => {
+        const tryModel = effectiveModel || modelName;
+        console.log(`[Gemini] Calling API with model: ${tryModel} (Inline API, video size: ${(videoBuffer.byteLength / 1024 / 1024).toFixed(2)}MB)`);
         return await ai.models.generateContent({
-          model: modelName,
+          model: tryModel,
           generationConfig,
           contents: [
             {
@@ -459,9 +473,18 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
           effectiveModel = modelName;
           return await exec();
         } catch (err) {
+          const errorCode = err?.status || err?.code;
+          const errorMsg = err?.message || '';
+          console.warn(`[Gemini] ${effectiveModel || modelName} failed (inline run, attempt ${attempt})`, {
+            status: errorCode,
+            code: err?.code,
+            message: errorMsg.substring(0, 200) // Truncate long messages
+          });
           const canFallback = modelName !== fallbackModel;
           if (attempt >= 1 && shouldRetry(err) && canFallback) {
+            console.warn(`[Gemini] Falling back to ${fallbackModel} after ${effectiveModel || modelName} failure (inline run, attempt ${attempt})`);
             effectiveModel = fallbackModel;
+            console.log(`[Gemini] Calling API with fallback model: ${fallbackModel} (Inline API)`);
             return await ai.models.generateContent({
               model: fallbackModel,
               generationConfig,
@@ -482,6 +505,17 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
     }
 
     const text = typeof response.text === 'function' ? await response.text() : (response.text ?? response.response?.text);
+    
+    // Check for truncation in main analysis response
+    const finishReason = response.response?.candidates?.[0]?.finishReason || 
+                         response.candidates?.[0]?.finishReason || 
+                         response.finishReason;
+    
+    if (finishReason === 'MAX_TOKENS' || finishReason === 'OTHER') {
+      console.warn(`[Gemini] ⚠️ Analysis response may be truncated - finishReason: ${finishReason}. Consider increasing maxOutputTokens.`);
+    } else if (finishReason) {
+      console.log(`[Gemini] Response finishReason: ${finishReason}`);
+    }
     
     // Parse structured metrics from the response
     let metrics = null;
@@ -559,7 +593,7 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
       }
     }
     
-    console.log(`[Gemini] Analysis completed using model: ${effectiveModel}`);
+    console.log(`[Gemini] ✅ Analysis completed successfully using model: ${effectiveModel} (started with: ${modelName})`);
     
     return {
       text: parsedText,
@@ -587,6 +621,7 @@ export const generatePracticePromptFromAction = async ({
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const fallbackModel = 'gemini-2.5-flash';
   const modelName = process.env.GEMINI_PRACTICE_MODEL || 'gemini-2.5-flash';
+  console.log(`[Gemini] Starting practice prompt generation - Model: ${modelName}, Fallback: ${fallbackModel}`);
   const goal = userContext.primaryGoal || 'confidence';
   const confidence = userContext.confidenceLevel || 'medium';
   const detailText = [
@@ -632,6 +667,7 @@ Requirements:
 - Remind the user the drill is self-practice, no upload required.`;
 
   const runGeneration = async (model) => {
+    console.log(`[Gemini] Calling API with model: ${model} (Practice Prompt Generation)`);
     const response = await ai.models.generateContent({
       model,
       contents: [{ parts: [{ text: prompt }] }],
@@ -640,34 +676,50 @@ Requirements:
   };
 
   try {
+    let effectiveModel = modelName;
     let text = await runGeneration(modelName);
     if (!text && modelName !== fallbackModel) {
+      console.warn(`[Gemini] ${modelName} returned empty response, trying fallback: ${fallbackModel}`);
+      effectiveModel = fallbackModel;
       text = await runGeneration(fallbackModel);
     }
-    if (!text) return null;
+    if (!text) {
+      console.error(`[Gemini] Practice prompt generation failed - no response from ${effectiveModel}`);
+      return null;
+    }
     const cleaned = text.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(cleaned);
     if (!parsed?.title || !parsed?.description) {
+      console.error(`[Gemini] Practice prompt generation failed - invalid response from ${effectiveModel}`);
       return null;
     }
+    console.log(`[Gemini] Practice prompt generated successfully using model: ${effectiveModel}`);
     return normalizePracticePrompt(parsed);
   } catch (err) {
     if (modelName !== fallbackModel) {
       try {
+        console.warn(`[Gemini] ${modelName} failed, trying fallback: ${fallbackModel}`, {
+          error: err.message?.substring(0, 200)
+        });
         const text = await runGeneration(fallbackModel);
-        if (!text) return null;
+        if (!text) {
+          console.error(`[Gemini] Practice prompt generation failed - no response from fallback ${fallbackModel}`);
+          return null;
+        }
         const cleaned = text.replace(/```json|```/g, '').trim();
         const parsed = JSON.parse(cleaned);
         if (!parsed?.title || !parsed?.description) {
+          console.error(`[Gemini] Practice prompt generation failed - invalid response from fallback ${fallbackModel}`);
           return null;
         }
+        console.log(`[Gemini] Practice prompt generated successfully using fallback model: ${fallbackModel}`);
         return normalizePracticePrompt(parsed);
       } catch (fallbackErr) {
-        console.error('Failed to generate practice prompt (fallback):', fallbackErr.message || fallbackErr);
+        console.error(`[Gemini] Failed to generate practice prompt (fallback ${fallbackModel}):`, fallbackErr.message || fallbackErr);
         return null;
       }
     }
-    console.error('Failed to generate practice prompt:', err.message || err);
+    console.error(`[Gemini] Failed to generate practice prompt (${modelName}):`, err.message || err);
     return null;
   }
 };
@@ -689,4 +741,188 @@ const normalizePracticePrompt = (parsed) => {
     version: typeof parsed.version === 'number' ? parsed.version : null,
     source: parsed.source || 'ai'
   };
+};
+
+/**
+ * Generate personalized practice missions for a specific parameter/weakness
+ * Returns an array of 4-5 actionable practice steps
+ */
+export const generatePracticeMissions = async ({
+  parameterKey,
+  parameterLabel,
+  parameterDescription,
+  currentScore,
+  targetScore = 7.5,
+  userContext = {},
+  trend = null,
+  previousMissions = []
+}) => {
+  if (!process.env.API_KEY) {
+    console.warn('[Gemini] Cannot generate practice missions: API_KEY missing');
+    return null;
+  }
+
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const fallbackModel = 'gemini-2.5-flash';
+  const modelName = process.env.GEMINI_PRACTICE_MODEL || 'gemini-2.5-flash';
+  
+  console.log(`[Gemini] Starting practice missions generation for ${parameterKey} - Model: ${modelName}`);
+  
+  const goal = userContext.primaryGoal || 'confidence';
+  const goalLabel = getGoalLabel(goal);
+  const confidence = userContext.confidenceLevel || 'medium';
+  
+  const trendInfo = trend 
+    ? `Trend: ${trend.direction === 'improving' ? 'Improving' : trend.direction === 'declining' ? 'Declining' : 'Stable'} (${trend.change > 0 ? '+' : ''}${trend.change.toFixed(1)} points)`
+    : 'No trend data available';
+  
+  const previousMissionsText = previousMissions && previousMissions.length > 0
+    ? `\nPrevious missions already shown to this user (avoid repeating these exact missions):\n${previousMissions.map((m, i) => `${i + 1}. ${m}`).join('\n')}\n`
+    : '';
+
+  const prompt = `You are an expert communication coach creating personalized practice missions (actionable steps) for users to improve a specific communication skill.
+
+USER CONTEXT:
+- Goal: ${goalLabel} (${goal})
+- Confidence Level: ${confidence}
+- Current Score: ${currentScore.toFixed(1)}/10
+- Target Score: ${targetScore}/10
+- Gap to Target: ${(targetScore - currentScore).toFixed(1)} points
+${trendInfo}
+${previousMissionsText}
+
+PARAMETER TO IMPROVE:
+- Name: ${parameterLabel}
+- Key: ${parameterKey}
+- Description: ${parameterDescription}
+
+Generate exactly 2 PRACTICE MISSIONS (numbered steps) that are:
+1. Specific and actionable (user can do them alone, no partner needed)
+2. Progressive (start easier, build up)
+3. Diverse (different types of exercises - recording, mirror practice, daily habits, etc.)
+4. Personalized to their ${goalLabel} goal
+5. Appropriate for their current score of ${currentScore.toFixed(1)}/10
+6. Different from previous missions if provided
+
+Each mission should be:
+- 1-2 sentences max
+- Clear what to do and how long (e.g., "Record a 1-minute video...", "Practice for 5 minutes daily...")
+- Focused on improving ${parameterLabel} specifically
+
+Respond ONLY with valid JSON (no markdown) in this format:
+{
+  "missions": [
+    "First specific actionable step the user can do",
+    "Second specific actionable step"
+  ]
+}`;
+
+  const runGeneration = async (model) => {
+    console.log(`[Gemini] Calling API with model: ${model} (Practice Missions Generation)`);
+    const response = await ai.models.generateContent({
+      model,
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.8, // Higher temperature for more diverse missions
+        topP: 0.9,
+        topK: 40,
+        maxOutputTokens: 2048 // Increased to prevent truncation
+      }
+    });
+    
+    // Check for truncation
+    const finishReason = response.response?.candidates?.[0]?.finishReason || 
+                         response.candidates?.[0]?.finishReason || 
+                         response.finishReason;
+    
+    if (finishReason === 'MAX_TOKENS' || finishReason === 'OTHER') {
+      console.warn(`[Gemini] Response may be truncated - finishReason: ${finishReason}`);
+    }
+    
+    return typeof response.text === 'function' ? await response.text() : (response.text ?? response.response?.text);
+  };
+
+  try {
+    let effectiveModel = modelName;
+    let text = await runGeneration(modelName);
+    
+    if (!text && modelName !== fallbackModel) {
+      console.warn(`[Gemini] ${modelName} returned empty response, trying fallback: ${fallbackModel}`);
+      effectiveModel = fallbackModel;
+      text = await runGeneration(fallbackModel);
+    }
+    
+    if (!text) {
+      console.error(`[Gemini] Practice missions generation failed - no response from ${effectiveModel}`);
+      return null;
+    }
+    
+    const cleaned = text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(cleaned);
+    
+    if (!parsed?.missions || !Array.isArray(parsed.missions) || parsed.missions.length === 0) {
+      console.error(`[Gemini] Practice missions generation failed - invalid response from ${effectiveModel}`);
+      return null;
+    }
+    
+    // Filter out empty missions and trim
+    const missions = parsed.missions
+      .filter(m => m && typeof m === 'string' && m.trim().length > 0)
+      .map(m => m.trim())
+      .slice(0, 2); // Exactly 2 missions
+    
+    if (missions.length === 0) {
+      console.error(`[Gemini] Practice missions generation failed - no valid missions in response`);
+      return null;
+    }
+    
+    console.log(`[Gemini] ✅ Generated ${missions.length} practice missions for ${parameterKey} using model: ${effectiveModel}`);
+    return missions;
+    
+  } catch (err) {
+    if (modelName !== fallbackModel) {
+      try {
+        console.warn(`[Gemini] ${modelName} failed, trying fallback: ${fallbackModel}`, {
+          error: err.message?.substring(0, 200)
+        });
+        const text = await runGeneration(fallbackModel);
+        if (!text) {
+          console.error(`[Gemini] Practice missions generation failed - no response from fallback ${fallbackModel}`);
+          return null;
+        }
+        const cleaned = text.replace(/```json|```/g, '').trim();
+        const parsed = JSON.parse(cleaned);
+        if (!parsed?.missions || !Array.isArray(parsed.missions) || parsed.missions.length === 0) {
+          console.error(`[Gemini] Practice missions generation failed - invalid response from fallback ${fallbackModel}`);
+          return null;
+        }
+        const missions = parsed.missions
+          .filter(m => m && typeof m === 'string' && m.trim().length > 0)
+          .map(m => m.trim())
+          .slice(0, 2);
+        console.log(`[Gemini] ✅ Generated ${missions.length} practice missions for ${parameterKey} using fallback model: ${fallbackModel}`);
+        return missions;
+      } catch (fallbackErr) {
+        console.error(`[Gemini] Failed to generate practice missions (fallback ${fallbackModel}):`, fallbackErr.message || fallbackErr);
+        return null;
+      }
+    }
+    console.error(`[Gemini] Failed to generate practice missions (${modelName}):`, err.message || err);
+    return null;
+  }
+};
+
+// Helper function to get goal label (reused from buildPrompt)
+const getGoalLabel = (goal) => {
+  const goalMap = {
+    'confidence': 'Build Confidence',
+    'content': 'Content Creator',
+    'presentation': 'Presentation Skills',
+    'communication': 'Better Communication',
+    'leadership': 'Executive Presence',
+    'dating': 'Dating & Romantic',
+    'social': 'Social Confidence',
+    'general': 'General Improvement'
+  };
+  return goalMap[goal] || goal;
 };

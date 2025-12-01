@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -17,12 +17,14 @@ import {
   CheckCircle2,
   AlertCircle,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  ArrowRight
 } from 'lucide-react';
 import './MyProgressPage.css';
 import JourneySwitcher from '../components/JourneySwitcher';
 import PracticeCommitmentAlert from '../components/PracticeCommitmentAlert';
 import LoadingSpinner from '../components/LoadingSpinner';
+import EmptyState from '../components/EmptyState';
 
 // All 25 parameters organized by category
 const KPI_FIELDS = [
@@ -117,23 +119,44 @@ const FOCUS_GUIDANCE = {
   'voice_articulation': {
     why: 'Crisp pronunciation keeps every insight clear and trustworthy.',
     instantTip: 'Slow the first sentence of each idea and exaggerate consonants for those opening words.',
-    microPractice: 'Read the next paragraph of your script aloud while placing a fingertip beneath your chin—if your chin bounces on every syllable you’re clipping words; reset and repeat.',
+    microPractice: 'Read the next paragraph of your script aloud while placing a fingertip beneath your chin - if your chin bounces on every syllable you\'re clipping words; reset and repeat.',
     practiceTime: '45 sec',
     trackThis: 'Aim for articulation ≥ 7.5 while keeping pace steady.'
   },
   'presence_eye_contact': {
     why: 'Eye contact is the fastest way to hold attention and signal confidence.',
     instantTip: 'Lock eyes with the lens for the first full sentence of each new idea, then glance briefly to your notes.',
-    microPractice: 'Stick a small dot next to the lens and explain one bullet point while keeping your gaze on the dot for 3–5 seconds before looking away.',
+    microPractice: 'Stick a small dot next to the lens and explain one bullet point while keeping your gaze on the dot for 3-5 seconds before looking away.',
     practiceTime: '30 sec',
     trackThis: 'Hold the lens for 70% of sentences to move the score above 8.'
   },
   'impact_persuasiveness': {
     why: 'Persuasiveness converts attention into action; it needs structured emphasis.',
-    instantTip: 'Sum each point with a bold “so here’s what that means for you…” statement.',
+    instantTip: 'Sum each point with a bold "so here\'s what that means for you..." statement.',
     microPractice: 'Record a 30-second pitch where every sentence ends with a clear benefit to the listener. Play it back and confirm you can hear the benefit in each line.',
     practiceTime: '30 sec',
     trackThis: 'Use benefit-driven closes on every key point until impact > 6.5.'
+  },
+  'confidence_filler_word_control': {
+    why: 'Filler words undermine your authority and make you sound uncertain.',
+    instantTip: 'Replace "um" and "uh" with a 2-second pause. Pauses sound thoughtful, not uncertain.',
+    microPractice: 'Record yourself speaking for 1 minute. Count your filler words, then re-record aiming for zero.',
+    practiceTime: '1 min',
+    trackThis: 'Reduce filler words to less than 2 per minute.'
+  },
+  'presence_body_posture': {
+    why: 'Good posture projects confidence and helps you breathe better for clearer speech.',
+    instantTip: 'Stand or sit with your shoulders back, chest open, and chin parallel to the floor.',
+    microPractice: 'Record yourself standing tall for 30 seconds, then watch it back to see the difference.',
+    practiceTime: '30 sec',
+    trackThis: 'Maintain upright posture throughout your entire recording.'
+  },
+  'voice_tone_variation': {
+    why: 'Varying your tone keeps your audience engaged and emphasizes key points.',
+    instantTip: 'Raise your pitch on important words and lower it for emphasis.',
+    microPractice: 'Read a paragraph three times: monotone, then with variation, then with extreme variation.',
+    practiceTime: '2 min',
+    trackThis: 'Vary your pitch by at least 3-4 notes throughout your delivery.'
   },
   default: {
     why: 'Sharpening this lever has the fastest payoff for your communication goal.',
@@ -272,8 +295,6 @@ export default function MyProgressPage({
     strengths: false,
     complete: false
   });
-  const [expandedFocusCards, setExpandedFocusCards] = useState({});
-  const [nextDrill, setNextDrill] = useState(null);
   const [reflections, setReflections] = useState([]);
 
   const activeJourney = useMemo(
@@ -313,7 +334,6 @@ export default function MyProgressPage({
     if (user && activeJourneyId !== null) {
       // Clear existing data immediately to avoid showing stale data
       setMetrics([]);
-      setNextDrill(null);
       setReflections([]);
       setLoading(true);
       // Fetch new data for the selected journey
@@ -343,38 +363,6 @@ export default function MyProgressPage({
     }
   }, [location.pathname, user, activeJourneyId]);
 
-  const fetchNextDrill = async (headers) => {
-    if (!headers || !headers['X-Clerk-User-Id']) {
-      setNextDrill(null);
-      return;
-    }
-    
-    try {
-      const actionParams = new URLSearchParams();
-      actionParams.append('status', 'pending');
-      if (activeJourneyId) {
-        actionParams.append('journeyId', activeJourneyId);
-      }
-      const actionRes = await fetch(
-        `${apiBase}/api/action-items?${actionParams.toString()}`,
-        { headers }
-      ).catch((fetchError) => {
-        console.error('Network error fetching next drill:', fetchError);
-        throw fetchError;
-      });
-
-      if (actionRes.ok) {
-        const actionData = await actionRes.json();
-        const pendingItems = (actionData.actionItems || []).filter(item => item.status !== 'completed');
-        setNextDrill(pendingItems[0] || null);
-      } else {
-        setNextDrill(null);
-      }
-    } catch (err) {
-      console.error('Failed to fetch next drill:', err);
-      setNextDrill(null);
-    }
-  };
 
   const fetchReflections = async (headers) => {
     try {
@@ -423,7 +411,6 @@ export default function MyProgressPage({
       } catch (fetchError) {
         console.error('MyProgressPage: Network error fetching metrics:', fetchError);
         setMetrics([]);
-        setNextDrill(null);
         setReflections([]);
         setLoading(false);
         return;
@@ -443,14 +430,7 @@ export default function MyProgressPage({
         setMetrics([]);
       }
 
-      // Fetch next drill and reflections with error handling
-      try {
-        await fetchNextDrill(headers);
-      } catch (err) {
-        console.error('Failed to fetch next drill:', err);
-        setNextDrill(null);
-      }
-
+      // Fetch reflections with error handling
       try {
         await fetchReflections(headers);
       } catch (err) {
@@ -460,34 +440,12 @@ export default function MyProgressPage({
     } catch (err) {
       console.error('Failed to fetch progress data:', err);
       setMetrics([]);
-      setNextDrill(null);
       setReflections([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCompleteNextDrill = async () => {
-    if (!user || !nextDrill) return;
-    try {
-      const res = await fetch(`${apiBase}/api/action-items/${nextDrill.id}/status`, {
-        method: 'PATCH',
-        headers: {
-          'X-Clerk-User-Id': user.id,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ status: 'completed' })
-      });
-      if (res.ok) {
-        await fetchNextDrill({
-          'X-Clerk-User-Id': user.id,
-          'Content-Type': 'application/json'
-        });
-      }
-    } catch (err) {
-      console.error('Failed to mark drill complete:', err);
-    }
-  };
 
   // Calculate parameter improvements
   const parameterImprovements = useMemo(() => {
@@ -694,12 +652,6 @@ export default function MyProgressPage({
     }));
   };
 
-  const toggleFocusCard = (key) => {
-    setExpandedFocusCards(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
-  };
 
   const parseScore = (value) => {
     const parsed = typeof value === 'number' ? value : parseFloat(value);
@@ -715,10 +667,6 @@ export default function MyProgressPage({
 
   const getMetricTimestamp = (metric) => metric?.analyses?.created_at || metric?.created_at;
 
-  const formatPracticeMetric = (metric) => {
-    if (!metric) return 'Overall';
-    return PRACTICE_METRIC_LABELS[metric] || metric.replace(/_/g, ' ');
-  };
 
   const latestMetrics = metrics.length > 0 ? metrics[metrics.length - 1] : null;
   const previousMetricsEntry = metrics.length > 1 ? metrics[metrics.length - 2] : null;
@@ -842,18 +790,15 @@ export default function MyProgressPage({
               : 'Track your communication journey'}
           </p>
         </div>
-        <div className="myProgressPage__empty">
-          <BarChart3 size={64} />
-          <h2>No progress data yet</h2>
-          <p>
-            {focusLabel
-              ? `No analyses yet for ${focusLabel}. Upload a video to start tracking this focus.`
-              : 'Complete your first analysis to start tracking your improvement across all 25 communication parameters.'}
-          </p>
-          <button className="btn btn--primary" onClick={() => navigate('/new-analysis')}>
-            Start Your First Analysis
-          </button>
-        </div>
+        <EmptyState
+          variant="progress"
+          title={focusLabel ? `No ${focusLabel} progress yet` : "No progress data yet"}
+          description={focusLabel
+            ? `Upload a video to start tracking your ${focusLabel} communication journey. Watch your improvement across key metrics over time.`
+            : "Complete your first analysis to start tracking your improvement across all 25 communication parameters. See your growth over time with detailed insights."}
+          actionLabel="Start Your First Analysis"
+          onAction={() => navigate('/new-analysis')}
+        />
       </div>
     );
   }
@@ -1144,37 +1089,6 @@ export default function MyProgressPage({
         </div>
       )}
 
-      {/* Next Drill */}
-      {nextDrill && (
-        <div className="myProgressPage__section nextDrillSection">
-          <div className="nextDrillCard">
-            <div className="nextDrillCard__meta">
-              <span className="nextDrillCard__badge">{formatPracticeMetric(nextDrill.practice_prompt_target_metric)}</span>
-              <span className="nextDrillCard__status">Next Drill</span>
-            </div>
-            <h3 className="nextDrillCard__title">
-              {nextDrill.practice_prompt_title || nextDrill.title}
-            </h3>
-            <p className="nextDrillCard__description">
-              {nextDrill.practice_prompt_description ||
-                nextDrill.details?.what_to_do ||
-                nextDrill.details?.all_details?.[0] ||
-                'Use this drill to reinforce your weakest metric before recording the next session.'}
-            </p>
-            <div className="nextDrillCard__cta">
-              <button type="button" className="btn btn--primary" onClick={() => navigate('/new-analysis')}>
-                Launch Drill
-              </button>
-              <button type="button" className="btn btn--ghost" onClick={handleCompleteNextDrill}>
-                Mark Completed
-              </button>
-              {nextDrill.practice_prompt_time && (
-                <span className="nextDrillCard__time">{nextDrill.practice_prompt_time}</span>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {latestReflection && latestMetrics && (
         <div className="myProgressPage__section reflectionSection">
@@ -1260,8 +1174,6 @@ export default function MyProgressPage({
               const param = category?.parameters.find(p => p.key === weakness.key);
               
               const guidance = FOCUS_GUIDANCE[weakness.key] || FOCUS_GUIDANCE.default;
-              const hasCustomGuidance = guidance && guidance !== FOCUS_GUIDANCE.default;
-              const isExpanded = expandedFocusCards[weakness.key];
 
               return (
                 <div key={idx} className="focusCard">
@@ -1298,37 +1210,16 @@ export default function MyProgressPage({
                     {generateWeaknessNarrative(param || { key: weakness.key, label: weakness.label, description: weakness.description }, weakness.current, weakness.trend)}
                   </p>
                   <div className="focusCard__why">{guidance.why}</div>
-                  {hasCustomGuidance && (
-                    <>
-                      <button
-                        type="button"
-                        className="focusCard__toggle"
-                        onClick={() => toggleFocusCard(weakness.key)}
-                      >
-                        {isExpanded ? 'Hide coach plan' : 'Show coach plan'}
-                        {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                      </button>
-                      {isExpanded && (
-                        <div className="focusPlan">
-                          <div className="focusPlan__item">
-                            <div className="focusPlan__label">Instant Tip</div>
-                            <p>{guidance.instantTip}</p>
-                          </div>
-                          <div className="focusPlan__item">
-                            <div className="focusPlan__label">Optional micro practice</div>
-                            <p>{guidance.microPractice}</p>
-                            {guidance.practiceTime && (
-                              <span className="focusPlan__chip">{guidance.practiceTime}</span>
-                            )}
-                          </div>
-                          <div className="focusPlan__item focusPlan__item--meta">
-                            <div className="focusPlan__label">Track this</div>
-                            <p>{guidance.trackThis}</p>
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
+                  
+                  {/* Practice Button */}
+                  <button
+                    type="button"
+                    className="btn btn--primary focusCard__practiceButton"
+                    onClick={() => navigate(`/practice?focus=${weakness.key}`)}
+                  >
+                    Practice this
+                    <ArrowRight size={16} />
+                  </button>
                 </div>
               );
             })}

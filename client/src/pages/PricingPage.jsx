@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { Check, ChevronDown } from 'lucide-react';
@@ -39,6 +39,16 @@ export default function PricingPage() {
   const [billingPeriod, setBillingPeriod] = useState('monthly');
   const [openFaqIndex, setOpenFaqIndex] = useState(0);
 
+  // Lightweight analytics hook – replace with real tracking later
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line no-console
+      console.log('[PricingPage] Viewed', { billingPeriod: 'monthly' });
+    } catch {
+      // ignore
+    }
+  }, []);
+
   const sharedFeatures = [
     'AI-powered video analysis',
     'Detailed feedback on body language & voice',
@@ -48,6 +58,7 @@ export default function PricingPage() {
     'Email support'
   ];
 
+  // Self-serve plans: pricing is based on analyses per month and max video length
   const plans = [
     {
       id: 'free',
@@ -55,7 +66,9 @@ export default function PricingPage() {
       price: 0,
       priceYearly: 0,
       period: 'forever',
-      analysesText: '1 free analysis',
+      analysesText: '1 analysis / month · up to 10 min per video',
+      analysesPerMonth: '1 analysis / month',
+      durationText: 'Up to 10 min per video',
       theme: 'slate',
       cta: 'Start Free',
       ctaVariant: 'secondary',
@@ -64,48 +77,62 @@ export default function PricingPage() {
     {
       id: 'starter',
       name: 'Basic',
-      price: 8,
-      priceYearly: 80,
+      price: 12,
+      priceYearly: 120,
       period: 'per month',
-      analysesText: '6 analyses per month',
+      analysesText: '8 analyses / month · up to 10 min per video',
+      analysesPerMonth: '8 analyses / month',
+      durationText: 'Up to 10 min per video',
       theme: 'teal',
       cta: 'Get Basic',
       ctaVariant: 'primary',
       recommended: false,
-      valueText: 'Great for monthly practice',
+      valueText: 'Great for 1–2 sessions per week',
       badgeText: 'Good start'
     },
     {
-      id: 'momentum',
+      id: 'pro',
       name: 'Pro',
-      price: 15,
-      priceYearly: 150,
+      price: 24,
+      priceYearly: 240,
       period: 'per month',
-      analysesText: '16 analyses per month',
+      analysesText: '20 analyses / month · up to 30 min per video',
+      analysesPerMonth: '20 analyses / month',
+      durationText: 'Up to 30 min per video',
       theme: 'indigo',
       cta: 'Get Pro',
       ctaVariant: 'primary',
       recommended: true,
-      valueText: 'Less than $1 per analysis',
+      valueText: 'Best for weekly creators',
       badgeText: 'Most popular'
     },
     {
       id: 'executive',
       name: 'Unlimited',
-      price: 39,
-      priceYearly: 390,
+      price: 49,
+      priceYearly: 490,
       period: 'per month',
-      analysesText: 'Unlimited analyses',
+      analysesText: 'Unlimited analyses · up to 45 min per video',
+      analysesPerMonth: 'Unlimited analyses',
+      durationText: 'Up to 45 min per video',
       theme: 'graphite',
       cta: 'Get Unlimited',
       ctaVariant: 'primary',
       recommended: false,
-      valueText: 'Best for daily practice',
+      valueText: 'Best for daily practice and coaching',
       badgeText: 'Best value'
     }
   ];
 
   const handleSelectPlan = (planId) => {
+    // Simple analytics hook – replace with real tracking later
+    try {
+      // eslint-disable-next-line no-console
+      console.log('[PricingPage] Plan selected', { planId, billingPeriod });
+    } catch (e) {
+      // ignore
+    }
+
     if (!isSignedIn) {
       // SignInButton will handle this
       return;
@@ -128,7 +155,8 @@ export default function PricingPage() {
           <p className="pricingPage__eyebrow">Simple Pricing</p>
           <h1 className="pricingPage__title">Pick a plan that fits how often you practice</h1>
           <p className="pricingPage__subtitle">
-            All plans include the same powerful AI analysis. The only difference is how many videos you can upload.
+            All plans include the same powerful AI analysis. The difference is how often
+            you can practice and how long each video can be.
           </p>
 
           <div className="pricingPage__billingToggle">
@@ -176,6 +204,29 @@ export default function PricingPage() {
           ))}
         </section>
 
+        {/* Teams & Enterprise Card */}
+        <section className="pricingPage__teams">
+          <div className="teamsCard">
+            <div className="teamsCard__content">
+              <p className="teamsCard__eyebrow">For teams & organizations</p>
+              <h3 className="teamsCard__title">Teams & Enterprise</h3>
+              <p className="teamsCard__subtitle">Custom pricing for coaches, companies, and schools.</p>
+              <ul className="teamsCard__list">
+                <li>Multiple seats & shared dashboards</li>
+                <li>Centralized billing</li>
+                <li>Training and onboarding support</li>
+              </ul>
+            </div>
+            <button
+              className="teamsCard__button"
+              type="button"
+              onClick={() => navigate('/contact-teams')}
+            >
+              Contact sales
+            </button>
+          </div>
+        </section>
+
         <section className="pricingPage__payAsYouGo">
           <div className="payAsYouGo__card">
             <div className="payAsYouGo__content">
@@ -185,10 +236,12 @@ export default function PricingPage() {
                 Don't need a subscription? Buy individual analyses anytime.
               </p>
               <div className="payAsYouGo__price">
-                <span className="payAsYouGo__amount">$1.50</span>
-                <span className="payAsYouGo__period">per video</span>
+                <span className="payAsYouGo__amount">$2.50</span>
+                <span className="payAsYouGo__period">per video (up to 10 min)</span>
               </div>
-              <p className="payAsYouGo__hint">Tip: If you analyze 6+ videos per month, Basic is cheaper.</p>
+              <p className="payAsYouGo__hint">
+                Tip: If you analyze 6+ videos per month, the Basic plan is cheaper.
+              </p>
             </div>
             {isSignedIn ? (
               <button className="payAsYouGo__button" onClick={() => navigate('/new-analysis')}>

@@ -88,7 +88,7 @@ export default function SubscriptionPage() {
   const getSubscriptionLimits = (type) => {
     const limits = {
       free: { analyses: 1 },
-      basic: { analyses: 12 },
+      basic: { analyses: 8 },
       premium: { analyses: 20 },
       pro: { analyses: -1 } // unlimited
     };

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { SignUp } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
 import { Star, CheckCircle } from 'lucide-react';
@@ -19,6 +19,24 @@ const TESTIMONIAL = {
 };
 
 export default function SignUpPage() {
+  // Memoize Clerk component to prevent re-mounting and duplicate verification codes
+  // Stable key ensures Clerk doesn't re-initialize when parent re-renders
+  const clerkSignUp = useMemo(() => (
+    <SignUp 
+      key="clerk-sign-up-stable" // Stable key prevents re-mounting
+      routing="path" 
+      path="/sign-up"
+      signInUrl="/sign-in"
+      afterSignUpUrl="/onboarding"
+      appearance={{
+        elements: {
+          rootBox: 'authPage__clerkRoot',
+          card: 'authPage__clerkCard',
+        }
+      }}
+    />
+  ), []); // Empty deps - component should only mount once
+
   return (
     <div className="authPage">
       {/* Background Elements */}
@@ -67,18 +85,7 @@ export default function SignUpPage() {
 
           {/* Clerk Sign Up Component */}
           <div className="authPage__formWrapper">
-            <SignUp 
-              routing="path" 
-              path="/sign-up"
-              signInUrl="/sign-in"
-              afterSignUpUrl="/onboarding"
-              appearance={{
-                elements: {
-                  rootBox: 'authPage__clerkRoot',
-                  card: 'authPage__clerkCard',
-                }
-              }}
-            />
+            {clerkSignUp}
           </div>
 
           {/* Testimonial */}
