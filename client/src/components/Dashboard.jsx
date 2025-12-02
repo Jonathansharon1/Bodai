@@ -364,11 +364,9 @@ function ExpandableDashboardText({ text, collapsedLines = 2 }) {
       'confidence': Dumbbell,
       'content': Video,
       'presentation': Mic,
-      'communication': MessageCircle,
       'leadership': Award,
-      'dating': Heart,
-      'social': Users,
-      'general': Sparkles
+      'interview': Briefcase,
+      'sales': Users
     };
     return goalIcons[goal] || Target;
   };
@@ -378,11 +376,9 @@ function ExpandableDashboardText({ text, collapsedLines = 2 }) {
       'confidence': 'Build Confidence',
       'content': 'Content Creator',
       'presentation': 'Presentation Skills',
-      'communication': 'Better Communication',
       'leadership': 'Executive Presence',
-      'dating': 'Dating & Romantic',
-      'social': 'Social Confidence',
-      'general': 'General Improvement'
+      'interview': 'Job Interviews',
+      'sales': 'Face-to-face Sales'
     };
     return goalMap[goal] || goal;
   };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
+import { useTranslation } from 'react-i18next';
 import OnboardingPage from './pages/OnboardingPage';
 import AnalysisPage from './pages/AnalysisPage';
 import Dashboard from './components/Dashboard';
@@ -391,6 +392,16 @@ function HomepageRoute({ user, isLoaded, navigate, onNewAnalysis }) {
     }
   }, [location.pathname, isLoaded, user]);
 
+  // Scroll to anchored sections (e.g. #product, #how-it-works) when hash changes on homepage
+  useEffect(() => {
+    if (location.pathname !== '/' || !location.hash) return;
+    const id = location.hash.replace('#', '');
+    const target = document.getElementById(id);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [location.pathname, location.hash]);
+
   return (
     <>
       <Header />
@@ -407,6 +418,7 @@ function HomepageRoute({ user, isLoaded, navigate, onNewAnalysis }) {
 
 export default function AppRouter() {
   const { user, isLoaded: userLoaded } = useUser();
+  const { i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const [file, setFile] = useState(null);
@@ -444,14 +456,15 @@ export default function AppRouter() {
     if (!journey) return;
     const context = {
       primaryGoal: journey.focus_slug || 'general',
-      confidenceLevel: journey.confidence_level || 'medium'
+      confidenceLevel: journey.confidence_level || 'medium',
+      language: i18n.language || 'en'
     };
     if (journey.goal_context) {
       context.goalSpecificContext = journey.goal_context;
     }
     setUserContext(context);
     localStorage.setItem('bodai_user_context', JSON.stringify(context));
-  }, []);
+  }, [i18n.language]);
 
   const fetchJourneys = useCallback(async () => {
     if (!user?.id) {
@@ -533,6 +546,7 @@ export default function AppRouter() {
     const isOnProtectedRoute = protectedRoutes.some(route => location.pathname.startsWith(route));
     const isAnalysisRoute = location.pathname.startsWith('/analysis/');
     const isHomepage = location.pathname === '/';
+    const isPricingPage = location.pathname === '/pricing';
     const isAuthPage = location.pathname === '/sign-in' || location.pathname === '/sign-up' || 
                        location.pathname.startsWith('/sign-in/') || location.pathname.startsWith('/sign-up/');
     
@@ -542,10 +556,11 @@ export default function AppRouter() {
         !isOnProtectedRoute && 
         !isAnalysisRoute &&
         !isHomepage &&
-        !isAuthPage) {
+        !isAuthPage &&
+        !isPricingPage) {
       console.log('[AppRouter] Redirecting to onboarding - no journeys found, current path:', location.pathname);
       navigate('/onboarding');
-    } else if ((isOnProtectedRoute || isHomepage) && journeys.length === 0 && !journeysLoading) {
+    } else if ((isOnProtectedRoute || isHomepage || isPricingPage) && journeys.length === 0 && !journeysLoading) {
       // If we're on a protected route or homepage but have no journeys, don't redirect - just let the page handle it
       console.log('[AppRouter] On protected route or homepage with no journeys, staying on:', location.pathname);
     }
@@ -777,8 +792,10 @@ export default function AppRouter() {
       }
 
       const headers = {};
-      if (userContext) {
-        headers['X-User-Context'] = JSON.stringify(userContext);
+      // Include language preference in userContext
+      const contextWithLanguage = userContext ? { ...userContext, language: i18n.language } : { language: i18n.language };
+      if (contextWithLanguage) {
+        headers['X-User-Context'] = JSON.stringify(contextWithLanguage);
       }
       if (user?.id) {
         headers['X-Clerk-User-Id'] = user.id;

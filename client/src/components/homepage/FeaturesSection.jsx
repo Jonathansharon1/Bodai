@@ -1,32 +1,26 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Brain, Target, TrendingUp, BookOpen } from 'lucide-react';
+import { Brain, Target, TrendingUp } from 'lucide-react';
 import './FeaturesSection.css';
 
 const features = [
   {
     icon: Brain,
     title: 'AI-Powered Analysis',
-    description: 'Advanced AI analyzes your body language, gestures, and delivery to provide professional insights and actionable feedback.',
+    description: 'BodAI doesn’t just watch your videos.\n It reads your body language. From posture and gestures to eye contact, energy, and delivery, you get a clear picture of how you truly come across in interviews, presentations, sales calls, and everyday meetings.',
     color: '#004E64'
   },
   {
     icon: Target,
-    title: 'Personalized Coaching',
-    description: 'Get tailored recommendations based on your goals, whether it\'s interviews, presentations, or building confidence.',
+    title: 'Personalized Coaching for Your Scenario',
+    description: 'Whether you’re a founder, team lead, content creator, student, or just want to feel more confident, BodAI adapts to you with personalized guidance on what to change in your body language and delivery.',
     color: '#46B5D1'
   },
   {
     icon: TrendingUp,
     title: 'Progress Tracking',
-    description: 'Track your improvement over time with detailed metrics, charts, and comparisons to see your growth.',
+    description: 'Track clear scores and trends over time so you can see your communication improving from session to session.Not just hope it is improving.',
     color: '#FF8C64'
   },
-  {
-    icon: BookOpen,
-    title: 'Structured Courses',
-    description: 'Access comprehensive courses designed to help you master communication skills step by step.',
-    color: '#004E64'
-  }
 ];
 
 export default function FeaturesSection() {
@@ -55,12 +49,16 @@ export default function FeaturesSection() {
   }, []);
 
   return (
-    <section ref={sectionRef} className={`featuresSection ${isVisible ? 'featuresSection--visible' : ''}`}>
+    <section
+      id="product"
+      ref={sectionRef}
+      className={`featuresSection ${isVisible ? 'featuresSection--visible' : ''}`}
+    >
       <div className="featuresSection__container">
         <div className="featuresSection__header">
-          <h2 className="featuresSection__title">Why Choose BodAI?</h2>
+          <h2 className="featuresSection__title">Why People Practice with BodAI?</h2>
           <p className="featuresSection__subtitle">
-            Everything you need to master your body language and communication skills
+          Advanced AI analysis, personalized coaching by goal, and progress you can actually see - so you show up more confident in real‑world moments.
           </p>
         </div>
         <div className="featuresSection__grid">

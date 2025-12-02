@@ -227,18 +227,19 @@
 }
 
 .myProgressPage__title {
-  font-size: 36px;
+  font-size: var(--text-h1-size);
+  line-height: var(--text-h1-line-height);
   font-weight: 800;
-  color: #0f172a;
+  color: var(--text-dark);
   margin: 0 0 8px 0;
   letter-spacing: -0.03em;
-  line-height: 1.2;
-  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-family: var(--font-display);
 }
 
 .myProgressPage__subtitle {
-  font-size: 17px;
-  color: #64748b;
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line-height);
+  color: var(--text-muted);
   margin: 0;
   font-weight: 500;
 }

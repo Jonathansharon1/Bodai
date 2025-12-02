@@ -10,9 +10,10 @@ const formatGoalLabel = (slug) => {
     dating: 'Dating & Romantic',
     social: 'Social Confidence',
     general: 'General Improvement',
-    interview: 'Job Interview Prep' // Legacy support
+    interview: 'Job Interviews',
+    sales: 'Face-to-face Sales'
   };
-  if (!slug) return 'Focus';
+  if (!slug) return 'Journey';
   return labels[slug] || slug.charAt(0).toUpperCase() + slug.slice(1);
 };
 
@@ -29,7 +30,7 @@ export default function JourneySwitcher({
   if (journeysLoading) {
     return (
       <div className={containerClass}>
-        <div className="journeyTabs__loading">Loading focuses…</div>
+        <div className="journeyTabs__loading">Loading journeys…</div>
       </div>
     );
   }
@@ -39,9 +40,9 @@ export default function JourneySwitcher({
       <div className={containerClass}>
         <div className="journeyTabs__empty">
           <div>
-            <p className="journeyTabs__emptyTitle">No focuses yet</p>
+            <p className="journeyTabs__emptyTitle">No journeys yet</p>
             <p className="journeyTabs__emptySubtitle">
-              Choose a goal (presentations, confidence, interviews, and more) to get personalized coaching.
+              Choose a journey (presentations, confidence, interviews, and more) to get personalized coaching.
             </p>
           </div>
           {onAddJourney && (
@@ -50,7 +51,7 @@ export default function JourneySwitcher({
               className="btn btn--primary"
               onClick={onAddJourney}
             >
-              Start Your First Focus
+              Start Your First Journey
             </button>
           )}
         </div>
@@ -80,7 +81,7 @@ export default function JourneySwitcher({
           className="journeyTab journeyTab--add"
           onClick={onAddJourney}
         >
-          + New Focus
+          + New Journey
         </button>
       )}
     </div>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { 
   LayoutDashboard, 
   Video, 
@@ -13,56 +14,57 @@ import {
 import Logo from '../Logo';
 import './Sidebar.css';
 
-const SIDEBAR_ITEMS = [
-  {
-    id: 'home',
-    label: 'Home',
-    icon: Home,
-    path: '/',
-    external: true,
-  },
-  {
-    id: 'dashboard',
-    label: 'Dashboard',
-    icon: LayoutDashboard,
-    path: 'dashboard',
-  },
-  {
-    id: 'analyses',
-    label: 'My Analyses',
-    icon: Video,
-    path: 'analyses',
-  },
-  {
-    id: 'grades',
-    label: 'My Progress',
-    icon: TrendingUp,
-    path: 'grades',
-  },
-  {
-    id: 'practice',
-    label: 'Practice',
-    icon: Target,
-    path: 'practice',
-  },
-  {
-    id: 'subscription',
-    label: 'Subscription',
-    icon: Gem,
-    path: 'subscription',
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    icon: Settings,
-    path: 'settings',
-  },
-];
-
 export default function Sidebar() {
   const { user } = useUser();
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation();
+
+  const SIDEBAR_ITEMS = [
+    {
+      id: 'home',
+      label: t('sidebar.home'),
+      icon: Home,
+      path: '/',
+      external: true,
+    },
+    {
+      id: 'dashboard',
+      label: t('sidebar.dashboard'),
+      icon: LayoutDashboard,
+      path: 'dashboard',
+    },
+    {
+      id: 'analyses',
+      label: t('sidebar.myAnalyses'),
+      icon: Video,
+      path: 'analyses',
+    },
+    {
+      id: 'grades',
+      label: t('sidebar.myProgress'),
+      icon: TrendingUp,
+      path: 'grades',
+    },
+    {
+      id: 'practice',
+      label: t('sidebar.practice'),
+      icon: Target,
+      path: 'practice',
+    },
+    {
+      id: 'subscription',
+      label: t('sidebar.subscription'),
+      icon: Gem,
+      path: 'subscription',
+    },
+    {
+      id: 'settings',
+      label: t('sidebar.settings'),
+      icon: Settings,
+      path: 'settings',
+    },
+  ];
 
   const getActivePage = () => {
     const path = location.pathname;

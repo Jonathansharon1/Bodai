@@ -79,66 +79,20 @@ const buildHistoricalContextBlock = (historicalContext = null) => {
   return sections.length ? `${sections.join('\n')}\n` : '';
 };
 
-// Build Module 1 baseline prompt
-const buildModule1BaselinePrompt = () => {
-  return `You are an expert body language and social psychology analyst specializing in the Stereotype Content Model (Warmth vs Competence framework).
 
-**Context:**
-This is a baseline assessment for Module 1 of the First Impression Mastery course. The user is recording their natural, unscripted introduction to establish their starting point on the Warmth-Competence matrix.
-
-**Your Task:**
-Analyze this video and assess the user's natural presentation across two critical dimensions:
-
-1. **Warmth (Trustworthiness/Intentions)**: How approachable, friendly, and trustworthy does this person appear?
-   - Markers: Duchenne smile presence, head tilt, eyebrow flash, open palm gestures, eye softness, facial warmth
-   - Score: 0-10 (0 = cold/threatening, 10 = very warm/trustworthy)
-
-2. **Competence (Capability/Ability)**: How capable, confident, and effective does this person appear?
-   - Markers: Posture verticality, shoulder width, vocal depth, lack of fidgeting, confident presence, clear articulation
-   - Score: 0-10 (0 = weak/incompetent, 10 = highly capable/confident)
-
-**Analysis Requirements:**
-
-1. Provide a brief overview of how the person comes across in the first 0-7 seconds
-2. Assess Warmth score (0-10) with specific evidence
-3. Assess Competence score (0-10) with specific evidence
-4. Identify which quadrant they fall into:
-   - **Admiration** (High Warmth, High Competence) - The goal
-   - **Pity** (High Warmth, Low Competence) - Liked but not respected
-   - **Envy/Threat** (Low Warmth, High Competence) - Respected but not trusted
-   - **Contempt** (Low Warmth, Low Competence) - Rejected
-5. Provide specific, actionable feedback on what's working and what needs improvement
-6. Note any congruence issues (does their face match their words?)
-
-**Output Format:**
-At the end of your response, include a JSON block with the following structure:
-
-\`\`\`json
-{
-  "warmth_score": 7.5,
-  "competence_score": 6.2,
-  "quadrant": "admiration",
-  "warmth_evidence": ["Duchenne smile present", "Open body language", "Warm vocal tone"],
-  "competence_evidence": ["Upright posture", "Clear articulation", "Confident presence"],
-  "first_impression_analysis": "Brief description of first 0-7 seconds",
-  "congruence": "high",
-  "recommendations": ["Specific actionable feedback"]
-}
-\`\`\`
-
-Be honest and specific. This baseline will guide their learning journey.`;
-};
 
 // Build dynamic prompt based on user context
 const buildPrompt = (userContext = {}) => {
   // Check if this is a Module 1 baseline assessment
   const courseContext = userContext.courseContext || (typeof userContext === 'string' ? JSON.parse(userContext) : null);
   if (courseContext?.type === 'baseline' && courseContext?.moduleId === 'module-1') {
-    return buildModule1BaselinePrompt();
+    return buildModule1BaselinePrompt(userContext.language || 'en');
   }
 
   const goal = userContext.primaryGoal || 'confidence';
   const confidence = userContext.confidenceLevel || 'medium';
+  const language = userContext.language || 'en';
+  const isHebrew = language === 'he';
 
   // Map goals to specific focus areas (only active goals in the app)
   const goalFocus = {
@@ -146,6 +100,8 @@ const buildPrompt = (userContext = {}) => {
     'leadership': 'leadership presence and executive communication',
     'confidence': 'self-confidence and presence',
     'presentation': 'presentations and public speaking',
+    'interview': 'job and promotion interviews',
+    'sales': 'face-to-face sales conversations',
   };
 
   // Get focus area with fallback to confidence (default goal)
@@ -211,9 +167,14 @@ Evaluate how well they executed this specific practice. Score their performance 
   "insights": ["", "", ""]
 }`;
 
+  // Language instruction
+  const languageInstruction = isHebrew 
+    ? '\n\n**IMPORTANT: Respond entirely in Hebrew (עברית). All text, including section headers, tips, and explanations must be in Hebrew. Only technical terms like JSON field names should remain in English.**'
+    : '';
+
   // Build the prompt with XML structure (Gemini best practice)
   return `<role>
-Communication and presence coach analyzing a practice video. You evaluate both verbal delivery (speech, clarity, pace) and non-verbal communication (body language, posture, gestures, eye contact).
+Communication and presence coach analyzing a practice video. You evaluate both verbal delivery (speech, clarity, pace) and non-verbal communication (body language, posture, gestures, eye contact, micro-facial-expressions).${languageInstruction}
 </role>
 
 <user_context>
@@ -236,7 +197,7 @@ SUB-METRICS:
 
 DELIVERY METRICS:
 - speaking_rate_wpm: 90-190 typical
-- filler_word_count: count "um", "uh", "like", "ummm" and other filler words.
+- filler_word_count: count "um", "uh", "like", "ummm", "ah", and other filler words.
 - sentiment: positive/neutral/tense
 - posture_flag: open/closed/leaning/dynamic
 
@@ -281,7 +242,7 @@ ${jsonSchema}
 <rules>
 1. Score based ONLY on what you observe in the video. Do not copy placeholder values.
 2. Replace all 0.0 with actual scores (use decimals like 6.5, 7.8).
-3. Be strict: only give 7+ for genuinely strong performance.
+3. Be strict: only give 7+ for genuinely strong performance.Do Not give good scores for average performance.
 4. If eye contact is poor, score eye_contact 0-4. If monotone, score tone_variation 0-4.
 5. overall_score = (voice×0.15 + presence×0.15 + clarity×0.15 + authenticity×0.15 + impact×0.20 + confidence×0.20) × 10
 6. ${recordingPrompt?.title ? `prompt_focus.score must reflect actual execution of "${recordingPrompt.title}". Score >=7 means pass, <7 means needs practice.` : 'No practice focus for this video.'}
@@ -326,6 +287,10 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
     
     // Build dynamic prompt based on user context
     const userContext = options.userContext || {};
+    // Ensure language is included in userContext if provided in options
+    if (options.language && !userContext.language) {
+      userContext.language = options.language;
+    }
     const PROMPT = buildPrompt(userContext);
     const generationConfig = sanitizeGenerationConfig(options.generationConfig);
 
@@ -600,7 +565,8 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
       metrics: metrics,
       rawMetrics: rawMetricsPayload,
       metricsVersion,
-      modelVersion: effectiveModel
+      modelVersion: effectiveModel,
+      finishReason: finishReason  // Include finishReason for validation
     };
 };
 
@@ -624,6 +590,8 @@ export const generatePracticePromptFromAction = async ({
   console.log(`[Gemini] Starting practice prompt generation - Model: ${modelName}, Fallback: ${fallbackModel}`);
   const goal = userContext.primaryGoal || 'confidence';
   const confidence = userContext.confidenceLevel || 'medium';
+  const language = userContext.language || 'en';
+  const isHebrew = language === 'he';
   const detailText = [
     details.what_to_do ? `What to do: ${details.what_to_do}` : null,
     details.why_it_matters ? `Why it matters: ${details.why_it_matters}` : null,
@@ -634,7 +602,11 @@ export const generatePracticePromptFromAction = async ({
     ? `Previous drills already used for this user:\n${previousTitles.map(t => `- ${t}`).join('\n')}\n`
     : '';
 
-  const prompt = `You are an expert body language coach designing quick 45-second practice drills that users can rehearse on their own (no upload required, optional self-recording).
+  const languageInstruction = isHebrew 
+    ? '\n\n**IMPORTANT: Respond entirely in Hebrew (עברית). All text fields (title, description, setup, what_to_notice, recording_tip) must be in Hebrew. Only JSON field names should remain in English.**'
+    : '';
+
+  const prompt = `You are an expert body language coach designing quick 45-second practice drills that users can rehearse on their own (no upload required, optional self-recording).${languageInstruction}
 
 Goal/Context: ${goal}
 User confidence: ${confidence}
@@ -771,6 +743,8 @@ export const generatePracticeMissions = async ({
   const goal = userContext.primaryGoal || 'confidence';
   const goalLabel = getGoalLabel(goal);
   const confidence = userContext.confidenceLevel || 'medium';
+  const language = userContext.language || 'en';
+  const isHebrew = language === 'he';
   
   const trendInfo = trend 
     ? `Trend: ${trend.direction === 'improving' ? 'Improving' : trend.direction === 'declining' ? 'Declining' : 'Stable'} (${trend.change > 0 ? '+' : ''}${trend.change.toFixed(1)} points)`
@@ -780,7 +754,11 @@ export const generatePracticeMissions = async ({
     ? `\nPrevious missions already shown to this user (avoid repeating these exact missions):\n${previousMissions.map((m, i) => `${i + 1}. ${m}`).join('\n')}\n`
     : '';
 
-  const prompt = `You are an expert communication coach creating personalized practice missions (actionable steps) for users to improve a specific communication skill.
+  const languageInstruction = isHebrew 
+    ? '\n\n**IMPORTANT: Respond entirely in Hebrew (עברית). All mission text must be in Hebrew. Only JSON field names should remain in English.**'
+    : '';
+
+  const prompt = `You are an expert communication coach creating personalized practice missions (actionable steps) for users to improve a specific communication skill.${languageInstruction}
 
 USER CONTEXT:
 - Goal: ${goalLabel} (${goal})
@@ -922,6 +900,8 @@ const getGoalLabel = (goal) => {
     'leadership': 'Executive Presence',
     'dating': 'Dating & Romantic',
     'social': 'Social Confidence',
+    'interview': 'Job Interviews',
+    'sales': 'Face-to-face Sales',
     'general': 'General Improvement'
   };
   return goalMap[goal] || goal;

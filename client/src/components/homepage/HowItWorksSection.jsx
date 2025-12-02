@@ -7,21 +7,21 @@ const steps = [
     number: '01',
     icon: Upload,
     title: 'Upload Your Video',
-    description: 'Record or upload a short video of yourself speaking. Our AI works with videos from 20 seconds to 5 minutes.',
+    description: 'Record or upload a video of yourself speaking. Our AI works with videos from 30 seconds to 45 minutes.',
     color: '#004E64'
   },
   {
     number: '02',
     icon: Brain,
     title: 'AI Analysis',
-    description: 'Our advanced AI analyzes your body language, gestures, eye contact, posture, and vocal delivery in real-time.',
+    description: 'Our advanced AI analyzes over 25 key signals in your body language and communication - things research shows actually move the needle on how confident, clear, and trustworthy you appear.',
     color: '#46B5D1'
   },
   {
     number: '03',
     icon: TrendingUp,
     title: 'Get Feedback & Improve',
-    description: 'Receive detailed insights, personalized action items, and track your progress over time to see your improvement.',
+    description: 'BodAI gives you clear, actionable guidance on what to adjust next.',
     color: '#FF8C64'
   }
 ];
@@ -52,7 +52,11 @@ export default function HowItWorksSection() {
   }, []);
 
   return (
-    <section ref={sectionRef} className={`howItWorksSection ${isVisible ? 'howItWorksSection--visible' : ''}`}>
+    <section
+      id="how-it-works"
+      ref={sectionRef}
+      className={`howItWorksSection ${isVisible ? 'howItWorksSection--visible' : ''}`}
+    >
       <div className="howItWorksSection__container">
         <div className="howItWorksSection__header">
           <h2 className="howItWorksSection__title">How It Works</h2>

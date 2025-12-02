@@ -96,3 +96,4 @@ VALUES (
 ON CONFLICT (course_id, module_number) DO NOTHING;
 
 
+

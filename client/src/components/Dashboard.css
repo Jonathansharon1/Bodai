@@ -56,12 +56,13 @@
 }
 
 .dashboard__title {
-  font-size: 32px;
+  font-size: var(--text-h1-size);
+  line-height: var(--text-h1-line-height);
   font-weight: 800;
-  color: #0f172a;
+  color: var(--text-dark);
   margin: 0;
   letter-spacing: -0.03em;
-  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-family: var(--font-display);
 }
 
 .dashboard__subtitle {
@@ -79,17 +80,19 @@
 }
 
 .pageContent h2 {
-  font-size: 28px;
+  font-size: var(--text-h2-size);
+  line-height: var(--text-h2-line-height);
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text-dark);
   margin: 0 0 12px;
   letter-spacing: -0.02em;
-  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-family: var(--font-display);
 }
 
 .pageContent p {
-  font-size: 16px;
-  color: #64748b;
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line-height);
+  color: var(--text-muted);
   margin: 0;
 }
 

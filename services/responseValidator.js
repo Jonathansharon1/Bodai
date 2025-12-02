@@ -10,6 +10,7 @@ import { parseActionItems } from './parseActionItems.js';
  * @param {Object} response - The analysis response object
  * @param {string} response.text - The markdown text response
  * @param {Object} response.metrics - The parsed metrics object
+ * @param {string} response.finishReason - The finish reason from Gemini API (STOP, MAX_TOKENS, OTHER, etc.)
  * @returns {Object} Validation result with isValid, issues, and shouldRetry flags
  */
 export const validateAnalysisResponse = (response) => {
@@ -148,22 +149,37 @@ export const validateAnalysisResponse = (response) => {
     }
   }
   
-  // Check for truncation indicators in text
-  if (response.text) {
+  // Check for truncation - prioritize finishReason over text pattern matching
+  const finishReason = response.finishReason;
+  
+  // If finishReason explicitly indicates truncation, flag it immediately
+  if (finishReason === 'MAX_TOKENS' || finishReason === 'OTHER') {
+    issues.push({ 
+      type: 'response_truncated', 
+      severity: 'critical',
+      message: `Response truncated - finishReason: ${finishReason}`
+    });
+  } else if (finishReason === 'STOP') {
+    // STOP means normal completion - trust it and don't flag truncation
+    // Even if text patterns suggest truncation, STOP means the model completed successfully
+    // This fixes the false positive where STOP responses were flagged as truncated
+  } else if (response.text && !finishReason) {
+    // If finishReason is missing, check text patterns as fallback (but be conservative)
+    // Only flag if there are clear indicators of truncation at the very end
     const truncationIndicators = [
-      /```json\s*$/,           // JSON block started but not closed
-      /```\s*$/,               // Code block not closed
-      /\.\.\.\s*$/,            // Trailing ellipsis
-      /"[^"]*$/,               // Unclosed quote
-      /\{[^}]*$/               // Unclosed brace
+      /```json\s*$/,           // JSON block started but not closed at end
+      /```\s*$/,               // Code block not closed at end
     ];
     
-    const isTruncated = truncationIndicators.some(pattern => pattern.test(response.text));
-    if (isTruncated) {
+    // Only check for unclosed JSON/code blocks at the very end (more reliable indicator)
+    const textEnd = response.text.trim().slice(-50); // Check last 50 chars
+    const hasUnclosedBlock = truncationIndicators.some(pattern => pattern.test(textEnd));
+    
+    if (hasUnclosedBlock) {
       issues.push({ 
         type: 'response_truncated', 
-        severity: 'critical',
-        message: 'Response appears to be truncated'
+        severity: 'critical',  // Critical if clear truncation indicators found
+        message: `Response appears truncated - unclosed code block detected (finishReason: missing)`
       });
     }
   }

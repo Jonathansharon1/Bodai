@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Sparkles } from 'lucide-react';
 import './PricingCard.css';
 
 export default function PricingCard({ plan, billingPeriod, onSelect, isSignedIn }) {
@@ -36,6 +36,12 @@ export default function PricingCard({ plan, billingPeriod, onSelect, isSignedIn 
 
   return (
     <div className={cardClassNames}>
+      {plan.recommended && (
+        <div className="pricingCard__badge">
+          <Sparkles size={14} />
+          <span>Recommended</span>
+        </div>
+      )}
       <div className="pricingCard__shell">
         <div className="pricingCard__header">
           <h3 className="pricingCard__name">{plan.name}</h3>

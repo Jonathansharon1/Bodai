@@ -18,6 +18,7 @@ import JourneySwitcher from '../components/JourneySwitcher';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { SkeletonCard } from '../components/SkeletonLoader';
 import EmptyState from '../components/EmptyState';
+import { GOAL_EXPLANATIONS } from '../components/OnboardingQuestions';
 
 const PARAMETER_CATEGORIES = {
   voice: {
@@ -121,11 +122,9 @@ export default function PracticePage({
       'confidence': 'Build Confidence',
       'content': 'Content Creator',
       'presentation': 'Presentation Skills',
-      'communication': 'Better Communication',
       'leadership': 'Executive Presence',
-      'dating': 'Dating & Romantic',
-      'social': 'Social Confidence',
-      'general': 'General Improvement'
+      'interview': 'Job Interviews',
+      'sales': 'Face-to-face Sales'
     };
     return goalMap[goal] || goal;
   };
@@ -133,6 +132,7 @@ export default function PracticePage({
   const focusSlug = activeJourney?.focus_slug;
   const focusLabel = focusSlug ? getGoalLabel(focusSlug) : (activeJourney?.display_name || activeJourney?.focus_label || null);
   const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  const focusGoalExplanation = focusSlug ? GOAL_EXPLANATIONS[focusSlug] : null;
 
   // Check for focus filter in URL
   const urlParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
@@ -578,6 +578,11 @@ export default function PracticePage({
             ? `Actionable steps to improve your ${focusLabel} communication`
             : 'Actionable steps to improve your communication'}
         </p>
+        {focusGoalExplanation && (
+          <p className="practicePage__subtitleSecondary">
+            Today’s missions for {focusGoalExplanation.label.toLowerCase()} turn one small behavior into a concrete rep you can record and improve.
+          </p>
+        )}
       </div>
 
       {/* Hero Section */}

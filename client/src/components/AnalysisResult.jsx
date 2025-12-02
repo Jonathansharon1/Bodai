@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
+import { useTranslation } from 'react-i18next';
 import {
   ChevronDown,
   CheckCircle2,
@@ -433,6 +434,7 @@ const parseQuickWins = (text) => {
 
 export default function AnalysisResult({ markdown, loading, analysisId, viewingAnalysis }) {
   const { user } = useUser();
+  const { t } = useTranslation();
   const [expandedSections, setExpandedSections] = useState({
     strengths: false,
     focus: false,
@@ -587,7 +589,7 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
   if (loading) {
     return (
       <div className="analysisResult">
-        <div className="analysisResult__loading">Analyzing your video...</div>
+        <div className="analysisResult__loading">{t('analysisResult.analyzing')}</div>
       </div>
     );
   }
@@ -595,7 +597,7 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
   if (!markdown) {
     return (
       <div className="analysisResult">
-        <p className="analysisResult__empty">The analysis will appear here.</p>
+        <p className="analysisResult__empty">{t('analysisResult.willAppear')}</p>
       </div>
     );
   }
@@ -611,7 +613,7 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
     return (
       <div className="analysisResult">
         <div className="analysisResult__header">
-          <h3 className="analysisResult__title">Analysis Results</h3>
+          <h3 className="analysisResult__title">{t('analysisResult.title')}</h3>
           <button
             className="analysisResult__copyBtn"
             onClick={copyToClipboard}
@@ -743,28 +745,28 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
           <div className="analysisResult__scoreMain">
             <div className="analysisResult__scoreValue">{overallScore}</div>
             <div className="analysisResult__scoreLabel">
-              <span>Overall Score</span>
+              <span>{t('analysisResult.overallScore')}</span>
               {stageTitle && <span className="analysisResult__stageTitle">{stageTitle}</span>}
             </div>
           </div>
           {comparison && (
             <div className={`analysisResult__comparison analysisResult__comparison--${comparison.type}`}>
               {comparison.type === 'first' ? (
-                <span className="analysisResult__firstBadge">Your first analysis!</span>
+                <span className="analysisResult__firstBadge">{t('analysisResult.firstAnalysis')}</span>
               ) : comparison.type === 'improved' ? (
                 <>
                   <TrendingUp size={16} />
-                  <span>+{comparison.diff} from last time</span>
+                  <span>+{comparison.diff} {t('analysisResult.fromLastTime')}</span>
                 </>
               ) : comparison.type === 'declined' ? (
                 <>
                   <TrendingDown size={16} />
-                  <span>-{comparison.diff} from last time</span>
+                  <span>-{comparison.diff} {t('analysisResult.fromLastTime')}</span>
                 </>
               ) : (
                 <>
                   <Minus size={16} />
-                  <span>Same as last time</span>
+                  <span>{t('analysisResult.sameAsLastTime')}</span>
                 </>
               )}
             </div>
@@ -796,7 +798,7 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
 
       {!topStrength && !topOpportunity && !hasActionItems && !overallScore && (
         <div className="analysisResult__emptySummary">
-          <p>Upload a new analysis to unlock your personalized summary.</p>
+          <p>{t('analysisResult.uploadNew')}</p>
         </div>
       )}
     </div>
@@ -804,9 +806,9 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
 
   return (
     <div className="analysisResult">
-      <div className="analysisResult__header">
+        <div className="analysisResult__header">
         <div className="analysisResult__titleGroup">
-          <h3 className="analysisResult__title">Your Video Analysis</h3>
+          <h3 className="analysisResult__title">{t('analysisResult.title')}</h3>
           <div className="analysisResult__viewMode">
             <div className="analysisResult__viewToggle" role="tablist" aria-label="Analysis view mode">
               <button
@@ -815,7 +817,7 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
                 role="tab"
                 aria-selected={viewMode === 'summary'}
               >
-                Quick Summary
+                {t('analysisResult.quickSummary')}
               </button>
               <button
                 className={`analysisResult__toggleOption ${viewMode === 'full' ? 'is-active' : ''}`}
@@ -823,7 +825,7 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
                 role="tab"
                 aria-selected={viewMode === 'full'}
               >
-                Full Analysis
+                {t('analysisResult.fullAnalysis')}
               </button>
               <span className={`analysisResult__toggleThumb ${viewMode === 'summary' ? 'is-left' : 'is-right'}`} />
             </div>
@@ -840,7 +842,7 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
             <AccordionSection
               id="strengths"
               icon={<TrendingUp size={20} />}
-              title="Key Strengths"
+              title={t('analysisResult.keyStrengths')}
               expanded={expandedSections.strengths}
               onToggle={() => toggleSection('strengths')}
             >
@@ -871,7 +873,7 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
             <AccordionSection
               id="focus"
               icon={<Lightbulb size={20} />}
-              title="Focus Areas"
+              title={t('analysisResult.focusAreas')}
               expanded={expandedSections.focus}
               onToggle={() => toggleSection('focus')}
             >
@@ -884,7 +886,7 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
                     )}
                     {area.howToImprove && (
                       <div className="analysisResult__focusImprove">
-                        <strong>How to improve:</strong> {area.howToImprove}
+                        <strong>{t('analysisResult.howToImprove')}</strong> {area.howToImprove}
                       </div>
                     )}
                   </div>
@@ -898,7 +900,7 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
             <AccordionSection
               id="communication"
               icon={<Mic size={20} />}
-              title="Communication Tips"
+              title={t('analysisResult.communicationTips')}
               expanded={expandedSections.communication}
               onToggle={() => toggleSection('communication')}
             >
@@ -907,18 +909,18 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
                   <div key={index} className="analysisResult__tipCard">
                     <div className="analysisResult__tipBadge">
                       <Mic size={14} />
-                      Tip {index + 1}
+                      {t('analysisResult.tip')} {index + 1}
                       </div>
                     <div className="analysisResult__tipTitle">{tip.title}</div>
                     {tip.whatToPractice && (
                       <div className="analysisResult__tipDetail">
-                        <span className="analysisResult__tipDetailLabel">What to practice</span>
+                        <span className="analysisResult__tipDetailLabel">{t('analysisResult.whatToPractice')}</span>
                         <p>{tip.whatToPractice}</p>
                       </div>
                       )}
                     {tip.whyItMatters && (
                       <div className="analysisResult__tipDetail">
-                        <span className="analysisResult__tipDetailLabel">Why it matters</span>
+                        <span className="analysisResult__tipDetailLabel">{t('analysisResult.whyItMatters')}</span>
                         <p>{tip.whyItMatters}</p>
                             </div>
                           )}
@@ -933,7 +935,7 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
             <AccordionSection
               id="bodyLanguage"
               icon={<User size={20} />}
-              title="Body Language Tips"
+              title={t('analysisResult.bodyLanguageTips')}
               expanded={expandedSections.bodyLanguage}
               onToggle={() => toggleSection('bodyLanguage')}
             >
@@ -942,18 +944,18 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
                   <div key={index} className="analysisResult__tipCard analysisResult__tipCard--bodyLanguage">
                     <div className="analysisResult__tipBadge analysisResult__tipBadge--bodyLanguage">
                       <User size={14} />
-                      Tip {index + 1}
+                      {t('analysisResult.tip')} {index + 1}
                     </div>
                     <div className="analysisResult__tipTitle">{tip.title}</div>
                     {tip.whatToPractice && (
                       <div className="analysisResult__tipDetail">
-                        <span className="analysisResult__tipDetailLabel">What to practice</span>
+                        <span className="analysisResult__tipDetailLabel">{t('analysisResult.whatToPractice')}</span>
                         <p>{tip.whatToPractice}</p>
                             </div>
                           )}
                     {tip.whyItMatters && (
                       <div className="analysisResult__tipDetail">
-                        <span className="analysisResult__tipDetailLabel">Why it matters</span>
+                        <span className="analysisResult__tipDetailLabel">{t('analysisResult.whyItMatters')}</span>
                         <p>{tip.whyItMatters}</p>
                       </div>
                     )}
@@ -970,7 +972,7 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
                 <Camera size={16} />
                     </div>
               <div className="analysisResult__recordingNoteContent">
-                <span className="analysisResult__recordingNoteLabel">Recording Note</span>
+                <span className="analysisResult__recordingNoteLabel">{t('analysisResult.recordingNote')}</span>
                 <p>{sections.recordingNote}</p>
               </div>
             </div>
@@ -981,7 +983,7 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
             <AccordionSection
               id="quick"
               icon={<MessageSquare size={20} />}
-              title="Quick Wins"
+              title={t('analysisResult.quickWins')}
               expanded={expandedSections.quick}
               onToggle={() => toggleSection('quick')}
             >
@@ -1039,6 +1041,7 @@ function AccordionSection({ id, icon, title, emoji, expanded, onToggle, children
 
 const ExpandableText = ({ text, collapsedLines = 3, threshold = 220 }) => {
   const [expanded, setExpanded] = useState(false);
+  const { t } = useTranslation();
   if (!text) return null;
 
   const shouldCollapse = text.length > threshold;
@@ -1059,7 +1062,7 @@ const ExpandableText = ({ text, collapsedLines = 3, threshold = 220 }) => {
           className="analysisResult__expandToggle"
           onClick={() => setExpanded(prev => !prev)}
         >
-          {expanded ? 'Show less' : 'Show more'}
+          {expanded ? t('analysisResult.showLess') : t('analysisResult.showMore')}
           <ChevronDown size={16} className={expanded ? 'rotated' : ''} />
         </button>
       )}

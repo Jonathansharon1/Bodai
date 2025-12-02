@@ -30,12 +30,12 @@
   color: #4338ca;
   font-weight: 600;
   letter-spacing: 0.16em;
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   text-transform: uppercase;
 }
 
 .pricingPage__title {
-  font-size: clamp(32px, 5vw, 48px);
+  font-size: var(--text-display-size);
   font-weight: 700;
   letter-spacing: -0.03em;
   margin: 0;
@@ -43,8 +43,8 @@
 }
 
 .pricingPage__subtitle {
-  font-size: 18px;
-  line-height: 1.6;
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line-height);
   color: var(--text-muted);
   margin: 0 auto;
 }
@@ -210,6 +210,13 @@
   opacity: 0.85;
 }
 
+.payAsYouGo__card {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+}
+
 .payAsYouGo__price {
   display: flex;
   align-items: baseline;
@@ -232,6 +239,7 @@
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.2s ease;
+  align-self: flex-start;
 }
 
 .payAsYouGo__button:hover {

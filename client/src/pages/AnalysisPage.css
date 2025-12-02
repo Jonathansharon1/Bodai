@@ -134,9 +134,10 @@
 }
 
 .analysisPage__title {
-  font-size: 28px;
+  font-size: var(--text-h1-size);
+  line-height: var(--text-h1-line-height);
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text-dark);
   margin: 0 0 8px 0;
   letter-spacing: -0.02em;
   font-family: var(--font-display);
@@ -149,15 +150,15 @@
 }
 
 .analysisPage__subtitle {
-  font-size: 16px;
-  color: #64748b;
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line-height);
+  color: var(--text-muted);
   margin: 0;
-  line-height: 1.5;
 }
 
 .analysisPage__subtitle--muted {
   color: #94a3b8;
-  font-size: 14px;
+  font-size: var(--text-caption-size);
 }
 
 .analysisPage__crumb {

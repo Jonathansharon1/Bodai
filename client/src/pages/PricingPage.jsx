@@ -11,25 +11,51 @@ const faqs = [
   {
     question: 'What happens after I upload a video?',
     answer: [
-      'Our AI analyzes your body language, voice, and delivery within a minute.',
-      'You get a detailed report with your scores and personalized tips.',
-      'We suggest a quick practice exercise to help you improve.'
+      'Our AI analyzes your body language, voice, and delivery within 1-2 minutes.',
+      'You receive a detailed report with scores across 25+ communication parameters, plus personalized improvement tips.',
+      'We generate practice exercises tailored to your weakest areas, so you know exactly what to work on next.'
     ]
   },
   {
     question: 'Can I change or cancel my plan?',
     answer:
-      'Yes! You can upgrade, downgrade, or cancel anytime. All your past analyses stay in your account so you can always come back.'
+      'Yes! You can upgrade, downgrade, or cancel anytime with no penalties. All your past analyses, progress data, and practice history stay in your account permanently-even after cancellation. You can always come back and pick up where you left off.'
   },
   {
     question: 'Can I track multiple goals?',
     answer:
-      'Yes, all plans let you create separate practice areas—like interview prep, public speaking, or social skills—and track progress for each one.'
+      'Absolutely! All plans let you create separate practice journeys for different goals-like interview prep, public speaking, sales conversations, or general confidence. Each journey tracks its own progress independently, so you can see how you\'re improving in each area.'
+  },
+  {
+    question: 'What if I exceed my plan\'s monthly limit?',
+    answer:
+      'If you use all your monthly analyses, you can either upgrade to a higher plan or purchase individual analyses at $2.50 per video. We\'ll notify you when you\'re close to your limit so you can decide what works best for you.'
+  },
+  {
+    question: 'How secure is my video data?',
+    answer:
+      'Your privacy is our priority. Videos are encrypted in transit and at rest, stored securely, and never shared with third parties. You can delete any video or analysis at any time from your account. We use enterprise-grade security practices to protect your data.'
+  },
+
+  {
+    question: 'Can I try before I buy?',
+    answer:
+      'Yes! Start with our free plan.You get 1 full analysis per month with all the same features as paid plans. This lets you experience the complete AI analysis, see your scores, and try the practice exercises before committing to a paid plan.'
   },
   {
     question: 'Do you offer team plans?',
     answer:
-      'Yes! The Unlimited plan works great for teams. Contact us for special team pricing and setup help.'
+      'Yes! The Unlimited plan works great for teams, and we offer custom enterprise pricing for larger organizations. Teams get shared dashboards, centralized billing, admin controls, and dedicated onboarding support. Contact us for special team pricing and setup help.'
+  },
+  {
+    question: 'How long are my videos and analyses stored?',
+    answer:
+      'Your videos and analyses are stored indefinitely as long as your account is active. Even if you cancel your subscription, your data remains accessible. You can delete individual videos or your entire account at any time from your settings.'
+  },
+  {
+    question: 'What payment methods do you accept?',
+    answer:
+      'We accept all major credit cards (Visa, Mastercard, American Express) and debit cards. Payments are processed securely through Stripe. You can update your payment method or billing information anytime in your account settings.'
   }
 ];
 
@@ -54,7 +80,7 @@ export default function PricingPage() {
     'Detailed feedback on body language & voice',
     'Progress tracking dashboard',
     'Personalized improvement tips',
-    'Practice exercises included',
+    'Personalized practice exercises included',
     'Email support'
   ];
 
@@ -103,7 +129,7 @@ export default function PricingPage() {
       cta: 'Get Pro',
       ctaVariant: 'primary',
       recommended: true,
-      valueText: 'Best for weekly creators',
+      valueText: 'Best for instant improvement and regular practice',
       badgeText: 'Most popular'
     },
     {
@@ -119,7 +145,7 @@ export default function PricingPage() {
       cta: 'Get Unlimited',
       ctaVariant: 'primary',
       recommended: false,
-      valueText: 'Best for daily practice and coaching',
+      valueText: 'Best for daily practice and coaching with unlimited videos',
       badgeText: 'Best value'
     }
   ];
@@ -152,28 +178,13 @@ export default function PricingPage() {
     <div className="pricingPage">
       <div className="pricingPage__container">
         <section className="pricingPage__hero">
-          <p className="pricingPage__eyebrow">Simple Pricing</p>
           <h1 className="pricingPage__title">Pick a plan that fits how often you practice</h1>
           <p className="pricingPage__subtitle">
             All plans include the same powerful AI analysis. The difference is how often
             you can practice and how long each video can be.
           </p>
 
-          <div className="pricingPage__billingToggle">
-            <button
-              className={`billingToggle__button ${billingPeriod === 'monthly' ? 'active' : ''}`}
-              onClick={() => setBillingPeriod('monthly')}
-            >
-              Monthly
-            </button>
-            <button
-              className={`billingToggle__button ${billingPeriod === 'yearly' ? 'active' : ''}`}
-              onClick={() => setBillingPeriod('yearly')}
-            >
-              Yearly
-              <span className="billingToggle__badge">Save up to 20%</span>
-            </button>
-          </div>
+
         </section>
 
         <section className="pricingPage__included">
@@ -192,6 +203,21 @@ export default function PricingPage() {
           </ul>
         </section>
 
+        <div className="pricingPage__billingToggle">
+            <button
+              className={`billingToggle__button ${billingPeriod === 'monthly' ? 'active' : ''}`}
+              onClick={() => setBillingPeriod('monthly')}
+            >
+              Monthly
+            </button>
+            <button
+              className={`billingToggle__button ${billingPeriod === 'yearly' ? 'active' : ''}`}
+              onClick={() => setBillingPeriod('yearly')}
+            >
+              Yearly
+              <span className="billingToggle__badge">Save up to 20%</span>
+            </button>
+          </div>
         <section className="pricingPage__cards">
           {plans.map((plan) => (
             <PricingCard
@@ -239,9 +265,7 @@ export default function PricingPage() {
                 <span className="payAsYouGo__amount">$2.50</span>
                 <span className="payAsYouGo__period">per video (up to 10 min)</span>
               </div>
-              <p className="payAsYouGo__hint">
-                Tip: If you analyze 6+ videos per month, the Basic plan is cheaper.
-              </p>
+
             </div>
             {isSignedIn ? (
               <button className="payAsYouGo__button" onClick={() => navigate('/new-analysis')}>
@@ -258,7 +282,7 @@ export default function PricingPage() {
         <section className="pricingPage__faq">
           <div className="faq__header">
             <p className="faq__eyebrow">Have a question?</p>
-            <h2 className="faq__title">Pricing FAQs</h2>
+            <h2 className="faq__title">FAQs</h2>
           </div>
           <div className="faq__list">
             {faqs.map((faq, index) => {

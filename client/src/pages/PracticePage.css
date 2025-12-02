@@ -42,17 +42,19 @@
 }
 
 .practicePage__title {
-  font-size: 32px;
+  font-size: var(--text-h1-size);
+  line-height: var(--text-h1-line-height);
   font-weight: 800;
-  color: #0f172a;
+  color: var(--text-dark);
   margin: 0;
   letter-spacing: -0.03em;
-  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-family: var(--font-display);
 }
 
 .practicePage__subtitle {
-  font-size: 16px;
-  color: #64748b;
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line-height);
+  color: var(--text-muted);
   margin: 8px 0 0;
 }
 
@@ -85,16 +87,17 @@
 }
 
 .practiceHero__title {
-  font-size: 28px;
+  font-size: var(--text-h2-size);
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text-dark);
   margin: 0;
   letter-spacing: -0.02em;
 }
 
 .practiceHero__description {
-  font-size: 16px;
-  color: #64748b;
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line-height);
+  color: var(--text-muted);
   max-width: 600px;
   margin: 0;
   line-height: 1.6;
@@ -115,15 +118,15 @@
 }
 
 .practiceHero__statValue {
-  font-size: 28px;
+  font-size: var(--text-h2-size);
   font-weight: 700;
   color: #0f172a;
   margin-bottom: 4px;
 }
 
 .practiceHero__statLabel {
-  font-size: 13px;
-  color: #64748b;
+  font-size: var(--text-caption-size);
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-weight: 600;
@@ -154,16 +157,16 @@
 }
 
 .practiceSection__title {
-  font-size: 24px;
+  font-size: var(--text-h2-size);
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text-dark);
   margin: 0 0 4px;
   letter-spacing: -0.02em;
 }
 
 .practiceSection__subtitle {
   font-size: 14px;
-  color: #64748b;
+  color: var(--text-muted);
   margin: 0;
   line-height: 1.6;
 }

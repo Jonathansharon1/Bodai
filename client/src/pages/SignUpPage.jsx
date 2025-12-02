@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { SignUp } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
-import { Star, CheckCircle } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 import './AuthPages.css';
 
 const BENEFITS = [
@@ -10,13 +10,6 @@ const BENEFITS = [
   'Track your progress over time',
   'First analysis is free'
 ];
-
-const TESTIMONIAL = {
-  text: "The instant feedback on my body language was eye-opening. I had no idea I was crossing my arms so much. Small changes, big impact.",
-  author: "David L.",
-  role: "Software Engineer",
-  rating: 5
-};
 
 export default function SignUpPage() {
   // Memoize Clerk component to prevent re-mounting and duplicate verification codes
@@ -59,48 +52,41 @@ export default function SignUpPage() {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="authPage__main">
-        <div className="authPage__content">
-          {/* Headline */}
-          <div className="authPage__headline">
-            <h1 className="authPage__title">
-              Make Your Communication<br />
-              <span className="authPage__titleAccent">Unforgettable</span>
-            </h1>
-            <p className="authPage__subtitle">
-              Start improving your presence with AI-powered feedback
-            </p>
-          </div>
-
-          {/* Benefits List */}
-          <div className="authPage__benefits">
-            {BENEFITS.map((benefit, idx) => (
-              <div key={idx} className="authPage__benefit">
-                <CheckCircle size={18} className="authPage__benefitIcon" />
-                <span>{benefit}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Clerk Sign Up Component */}
-          <div className="authPage__formWrapper">
-            {clerkSignUp}
-          </div>
-
-          {/* Testimonial */}
-          <div className="authPage__testimonial">
-            <div className="authPage__testimonialRating">
-              {[...Array(TESTIMONIAL.rating)].map((_, i) => (
-                <Star key={i} size={16} fill="#fbbf24" color="#fbbf24" />
-              ))}
+      {/* Main Content - Split Screen */}
+      <main className="authPage__main authPage__main--split">
+        {/* Left Side - Form (Light Background) */}
+        <div className="authPage__leftPanel authPage__leftPanel--split">
+          <div className="authPage__leftContent">
+            {/* Headline */}
+            <div className="authPage__headline">
+              <h1 className="authPage__title">
+                Become<br />
+                <span className="authPage__titleAccent">Unforgettable</span>
+              </h1>
+              <p className="authPage__subtitle">
+                Master your communication skills
+              </p>
             </div>
-            <p className="authPage__testimonialText">
-              "{TESTIMONIAL.text}"
-            </p>
-            <div className="authPage__testimonialAuthor">
-              <span className="authPage__testimonialName">{TESTIMONIAL.author}</span>
-              <span className="authPage__testimonialRole">{TESTIMONIAL.role}</span>
+
+
+            {/* Clerk Sign Up Component */}
+            <div className="authPage__formWrapper">
+              {clerkSignUp}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Side - Visual (Clean with Simple Animation) */}
+        <div className="authPage__rightPanel authPage__rightPanel--split">
+          <div className="authPage__visualContent">
+            <div className="authPage__figureWrapper">
+              <div className="authPage__progressRing" />
+              <div className="authPage__progressRing authPage__progressRing--2" />
+              <img
+                src="/images/character2.png"
+                alt="AI Analysis Visualization"
+                className="authPage__figure"
+              />
             </div>
           </div>
         </div>

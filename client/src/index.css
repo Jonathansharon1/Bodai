@@ -46,9 +46,75 @@
   --shadow-glow: 0 0 20px rgba(14, 116, 144, 0.15);
 
   /* Typography */
-  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* Primary font for almost all UI */
+  --font-sans: 'Space Grotesk', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* Display font alias (kept for clarity) */
   --font-display: 'Space Grotesk', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'IBM Plex Mono', monospace;
+
+  /* Type scale */
+  --text-display-size: clamp(40px, 5vw, 64px);
+  --text-display-line-height: 1.1;
+
+  --text-h1-size: 32px;
+  --text-h1-line-height: 1.2;
+
+  --text-h2-size: 24px;
+  --text-h2-line-height: 1.3;
+
+  --text-h3-size: 18px;
+  --text-h3-line-height: 1.4;
+
+  --text-body-size: 16px;
+  --text-body-line-height: 1.6;
+
+  --text-caption-size: 13px;
+  --text-caption-line-height: 1.5;
+}
+
+/* Semantic text utilities (keep visual feel close to existing UI) */
+.text-display {
+  font-family: var(--font-display);
+  font-size: var(--text-display-size);
+  line-height: var(--text-display-line-height);
+  letter-spacing: -0.03em;
+}
+
+.text-h1 {
+  font-family: var(--font-display);
+  font-size: var(--text-h1-size);
+  line-height: var(--text-h1-line-height);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.text-h2 {
+  font-family: var(--font-display);
+  font-size: var(--text-h2-size);
+  line-height: var(--text-h2-line-height);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.text-h3 {
+  font-family: var(--font-sans);
+  font-size: var(--text-h3-size);
+  line-height: var(--text-h3-line-height);
+  font-weight: 600;
+}
+
+.text-body {
+  font-family: var(--font-sans);
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line-height);
+}
+
+.text-caption {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line-height);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 * {
@@ -149,6 +215,11 @@ a:hover {
 .brand__name {
   font-size: 16px;
   letter-spacing: -0.02em;
+  font-family: var(--font-display);
+  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .brand__tagline {
@@ -1638,4 +1709,67 @@ a:hover {
 /* Logo placeholder area */
 .cl-logoBox {
   margin-bottom: 8px !important;
+}
+
+/* RTL (Right-to-Left) Support for Hebrew */
+[dir="rtl"] {
+  direction: rtl;
+  text-align: right;
+}
+
+[dir="rtl"] .siteHeader__inner,
+[dir="rtl"] .sidebar__nav,
+[dir="rtl"] .analysisPage__topNavContent,
+[dir="rtl"] .analysisPage__headerContent,
+[dir="rtl"] .analysisPage__viewLayout,
+[dir="rtl"] .analysisPage__newLayout {
+  direction: rtl;
+}
+
+/* Flip margins and padding for RTL */
+[dir="rtl"] .siteHeader__right {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .ctaRow {
+  flex-direction: row-reverse;
+}
+
+/* Text alignment for RTL */
+[dir="rtl"] .text-left {
+  text-align: right;
+}
+
+[dir="rtl"] .text-right {
+  text-align: left;
+}
+
+/* Ensure icons and buttons work correctly in RTL */
+[dir="rtl"] .btn,
+[dir="rtl"] button {
+  direction: rtl;
+}
+
+/* RTL support for flex containers */
+[dir="rtl"] .flex-row {
+  flex-direction: row-reverse;
+}
+
+/* RTL support for lists */
+[dir="rtl"] ul,
+[dir="rtl"] ol {
+  padding-right: 0;
+  padding-left: 1.5em;
+}
+
+/* RTL support for navigation */
+[dir="rtl"] .nav {
+  flex-direction: row-reverse;
+}
+
+/* RTL support for cards and containers */
+[dir="rtl"] .card,
+[dir="rtl"] .container {
+  direction: rtl;
+  text-align: right;
 }

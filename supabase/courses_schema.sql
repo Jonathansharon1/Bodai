@@ -1,3 +1,4 @@
+-- CANDIDATE FOR REMOVAL: Not referenced by current app/server code as of 2025-12-01. Verify before dropping tables.
 -- Courses table (for future use)
 CREATE TABLE IF NOT EXISTS courses (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

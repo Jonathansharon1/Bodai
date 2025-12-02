@@ -47,6 +47,8 @@ import {
   getUserEmailPreferences,
   updateUserEmailPreferences,
   getUserEmailHistory,
+  getUserLanguagePreference,
+  updateUserLanguagePreference,
   syncUserProfile,
   savePracticeMissions,
   getPracticeMissions,
@@ -61,7 +63,12 @@ import { uploadVideoToS3, getVideoUrl } from './services/s3Service.js';
 import { parseActionItems } from './services/parseActionItems.js';
 import { buildAnalysisCacheKey, getCachedAnalysis, setCachedAnalysis } from './services/analysisCache.js';
 import { notifyAnalysisGate, notifyJourneyEnrollment, notifyAnalysisStored } from './services/notificationService.js';
-import { sendWelcomeEmail, sendAnalysisCompleteEmail } from './services/emailService.js';
+import { 
+  sendWelcomeEmail, 
+  sendAnalysisCompleteEmail,
+  sendEmail,
+  wrapEmailTemplate
+} from './services/emailService.js';
 import { validateAnalysisResponse } from './services/responseValidator.js';
 
 const app = express();
@@ -121,6 +128,30 @@ app.post('/api/contact/teams', async (req, res) => {
     };
 
     console.log('[TeamsContact] New teams/enterprise inquiry:', payload);
+
+    // Send notification email to founder / sales inbox
+    try {
+      const html = wrapEmailTemplate(`
+        <h2>New Teams / Enterprise inquiry</h2>
+        <p><strong>Name:</strong> ${payload.name || '-'}</p>
+        <p><strong>Email:</strong> ${payload.email || '-'}</p>
+        <p><strong>Company:</strong> ${payload.company || '-'}</p>
+        <p><strong>Team size:</strong> ${payload.teamSize || '-'}</p>
+        <p><strong>Use case:</strong> ${payload.useCase || '-'}</p>
+        <p><strong>Message:</strong><br/>${(payload.message || '').replace(/\n/g, '<br/>')}</p>
+      `);
+
+      await sendEmail({
+        to: 'jonathansharon3@gmail.com',
+        subject: `New BodAI Teams inquiry from ${payload.name || 'Unknown contact'}`,
+        html,
+        emailType: 'teams_contact',
+        userId: null,
+        metadata: { source: 'contact_teams_form' }
+      });
+    } catch (emailError) {
+      console.error('[TeamsContact] Failed to send teams contact email:', emailError.message || emailError);
+    }
 
     // In the future we can persist this to Supabase or send an email notification.
     return res.status(200).json({ ok: true });
@@ -680,7 +711,8 @@ function estimateAnalysisCostUsd(durationSeconds) {
             temperature: 0.05,  // Reduced for more consistent scoring
             topP: 0.1,          // Reduced for narrower sampling
             topK: 8,            // Reduced for fewer token choices
-            candidateCount: 1
+            candidateCount: 1,
+            maxOutputTokens: 16384  // Increased to prevent truncation (default is 2048)
           }
         });
         
@@ -2072,6 +2104,45 @@ app.get('/api/user/email-history', async (req, res) => {
   } catch (err) {
     console.error('Error fetching email history:', err);
     return res.status(500).json({ error: 'Failed to fetch email history' });
+  }
+});
+
+app.get('/api/user/language-preference', async (req, res) => {
+  try {
+    const clerkUserId = getClerkUserId(req);
+    if (!clerkUserId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const userId = await getOrCreateUser(clerkUserId);
+    const languagePreference = await getUserLanguagePreference(userId);
+    
+    return res.json({ languagePreference: languagePreference || 'en' });
+  } catch (err) {
+    console.error('Error fetching language preference:', err);
+    return res.status(500).json({ error: 'Failed to fetch language preference' });
+  }
+});
+
+app.put('/api/user/language-preference', async (req, res) => {
+  try {
+    const clerkUserId = getClerkUserId(req);
+    if (!clerkUserId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const { languagePreference } = req.body;
+    
+    if (!languagePreference || !['en', 'he'].includes(languagePreference)) {
+      return res.status(400).json({ error: 'Invalid language preference. Must be "en" or "he"' });
+    }
+    
+    const updated = await updateUserLanguagePreference(clerkUserId, languagePreference);
+    
+    return res.json({ languagePreference: updated.language_preference });
+  } catch (err) {
+    console.error('Error updating language preference:', err);
+    return res.status(500).json({ error: 'Failed to update language preference' });
   }
 });
 

@@ -25,6 +25,7 @@ import JourneySwitcher from '../components/JourneySwitcher';
 import PracticeCommitmentAlert from '../components/PracticeCommitmentAlert';
 import LoadingSpinner from '../components/LoadingSpinner';
 import EmptyState from '../components/EmptyState';
+import { GOAL_EXPLANATIONS } from '../components/OnboardingQuestions';
 
 // All 25 parameters organized by category
 const KPI_FIELDS = [
@@ -307,17 +308,16 @@ export default function MyProgressPage({
       'confidence': 'Build Confidence',
       'content': 'Content Creator',
       'presentation': 'Presentation Skills',
-      'communication': 'Better Communication',
       'leadership': 'Executive Presence',
-      'dating': 'Dating & Romantic',
-      'social': 'Social Confidence',
-      'general': 'General Improvement'
+      'interview': 'Job Interviews',
+      'sales': 'Face-to-face Sales'
     };
     return goalMap[goal] || goal;
   };
   
   const focusSlug = activeJourney?.focus_slug;
   const focusLabel = focusSlug ? getGoalLabel(focusSlug) : (activeJourney?.display_name || activeJourney?.focus_label || null);
+  const focusGoalExplanation = focusSlug ? GOAL_EXPLANATIONS[focusSlug] : null;
   const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
   const location = useLocation();
 
@@ -820,6 +820,11 @@ export default function MyProgressPage({
             ? `${focusLabel}: ${metrics.length} ${metrics.length === 1 ? 'session' : 'sessions'} tracked`
             : `Your communication evolution across ${metrics.length} ${metrics.length === 1 ? 'session' : 'sessions'}`}
         </p>
+        {focusGoalExplanation && (
+          <p className="myProgressPage__subtitleSecondary">
+            This week, keep learning by doing: run 1–2 short missions that push your {focusGoalExplanation.label.toLowerCase()} and watch the scores move.
+          </p>
+        )}
       </div>
 
       {/* Practice Commitment Alert */}

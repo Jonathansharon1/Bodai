@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { Mail, Bell, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { Mail, Bell, CheckCircle2, AlertCircle, Globe } from 'lucide-react';
 import './SettingsPage.css';
 import LoadingSpinner from '../components/LoadingSpinner';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 
 export default function SettingsPage() {
   const { user } = useUser();
+  const { t } = useTranslation();
   const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
   
   const [emailNotifications, setEmailNotifications] = useState(true);
@@ -80,7 +83,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="settingsPage">
-        <LoadingSpinner message="Loading your preferences..." size="large" />
+        <LoadingSpinner message={t('settings.loadingPreferences')} size="large" />
       </div>
     );
   }
@@ -88,21 +91,36 @@ export default function SettingsPage() {
   return (
     <div className="settingsPage">
       <div className="settingsPage__header">
-        <h1>Settings</h1>
-        <p>Manage your account settings and preferences</p>
+        <h1>{t('settings.title')}</h1>
+        <p>{t('settings.subtitle')}</p>
+      </div>
+
+      <div className="settingsPage__section" id="language-preference">
+        <div className="settingsPage__sectionHeader">
+          <Globe size={20} />
+          <h2>{t('settings.languagePreference')}</h2>
+        </div>
+        <div className="settingsPage__preferences">
+          <div className="settingsPage__preference">
+            <div className="settingsPage__preferenceInfo">
+              <p>{t('settings.languagePreferenceDesc')}</p>
+            </div>
+            <LanguageSwitcher />
+          </div>
+        </div>
       </div>
 
       <div className="settingsPage__section" id="email-preferences">
         <div className="settingsPage__sectionHeader">
           <Mail size={20} />
-          <h2>Email Preferences</h2>
+          <h2>{t('settings.emailPreferences')}</h2>
         </div>
         
         <div className="settingsPage__preferences">
           <div className="settingsPage__preference">
             <div className="settingsPage__preferenceInfo">
-              <h3>Email Notifications</h3>
-              <p>Receive emails about your analyses, progress updates, and important account information.</p>
+              <h3>{t('settings.emailNotifications')}</h3>
+              <p>{t('settings.emailNotificationsDesc')}</p>
             </div>
             <label className="settingsPage__toggle">
               <input
@@ -116,8 +134,8 @@ export default function SettingsPage() {
 
           <div className="settingsPage__preference">
             <div className="settingsPage__preferenceInfo">
-              <h3>Marketing Emails</h3>
-              <p>Receive tips, feature updates, and promotional content to help you improve faster.</p>
+              <h3>{t('settings.marketingEmails')}</h3>
+              <p>{t('settings.marketingEmailsDesc')}</p>
             </div>
             <label className="settingsPage__toggle">
               <input
@@ -136,20 +154,20 @@ export default function SettingsPage() {
             onClick={handleSave}
             disabled={saving}
           >
-            {saving ? 'Saving...' : 'Save Preferences'}
+            {saving ? t('common.buttons.saving') : t('settings.savePreferences')}
           </button>
           
           {saveStatus === 'success' && (
             <div className="settingsPage__status settingsPage__status--success">
               <CheckCircle2 size={16} />
-              <span>Preferences saved successfully!</span>
+              <span>{t('settings.preferencesSaved')}</span>
             </div>
           )}
           
           {saveStatus === 'error' && (
             <div className="settingsPage__status settingsPage__status--error">
               <AlertCircle size={16} />
-              <span>Failed to save preferences. Please try again.</span>
+              <span>{t('settings.preferencesError')}</span>
             </div>
           )}
         </div>

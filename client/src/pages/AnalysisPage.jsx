@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useUser, UserButton } from '@clerk/clerk-react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { 
   ArrowLeft, 
   Plus, 
@@ -95,6 +96,7 @@ export default function AnalysisPage({
   const { user } = useUser();
   const { id } = useParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
   const [videoUrl, setVideoUrl] = useState(null);
   const [loadedAnalysis, setLoadedAnalysis] = useState(null);
@@ -164,7 +166,7 @@ export default function AnalysisPage({
 
   const handleDeleteAnalysis = async (analysisIdToDelete) => {
     if (!analysisIdToDelete || !user?.id) return;
-    const confirmed = window.confirm('Delete this analysis and its data? This cannot be undone.');
+    const confirmed = window.confirm(t('analysisPage.deleteConfirm'));
     if (!confirmed) return;
     try {
       const res = await fetch(`${apiBase}/api/analyses/${analysisIdToDelete}`, {
@@ -381,7 +383,7 @@ export default function AnalysisPage({
               onClick={onBackToDashboard}
             >
               <ArrowLeft size={18} />
-              <span>Dashboard</span>
+              <span>{t('analysisPage.dashboard')}</span>
             </button>
             <div className="analysisPage__userButton">
               <UserButton afterSignOutUrl="/" />
@@ -395,7 +397,7 @@ export default function AnalysisPage({
         {currentAnalysisData ? (
           <div className="analysisPage__headerContent analysisPage__headerContent--view">
             <div className="analysisPage__headerText">
-                <span className="analysisPage__crumb">Analysis overview</span>
+                <span className="analysisPage__crumb">{t('analysisPage.analysisOverview')}</span>
               <h1 className="analysisPage__title analysisPage__title--compact">
                 {currentAnalysisData?.video_filename}
               </h1>
@@ -413,8 +415,8 @@ export default function AnalysisPage({
         ) : (
           <div className="analysisPage__headerContent">
             <div className="analysisPage__headerText">
-              <h1 className="analysisPage__title">Upload your practice video</h1>
-              <p className="analysisPage__subtitle">Each recording helps us give you better, more personalized feedback.</p>
+              <h1 className="analysisPage__title">{t('analysisPage.title')}</h1>
+              <p className="analysisPage__subtitle">{t('analysisPage.subtitle')}</p>
             </div>
           </div>
         )}
@@ -428,7 +430,7 @@ export default function AnalysisPage({
               <div className="analysisPage__viewColumn">
                 <div className="analysisPage__analysisMetaCard">
                   <div className="analysisPage__analysisMetaRow">
-                    <span className="analysisPage__metaLabel">Uploaded on</span>
+                    <span className="analysisPage__metaLabel">{t('analysisPage.uploadedOn')}</span>
                     <span className="analysisPage__metaValue">
                       {new Date(currentAnalysisData.created_at).toLocaleDateString('en-US', { 
                         year: 'numeric', 
@@ -440,12 +442,12 @@ export default function AnalysisPage({
                     </span>
                   </div>
                   <div className="analysisPage__analysisMetaRow">
-                    <span className="analysisPage__metaLabel">File name</span>
+                    <span className="analysisPage__metaLabel">{t('analysisPage.fileName')}</span>
                     <span className="analysisPage__metaValue">{currentAnalysisData.video_filename}</span>
                   </div>
                   {currentPromptDefinition && (
                     <div className="analysisPage__analysisMetaRow analysisPage__analysisMetaRow--stacked">
-                      <span className="analysisPage__metaLabel">Session prompt</span>
+                      <span className="analysisPage__metaLabel">{t('analysisPage.sessionPrompt')}</span>
                       <div className="analysisPage__promptMeta">
                         <strong>{currentPromptDefinition.title}</strong>
                         {currentPromptDefinition.description && (
@@ -457,7 +459,7 @@ export default function AnalysisPage({
                 </div>
 
                 <div className="analysisPage__videoCard">
-                  <h4 className="analysisPage__videoTitle">Video Preview</h4>
+                  <h4 className="analysisPage__videoTitle">{t('analysisPage.videoPreview')}</h4>
                   {videoUrl ? (
                     <div className="analysisPage__videoFrame">
                       <VideoPlayer 
@@ -468,7 +470,7 @@ export default function AnalysisPage({
                   ) : (
                     <div className="analysisPage__videoPlaceholder">
                       <div className="analysisPage__videoPlaceholderIcon">🎥</div>
-                      <p>Video preview is not available for this analysis.</p>
+                      <p>{t('analysisPage.videoNotAvailable')}</p>
                     </div>
                   )}
                 </div>
@@ -490,7 +492,7 @@ export default function AnalysisPage({
                         onClick={() => handleDeleteAnalysis(currentAnalysisData.id)}
                       >
                         <Trash2 size={16} />
-                        <span>Delete analysis</span>
+                        <span>{t('analysisPage.deleteAnalysis')}</span>
                       </button>
                     </div>
                   )}
@@ -511,9 +513,9 @@ export default function AnalysisPage({
                           <Sparkles size={18} />
                         </div>
                         <div>
-                          <p className="analysisPage__cardTitle">Next Steps for Your Next Video</p>
+                          <p className="analysisPage__cardTitle">{t('analysisPage.nextSteps')}</p>
                           <span className="analysisPage__cardSubtitle">
-                            {latestAnalysisDate ? `Based on your ${latestAnalysisDate} session` : 'Based on your latest session'}
+                            {latestAnalysisDate ? t('analysisPage.basedOnSession', { date: latestAnalysisDate }) : t('analysisPage.basedOnLatest')}
                           </span>
                         </div>
                       </div>
@@ -522,11 +524,11 @@ export default function AnalysisPage({
                           <div>
                             {practiceCompletionNotices.map((notice) => (
                               <div key={notice.actionItemId || notice.title}>
-                                <strong>{notice.title || 'Practice prompt'}</strong>
+                                <strong>{notice.title || t('analysisPage.optionalExercise')}</strong>
                                 {notice.score !== undefined && (
-                                  <span> • score {notice.score.toFixed(1)}/10</span>
+                                  <span> • {t('analysisPage.score', { score: notice.score.toFixed(1) })}</span>
                                 )}
-                                <p>Great work! This focus is now completed. You'll get new tips after your next analysis.</p>
+                                <p>{t('analysisPage.greatWork')}</p>
                               </div>
                             ))}
                           </div>
@@ -535,7 +537,7 @@ export default function AnalysisPage({
                             className="analysisPage__completionDismiss"
                             onClick={handleDismissCompletionNotices}
                           >
-                            Dismiss
+                            {t('common.buttons.dismiss')}
                           </button>
                         </div>
                       )}
@@ -564,8 +566,8 @@ export default function AnalysisPage({
                           <div className="analysisPage__emptyState">
                             <p>
                               {hasCompletedAnalysis
-                                ? 'No tips available right now. Upload another video to get personalized next steps.'
-                                : 'Complete your first analysis to unlock personalized next steps.'}
+                                ? t('analysisPage.noTipsAvailable')
+                                : t('analysisPage.completeFirstAnalysis')}
                             </p>
                           </div>
                         )}
@@ -600,7 +602,7 @@ export default function AnalysisPage({
                                       actionItemId: item.id
                                     })}
                                   >
-                                    Try optional practice
+                                    {t('analysisPage.optionalExercise')}
                                   </button>
                                 )}
                               </div>
@@ -620,14 +622,14 @@ export default function AnalysisPage({
                           <Video size={18} />
                         </div>
                         <div>
-                              <p className="analysisPage__cardTitle">Optional Quick Exercise</p>
+                              <p className="analysisPage__cardTitle">{t('analysisPage.optionalExercise')}</p>
                           <span className="analysisPage__cardSubtitle">
-                                {selectedPrompt ? `Focus: ${selectedPrompt.title}` : "Try a quick drill when you're ready(optional)"}
+                                {selectedPrompt ? t('analysisPage.focus', { title: selectedPrompt.title }) : t('analysisPage.tryQuickDrill')}
                           </span>
                         </div>
                       </div>
                       {selectedPrompt?.source === 'action' && (
-                            <span className="analysisPage__promptBadge">From your tips</span>
+                            <span className="analysisPage__promptBadge">{t('analysisPage.fromYourTips')}</span>
                       )}
                       {selectedPrompt ? (
                         <div className="analysisPage__promptBody">
@@ -638,7 +640,7 @@ export default function AnalysisPage({
                               className="analysisPage__promptClear"
                               onClick={() => setSelectedPrompt(null)}
                             >
-                                  Clear
+                                  {t('analysisPage.clear')}
                             </button>
                           </div>
                           {selectedPrompt.description && <p>{selectedPrompt.description}</p>}
@@ -669,7 +671,7 @@ export default function AnalysisPage({
                         </div>
                       ) : (
                         <div className="analysisPage__promptBody analysisPage__promptBody--empty">
-                              <p>Tap "Try optional practice" on any tip above to try a quick exercise before your next analysis.</p>
+                              <p>{t('analysisPage.tapToTry')}</p>
                         </div>
                       )}
                     </div>
@@ -689,7 +691,7 @@ export default function AnalysisPage({
                           onClick={handleAnalyzeClick} 
                           disabled={!file || isLoading}
                         >
-                          Analyze Video
+                          {t('analysisPage.analyzeVideo')}
                         </button>
                       </div>
                     )}
@@ -702,8 +704,8 @@ export default function AnalysisPage({
                           <Lightbulb size={18} />
                         </div>
                         <div>
-                          <p className="analysisPage__cardTitle">Recording Tips</p>
-                          <span className="analysisPage__cardSubtitle">Keep these fundamentals every session</span>
+                          <p className="analysisPage__cardTitle">{t('analysisPage.recordingTips')}</p>
+                          <span className="analysisPage__cardSubtitle">{t('analysisPage.keepFundamentals')}</span>
                         </div>
                       </div>
                       <div className="analysisPage__tipsList">
@@ -731,8 +733,8 @@ export default function AnalysisPage({
                     ) : (
                       <div className="analysisPage__previewPlaceholder">
                         <div className="analysisPage__previewText">
-                          <p>Ready when you are.</p>
-                          <span>Upload a clip to preview your framing before sending it for analysis.</span>
+                          <p>{t('analysisPage.readyWhenYouAre')}</p>
+                          <span>{t('analysisPage.uploadPreview')}</span>
                         </div>
                       </div>
                     )}
@@ -753,7 +755,7 @@ export default function AnalysisPage({
                   <div className="analysisPage__viewColumn">
                     <div className="analysisPage__analysisMetaCard">
                       <div className="analysisPage__analysisMetaRow">
-                        <span className="analysisPage__metaLabel">Uploaded</span>
+                        <span className="analysisPage__metaLabel">{t('analysisPage.uploadedOn')}</span>
                         <span className="analysisPage__metaValue">
                           {new Date().toLocaleDateString('en-US', { 
                             year: 'numeric', 
@@ -766,13 +768,13 @@ export default function AnalysisPage({
                       </div>
                       {file?.name && (
                         <div className="analysisPage__analysisMetaRow">
-                          <span className="analysisPage__metaLabel">File</span>
+                          <span className="analysisPage__metaLabel">{t('analysisPage.fileName')}</span>
                           <span className="analysisPage__metaValue">{file.name}</span>
                         </div>
                       )}
                     </div>
                     <div className="analysisPage__videoCard">
-                      <h4 className="analysisPage__videoTitle">Video Preview</h4>
+                      <h4 className="analysisPage__videoTitle">{t('analysisPage.videoPreview')}</h4>
                       {file ? (
                         <div className="analysisPage__videoFrame">
                           <VideoPlayer file={file} />
@@ -780,7 +782,7 @@ export default function AnalysisPage({
                       ) : (
                         <div className="analysisPage__videoPlaceholder">
                           <div className="analysisPage__videoPlaceholderIcon">🎥</div>
-                          <p>Video preview is not available for this session.</p>
+                          <p>{t('analysisPage.videoNotAvailableSession')}</p>
                         </div>
                       )}
                     </div>
@@ -806,7 +808,7 @@ export default function AnalysisPage({
                     className="btn btn--primary" 
                     onClick={onBackToDashboard}
                   >
-                    View in Dashboard
+                    {t('analysisPage.viewInDashboard')}
                   </button>
                   <button 
                     className="btn btn--secondary" 
@@ -817,7 +819,7 @@ export default function AnalysisPage({
                     }}
                   >
                     <Plus size={18} />
-                    <span>New Analysis</span>
+                    <span>{t('analysisPage.newAnalysis')}</span>
                   </button>
           {currentAnalysisId && (
             <button
@@ -826,7 +828,7 @@ export default function AnalysisPage({
               onClick={() => handleDeleteAnalysis(currentAnalysisId)}
             >
               <Trash2 size={16} />
-              <span>Delete session</span>
+              <span>{t('analysisPage.deleteSession')}</span>
             </button>
           )}
                 </div>

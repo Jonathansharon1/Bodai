@@ -24,7 +24,7 @@
   align-items: center;
   gap: 12px;
   font-weight: 700;
-  font-size: 20px;
+  font-size: var(--text-h2-size);
   color: var(--text-dark);
   letter-spacing: -0.02em;
   font-family: var(--font-display);
@@ -82,10 +82,10 @@
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: left;
-  font-size: 15px;
+  font-size: var(--text-body-size);
   font-weight: 500;
   color: var(--text-dark);
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
   position: relative;
 }
 

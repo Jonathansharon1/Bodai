@@ -11,7 +11,8 @@ import {
   Heart,
   Users,
   Sparkles,
-  Plus
+  Plus,
+  Briefcase
 } from 'lucide-react';
 import './MyAnalysesPage.css';
 import { getPromptById } from '../config/recordingPrompts';
@@ -121,11 +122,9 @@ export default function MyAnalysesPage({
       'confidence': Dumbbell,
       'content': Video,
       'presentation': Mic,
-      'communication': MessageCircle,
       'leadership': Award,
-      'dating': Heart,
-      'social': Users,
-      'general': Sparkles
+      'interview': Briefcase,
+      'sales': Users
     };
     const IconComponent = goalIcons[goal] || Target;
     return IconComponent;
@@ -141,11 +140,9 @@ export default function MyAnalysesPage({
       'confidence': 'Build Confidence',
       'content': 'Content Creator',
       'presentation': 'Presentation Skills',
-      'communication': 'Better Communication',
       'leadership': 'Executive Presence',
-      'dating': 'Dating & Romantic',
-      'social': 'Social Confidence',
-      'general': 'General Improvement'
+      'interview': 'Job Interviews',
+      'sales': 'Face-to-face Sales'
     };
     return goalMap[goal] || goal;
   };

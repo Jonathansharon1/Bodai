@@ -12,6 +12,60 @@
   box-shadow: 0 40px 65px rgba(79, 70, 229, 0.25);
 }
 
+.pricingCard__badge {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-radius: 20px;
+  box-shadow: 
+    0 4px 12px rgba(99, 102, 241, 0.4),
+    0 0 0 3px rgba(255, 255, 255, 0.9);
+  z-index: 10;
+  white-space: nowrap;
+  animation: badgePulse 6s ease-in-out infinite;
+}
+
+.pricingCard__badge svg {
+  flex-shrink: 0;
+  animation: badgeSparkle 4s ease-in-out infinite;
+}
+
+@keyframes badgePulse {
+  0%, 100% {
+    transform: translateX(-50%) scale(1);
+    box-shadow: 
+      0 4px 12px rgba(99, 102, 241, 0.4),
+      0 0 0 3px rgba(255, 255, 255, 0.9);
+  }
+  50% {
+    transform: translateX(-50%) scale(1.05);
+    box-shadow: 
+      0 6px 16px rgba(99, 102, 241, 0.5),
+      0 0 0 3px rgba(255, 255, 255, 0.95);
+  }
+}
+
+@keyframes badgeSparkle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.1) rotate(180deg);
+  }
+}
+
 .pricingCard:hover {
   transform: translateY(-6px);
   box-shadow: 0 40px 70px rgba(15, 23, 42, 0.16);
@@ -168,6 +222,17 @@
 
   .pricingCard__shell {
     padding: 28px 24px;
+  }
+
+  .pricingCard__badge {
+    font-size: 12px;
+    padding: 6px 14px;
+    top: -10px;
+  }
+
+  .pricingCard__badge svg {
+    width: 12px;
+    height: 12px;
   }
 }
 

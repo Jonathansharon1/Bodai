@@ -80,7 +80,7 @@
 }
 
 .upgradeModal__title {
-  font-size: 22px;
+  font-size: var(--text-h2-size);
   font-weight: 600;
   color: #1e293b;
   text-align: center;
@@ -89,8 +89,9 @@
 }
 
 .upgradeModal__message {
-  font-size: 14px;
-  color: #64748b;
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line-height);
+  color: var(--text-muted);
   text-align: center;
   line-height: 1.5;
   margin: 0 0 20px;
@@ -111,8 +112,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 14px;
-  color: #1e293b;
+  font-size: var(--text-body-size);
+  color: var(--text-dark);
   font-weight: 500;
 }
 

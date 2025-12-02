@@ -89,6 +89,11 @@ npm run dev
 
 # Terminal 2 - Frontend
 npm run client
+
+# Optional - Static checks (frontend)
+cd client
+npm run lint
+cd ..
 ```
 
 Visit `http://localhost:3000`

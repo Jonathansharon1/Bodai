@@ -12,7 +12,7 @@ const highlights = [
   {
     icon: Zap,
     title: 'Instant Feedback',
-    description: 'Get detailed analysis within seconds. No waiting, no scheduling—just upload and improve immediately.',
+    description: 'Get detailed analysis within seconds. No waiting, no scheduling. Just upload and improve immediately.',
     gradient: 'linear-gradient(135deg, #F59E0B 0%, #EF4444 100%)'
   },
   {
@@ -35,15 +35,15 @@ const TESTIMONIALS = [
     name: 'Sarah M.',
     role: 'Marketing Manager',
     text: 'I was nervous about my first big presentation. After just 3 sessions with BodAI, I felt so much more confident. My team noticed the difference immediately!',
-    improvement: '+2.3 score',
+    improvement: '+21.3 score',
     rating: 5
   },
   {
     id: 2,
     name: 'David L.',
     role: 'Software Engineer',
-    text: 'The instant feedback on my body language was eye-opening. I had no idea I was crossing my arms so much. Small changes, big impact.',
-    improvement: '+40% confidence',
+    text: 'The instant feedback on my body language was eye-opening. I had no idea I was touching my face so much. Small changes, big impact.',
+    improvement: '+47% confidence',
     rating: 5
   },
   {
@@ -51,15 +51,15 @@ const TESTIMONIALS = [
     name: 'Emily R.',
     role: 'Sales Executive',
     text: 'I use BodAI before every important client call. The practice prompts are perfect for quick warm-ups.',
-    improvement: '+3.1 presence',
+    improvement: '+4.1 presence',
     rating: 5
   }
 ];
 
 const STATS = [
-  { label: 'Active Users', value: '2,500+', icon: Users },
-  { label: 'Videos Analyzed', value: '15,000+', icon: TrendingUp },
-  { label: 'Avg. Improvement', value: '+28%', icon: Award }
+  { label: 'Active Users', value: '500+', icon: Users },
+  { label: 'Videos Analyzed', value: '2000+', icon: TrendingUp },
+  { label: 'Avg. Improvement', value: '+58%', icon: Award }
 ];
 
 export default function SocialProofSection() {
@@ -171,10 +171,10 @@ export default function SocialProofSection() {
 
         <div className="socialProofSection__header">
           <h2 className="socialProofSection__title">
-            Built for Professionals Who Demand Excellence
+            Built for people Who Demand Excellence
           </h2>
           <p className="socialProofSection__subtitle">
-            Experience the future of communication coaching—powered by advanced AI, designed for real results.
+            Experience the future of communication coaching. BodAI is powered by advanced AI, designed for real results.
           </p>
         </div>
 

@@ -79,9 +79,9 @@
 
 .hero__title {
   font-family: var(--font-display);
-  font-size: clamp(44px, 5vw, 68px);
+  font-size: var(--text-display-size);
   font-weight: 800;
-  line-height: 1.08;
+  line-height: var(--text-display-line-height);
   margin: 0 0 24px;
   letter-spacing: -0.03em;
   color: #ffffff;

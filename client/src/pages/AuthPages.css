@@ -9,6 +9,11 @@
   background: #f8fafc;
 }
 
+/* Background orbs only show on left side (light background) */
+.authPage__main--split .authPage__bg {
+  display: none;
+}
+
 /* Background */
 .authPage__bg {
   position: absolute;
@@ -121,12 +126,56 @@
   z-index: 10;
 }
 
+/* Split Screen Layout for Sign Up */
+.authPage__main--split {
+  padding: 0;
+  min-height: calc(100vh - 80px);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  height: calc(100vh - 80px);
+  background: #f8fafc;
+}
+
 .authPage__content {
   width: 100%;
   max-width: 440px;
   display: flex;
   flex-direction: column;
   align-items: center;
+}
+
+/* Left Panel - Unified Background */
+.authPage__leftPanel--split {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  padding: 60px 40px;
+  position: relative;
+  overflow: hidden;
+  height: 100%;
+}
+
+.authPage__leftContent {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Right Panel - Clean Light Background */
+.authPage__rightPanel--split {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  position: relative;
+  overflow: hidden;
+  height: 100%;
 }
 
 /* Headline */
@@ -200,46 +249,90 @@
   backdrop-filter: blur(10px) !important;
 }
 
-/* Testimonial */
-.authPage__testimonial {
-  text-align: center;
-  max-width: 360px;
-  padding: 24px;
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: 16px;
-  border: 1px solid rgba(226, 232, 240, 0.5);
-}
-
-.authPage__testimonialRating {
+/* Character Figure - Simple Confidence Animation */
+.authPage__visualContent {
+  position: relative;
+  z-index: 10;
   display: flex;
+  align-items: center;
   justify-content: center;
-  gap: 4px;
-  margin-bottom: 12px;
+  width: 100%;
+  height: 100%;
+  padding: 40px;
+  min-height: 100%;
 }
 
-.authPage__testimonialText {
-  font-size: 15px;
-  color: #475569;
-  line-height: 1.6;
-  margin: 0 0 16px;
-  font-style: italic;
-}
-
-.authPage__testimonialAuthor {
+.authPage__figureWrapper {
+  position: relative;
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  justify-content: center;
 }
 
-.authPage__testimonialName {
-  font-weight: 600;
-  color: #0f172a;
-  font-size: 14px;
+/* Progress Rings - Subtle Growth Animation */
+.authPage__progressRing {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: #2563eb;
+  border-right-color: #7c3aed;
+  animation: authProgressGrow 8s ease-in-out infinite;
+  opacity: 0.3;
 }
 
-.authPage__testimonialRole {
-  font-size: 13px;
-  color: #94a3b8;
+.authPage__progressRing--2 {
+  width: 110%;
+  height: 110%;
+  border-top-color: #10b981;
+  border-right-color: #06b6d4;
+  animation: authProgressGrow 8s ease-in-out 2s infinite;
+  opacity: 0.25;
+}
+
+@keyframes authProgressGrow {
+  0% {
+    transform: scale(0.95) rotate(0deg);
+    opacity: 0.2;
+  }
+  50% {
+    transform: scale(1.05) rotate(180deg);
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(0.95) rotate(360deg);
+    opacity: 0.2;
+  }
+}
+
+.authPage__figure {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 500px;
+  filter: drop-shadow(0 20px 40px rgba(37, 99, 235, 0.15));
+  animation: authConfidenceGrow 8s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes authConfidenceGrow {
+  0%, 100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+  25% {
+    transform: scale(1.05) translateY(-8px);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.08) translateY(-12px);
+    opacity: 1;
+  }
+  75% {
+    transform: scale(1.05) translateY(-8px);
+    opacity: 1;
+  }
 }
 
 /* Footer */
@@ -257,6 +350,37 @@
 }
 
 /* Responsive */
+@media (max-width: 1024px) {
+  .authPage__main--split {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+  
+  .authPage__leftPanel--split {
+    min-height: auto;
+    padding: 40px 24px;
+  }
+  
+  .authPage__rightPanel--split {
+    min-height: 500px;
+    order: -1;
+  }
+  
+  .authPage__figure {
+    max-width: 350px;
+  }
+  
+  .authPage__progressRing {
+    max-width: 350px;
+    max-height: 350px;
+  }
+  
+  .authPage__progressRing--2 {
+    max-width: 420px;
+    max-height: 420px;
+  }
+}
+
 @media (max-width: 640px) {
   .authPage__header {
     padding: 16px 20px;
@@ -271,6 +395,10 @@
   
   .authPage__main {
     padding: 24px 16px;
+  }
+  
+  .authPage__content--signup {
+    gap: 32px;
   }
   
   .authPage__headline {

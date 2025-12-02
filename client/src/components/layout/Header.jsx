@@ -1,22 +1,25 @@
 import React from 'react';
 import { SignedIn, SignedOut, UserButton } from '@clerk/clerk-react';
 import { Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import Logo from '../Logo';
-
-const marketingLinks = [
-  { label: 'Pricing', to: '/pricing' },
-  { label: 'Product', to: '/#product' },
-  { label: 'Resources', to: '/#resources' },
-  { label: 'About', to: '/#about' }
-];
+import LanguageSwitcher from '../LanguageSwitcher';
 
 export default function Header() {
   const location = useLocation();
+  const { t } = useTranslation();
 
   // Check if we're on a page with light background (pricing, etc.)
   const lightPaths = ['/', '/pricing'];
   const isLightPage = lightPaths.includes(location.pathname);
   const headerClass = isLightPage ? 'siteHeader siteHeader--light' : 'siteHeader';
+
+  const marketingLinks = [
+    { label: t('header.nav.product'), to: '/#product' },
+    { label: t('header.nav.howItWorks'), to: '/#how-it-works' },
+    { label: t('header.nav.pricing'), to: '/pricing' },
+    { label: t('header.nav.forTeams'), to: '/contact-teams' }
+  ];
 
   const isActiveLink = (to) => {
     if (to === '/pricing') {
@@ -34,11 +37,11 @@ export default function Header() {
   return (
     <header className={headerClass} role="banner">
       <div className="siteHeader__inner">
-        <Link className="brand" to="/" aria-label="Bodai home">
+        <Link className="brand" to="/" aria-label="BodAI home">
           <Logo size={32} className="brand__logo" />
           <div className="brand__text">
-            <span className="brand__name">Bodai</span>
-            <span className="brand__tagline">AI communication coach</span>
+            <span className="brand__name">BodAI</span>
+            <span className="brand__tagline">{t('header.brand.tagline')}</span>
           </div>
         </Link>
 
@@ -49,7 +52,7 @@ export default function Header() {
                 className={`nav__link nav__link--dashboard ${isActiveLink('/dashboard') ? 'nav__link--active' : ''}`}
                 to="/dashboard"
               >
-                Dashboard
+                {t('header.nav.dashboard')}
               </Link>
             </SignedIn>
             {marketingLinks.map((link) => (
@@ -67,13 +70,14 @@ export default function Header() {
           <div className="ctaRow">
             <SignedOut>
               <Link to="/sign-in" className="nav__login">
-                  Login
+                  {t('header.nav.login')}
               </Link>
               <Link to="/sign-up" className="btn btn--primary btn--sm">
-                  Get Started
+                  {t('header.nav.getStarted')}
               </Link>
             </SignedOut>
             <SignedIn>
+              <LanguageSwitcher />
               <UserButton afterSignOutUrl="/" />
             </SignedIn>
           </div>

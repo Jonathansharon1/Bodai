@@ -207,19 +207,16 @@ export const syncUserProfile = async (clerkUserId, userProfile = {}) => {
 };
 
 const GOAL_LABELS = {
-  confidence: 'Build Self-Confidence',
+  confidence: 'Build Confidence',
   content: 'Content Creator',
-  interview: 'Job Interview Preparation',
-  presentation: 'Improve Presentations',
-  communication: 'Better Communication',
-  leadership: 'Leadership Presence',
-  dating: 'Dating & Romantic',
-  social: 'Social Confidence',
-  general: 'General Improvement'
+  presentation: 'Presentation Skills',
+  leadership: 'Executive Presence',
+  interview: 'Job Interviews',
+  sales: 'Face-to-face Sales'
 };
 
 const buildJourneyPayload = (userId, journeyData = {}) => {
-  const focusSlug = journeyData.focusSlug || journeyData.primaryGoal || 'general';
+  const focusSlug = journeyData.focusSlug || journeyData.primaryGoal || 'confidence';
   const consentVersion = journeyData.consentVersion || journeyData.consent?.version || null;
   const consentAcceptedAt = journeyData.consentAcceptedAt || journeyData.consent?.acceptedAt || null;
   const commitmentLevel = journeyData.commitmentLevel || journeyData.practiceCommitment || null;
@@ -3277,6 +3274,75 @@ export const updateUserEmailPreferences = async (clerkUserId, preferences) => {
     return data;
   } catch (err) {
     console.error('[updateUserEmailPreferences] Error:', err);
+    throw err;
+  }
+};
+
+/**
+ * Get user language preference
+ */
+export const getUserLanguagePreference = async (userId) => {
+  if (!supabase || !userId) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('language_preference')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('[getUserLanguagePreference] Error:', error);
+      return null;
+    }
+
+    return data?.language_preference || 'en';
+  } catch (err) {
+    console.error('[getUserLanguagePreference] Exception:', err);
+    return null;
+  }
+};
+
+/**
+ * Update user language preference
+ */
+export const updateUserLanguagePreference = async (clerkUserId, languagePreference) => {
+  if (!supabase || !clerkUserId) {
+    throw new Error('Supabase or clerkUserId not provided');
+  }
+
+  if (!languagePreference || !['en', 'he'].includes(languagePreference)) {
+    throw new Error('Invalid language preference. Must be "en" or "he"');
+  }
+
+  try {
+    // Get user ID from clerk_user_id
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('clerk_user_id', clerkUserId)
+      .single();
+
+    if (userError || !user) {
+      throw new Error(`User not found: ${userError?.message || 'Unknown error'}`);
+    }
+
+    const { data, error } = await supabase
+      .from('users')
+      .update({ language_preference: languagePreference })
+      .eq('id', user.id)
+      .select('language_preference')
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to update language preference: ${error.message}`);
+    }
+
+    return data;
+  } catch (err) {
+    console.error('[updateUserLanguagePreference] Error:', err);
     throw err;
   }
 };
