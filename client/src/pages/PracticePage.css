@@ -20,6 +20,11 @@
   z-index: 0;
 }
 
+[dir="rtl"] .practicePage::before {
+  right: auto;
+  left: 0;
+}
+
 .practicePage::after {
   content: '';
   position: fixed;
@@ -30,6 +35,11 @@
   background: radial-gradient(circle, rgba(139, 92, 246, 0.05) 0%, transparent 70%);
   pointer-events: none;
   z-index: 0;
+}
+
+[dir="rtl"] .practicePage::after {
+  left: auto;
+  right: 280px;
 }
 
 /* Header */
@@ -865,3 +875,46 @@
   margin-top: 32px;
 }
 
+
+/* Show More Button */
+.practicePage__showMore {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: transparent;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 8px;
+  padding: 12px;
+  width: 100%;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 16px;
+}
+
+.practicePage__showMore:hover {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+.practicePage__showMoreIcon {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.practicePage__showMoreIcon--expanded {
+  transform: rotate(90deg);
+}
+
+/* RTL Support for show more icon */
+[dir="rtl"] .practicePage__showMoreIcon {
+  transform: scaleX(-1);
+}
+
+[dir="rtl"] .practicePage__showMoreIcon--expanded {
+  /* Left Arrow (<) rotated -90deg (CCW) becomes Down (v) */
+  transform: scaleX(-1) rotate(-90deg);
+}

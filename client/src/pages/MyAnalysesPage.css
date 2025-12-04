@@ -21,6 +21,11 @@
   z-index: 0;
 }
 
+[dir="rtl"] .myAnalysesPage::before {
+  right: auto;
+  left: 0;
+}
+
 .myAnalysesPage::after {
   content: '';
   position: fixed;
@@ -31,6 +36,11 @@
   background: radial-gradient(circle, rgba(139, 92, 246, 0.05) 0%, transparent 70%);
   pointer-events: none;
   z-index: 0;
+}
+
+[dir="rtl"] .myAnalysesPage::after {
+  left: auto;
+  right: 280px;
 }
 
 /* Journey Tabs */
@@ -317,6 +327,10 @@
 
   .myAnalysesPage::after {
     left: 0;
+  }
+
+  [dir="rtl"] .myAnalysesPage::after {
+    right: 0;
   }
 
   .myAnalysesPage__header {

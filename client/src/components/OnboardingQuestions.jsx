@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   Award, 
   Briefcase,
@@ -22,178 +23,142 @@ import './OnboardingQuestions.css';
 
 const ACTIVE_GOALS = ['content', 'leadership', 'confidence', 'presentation', 'interview', 'sales'];
 
-const GOALS = [
-  { 
-    id: 'content', 
-    label: 'Content Creator', 
-    icon: Video, 
-    description: 'Master talking to camera for videos, podcasts, and social content.' 
-  },
-  { 
-    id: 'leadership', 
-    label: 'Executive Presence', 
-    icon: Award, 
-    description: 'Command every room with clear intent and gravitas.' 
-  },
-  { 
-    id: 'confidence', 
-    label: 'Build Confidence', 
-    icon: Dumbbell, 
-    description: 'Raise your day-to-day confidence and personal presence.' 
-  },
-  { 
-    id: 'presentation', 
-    label: 'Presentation Skills', 
-    icon: Mic, 
-    description: 'Deliver talks with structure, energy, and confident Q&A.' 
-  },
-  { 
-    id: 'interview', 
-    label: 'Job Interviews', 
-    icon: Briefcase, 
-    description: 'Practice interviews so you show up calm, clear, and ready for tough questions.' 
-  },
-  { 
-    id: 'sales', 
-    label: 'Face-to-face Sales', 
-    icon: Users, 
-    description: 'Improve live sales conversations, discovery, and closing moments.' 
-  },
-];
-
 export const GOAL_EXPLANATIONS = {
-  confidence: {
-    label: 'Build Confidence',
-    headline: "We turn vague 'be more confident' into concrete, trainable skills.",
-    bullets: [
-      'Record short reps where we score tension, vocal stability, and filler words on every video.',
-      'Follow 60–120 second practice missions that each train one behavior at a time.',
-      'Compare before/after sessions so you can see your confidence trend objectively improving.'
-    ],
-    timeline: 'Most people feel more in control after 3–5 focused sessions.'
-  },
-  interview: {
-    label: 'Job Interviews',
-    headline: 'We help you show up prepared, calm, and clear in interviews by rehearsing the real thing.',
-    bullets: [
-      'Practice with realistic prompts — from behavioral questions to role-specific scenarios.',
-      'Get feedback on clarity, structure, and first impression for each recorded answer.',
-      'Turn weak spots into specific action items you can fix before the real interview.'
-    ],
-    timeline: 'Use BodAI daily the week before your interview to build muscle-memory answers.'
-  },
-  presentation: {
-    label: 'Presentation Skills',
-    headline: 'We strengthen your presence and clarity for talks and demos through repeated run-throughs.',
-    bullets: [
-      'Record multiple takes and analyze structure, pacing, and energy for each one.',
-      'Run targeted drills on key moments like your opening, transitions, and call-to-action.',
-      'Watch your presence and impact scores improve as you rehearse, not just imagine.'
-    ],
-    timeline: 'Aim for 2–3 practice runs per important presentation.'
-  },
-  sales: {
-    label: 'Face-to-face Sales',
-    headline: 'We help you look and sound more trustworthy and persuasive in live conversations.',
-    bullets: [
-      'Role-play discovery, pitching, and objection-handling calls on camera.',
-      'Get analysis on warmth vs authority, eye contact, and listening cues from each rep.',
-      'Turn key moves — like asking for the close — into repeatable habits instead of guesswork.'
-    ],
-    timeline: 'Practice 1–2 calls per week and track how your conversations improve across deals.'
-  },
-  content: {
-    label: 'Content Creator',
-    headline: 'We help you get comfortable talking to camera by making reps feel like episodes, not homework.',
-    bullets: [
-      'Record short, themed clips that mirror the content you want to publish.',
-      'Get feedback on energy, clarity, and hooks so each take improves the next.',
-      'Build a library of practiced intros and explanations you can reuse on camera.'
-    ],
-    timeline: 'Most creators feel a big shift after a week of quick daily reps.'
-  },
-  leadership: {
-    label: 'Executive Presence',
-    headline: 'We help you practice high-stakes moments so your presence feels steady, not improvised.',
-    bullets: [
-      'Rehearse tough updates, 1:1s, and all-hands moments on camera.',
-      'Get feedback on clarity, calm, and authority so your message lands under pressure.',
-      'Turn your natural style into a repeatable presence you can rely on in any room.'
-    ],
-    timeline: 'Leaders usually notice clearer, calmer delivery after a few focused sessions.'
-  }
+  // This export is kept for legacy/other component usage if needed, 
+  // but the component below uses the translated version.
+  // Ideally this would be refactored out entirely in favor of i18n keys.
 };
-
-const CONFIDENCE_LEVELS = [
-  { 
-    id: 'very-high', 
-    label: 'Very Confident', 
-    icon: TrendingUp,
-    description: 'I feel comfortable and self-assured',
-    color: '#10B981'
-  },
-  { 
-    id: 'high', 
-    label: 'Confident', 
-    icon: Smile,
-    description: 'I generally feel good about myself',
-    color: '#46B5D1'
-  },
-  { 
-    id: 'medium', 
-    label: 'Moderate', 
-    icon: Meh,
-    description: 'I have mixed feelings',
-    color: '#FFC107'
-  },
-  { 
-    id: 'low', 
-    label: 'Not Very Confident', 
-    icon: Frown,
-    description: 'I often doubt myself',
-    color: '#FF8C64'
-  },
-  { 
-    id: 'very-low', 
-    label: 'Building Up', 
-    icon: AlertCircle,
-    description: 'I struggle with confidence but want to grow',
-    color: '#EF4444'
-  },
-];
-
-const PRACTICE_FREQUENCY = [
-  {
-    id: 'casual',
-    label: 'Casual',
-    icon: Calendar,
-    frequency: '1-2 times per month',
-    description: 'Quick check-ins when I have time'
-    },
-  {
-    id: 'regular',
-    label: 'Regular',
-    icon: Target,
-    frequency: '1-2 times per week',
-    description: 'Steady practice for consistent improvement'
-  },
-  {
-    id: 'intensive',
-    label: 'Intensive',
-    icon: Zap,
-    frequency: '3+ times per week',
-    description: 'Focused training for faster results'
-  }
-];
 
 export default function OnboardingQuestions({ onComplete }) {
   const [step, setStep] = useState(1);
   const [goal, setGoal] = useState('');
   const [confidence, setConfidence] = useState('');
   const [practiceFrequency, setPracticeFrequency] = useState('');
+  const [includeEnvironmentFeedback, setIncludeEnvironmentFeedback] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const { t } = useTranslation();
 
-  const filteredGoals = useMemo(() => GOALS.filter(g => ACTIVE_GOALS.includes(g.id)), []);
+  const GOALS = useMemo(() => [
+    { 
+      id: 'content', 
+      label: t('onboarding.goal.content.label'), 
+      icon: Video, 
+      description: t('onboarding.goal.content.description') 
+    },
+    { 
+      id: 'leadership', 
+      label: t('onboarding.goal.leadership.label'), 
+      icon: Award, 
+      description: t('onboarding.goal.leadership.description') 
+    },
+    { 
+      id: 'confidence', 
+      label: t('onboarding.goal.confidence.label'), 
+      icon: Dumbbell, 
+      description: t('onboarding.goal.confidence.description') 
+    },
+    { 
+      id: 'presentation', 
+      label: t('onboarding.goal.presentation.label'), 
+      icon: Mic, 
+      description: t('onboarding.goal.presentation.description') 
+    },
+    { 
+      id: 'interview', 
+      label: t('onboarding.goal.interview.label'), 
+      icon: Briefcase, 
+      description: t('onboarding.goal.interview.description') 
+    },
+    { 
+      id: 'sales', 
+      label: t('onboarding.goal.sales.label'), 
+      icon: Users, 
+      description: t('onboarding.goal.sales.description') 
+    },
+  ], [t]);
+
+  const CONFIDENCE_LEVELS = useMemo(() => [
+    { 
+      id: 'very-high', 
+      label: t('onboarding.confidence.very-high.label'), 
+      icon: TrendingUp,
+      description: t('onboarding.confidence.very-high.description'),
+      color: '#10B981'
+    },
+    { 
+      id: 'high', 
+      label: t('onboarding.confidence.high.label'), 
+      icon: Smile,
+      description: t('onboarding.confidence.high.description'),
+      color: '#46B5D1'
+    },
+    { 
+      id: 'medium', 
+      label: t('onboarding.confidence.medium.label'), 
+      icon: Meh,
+      description: t('onboarding.confidence.medium.description'),
+      color: '#FFC107'
+    },
+    { 
+      id: 'low', 
+      label: t('onboarding.confidence.low.label'), 
+      icon: Frown,
+      description: t('onboarding.confidence.low.description'),
+      color: '#FF8C64'
+    },
+    { 
+      id: 'very-low', 
+      label: t('onboarding.confidence.very-low.label'), 
+      icon: AlertCircle,
+      description: t('onboarding.confidence.very-low.description'),
+      color: '#EF4444'
+    },
+  ], [t]);
+
+  const PRACTICE_FREQUENCY = useMemo(() => [
+    {
+      id: 'casual',
+      label: t('onboarding.frequency.casual.label'),
+      icon: Calendar,
+      frequency: t('onboarding.frequency.casual.frequency'),
+      description: t('onboarding.frequency.casual.description')
+    },
+    {
+      id: 'regular',
+      label: t('onboarding.frequency.regular.label'),
+      icon: Target,
+      frequency: t('onboarding.frequency.regular.frequency'),
+      description: t('onboarding.frequency.regular.description')
+    },
+    {
+      id: 'intensive',
+      label: t('onboarding.frequency.intensive.label'),
+      icon: Zap,
+      frequency: t('onboarding.frequency.intensive.frequency'),
+      description: t('onboarding.frequency.intensive.description')
+    }
+  ], [t]);
+
+  const getGoalExplanation = (goalId) => {
+    if (!goalId) return null;
+    const bullets = t(`onboarding.goal.${goalId}.bullets`, { returnObjects: true });
+    
+    // Ensure bullets is an array (fallback if key missing or not array)
+    const safeBullets = Array.isArray(bullets) ? bullets : [
+      t('onboarding.questions.defaultBullet1'),
+      t('onboarding.questions.defaultBullet2'),
+      t('onboarding.questions.defaultBullet3')
+    ];
+
+    return {
+      label: t(`onboarding.goal.${goalId}.label`),
+      headline: t(`onboarding.goal.${goalId}.headline`),
+      bullets: safeBullets,
+      timeline: t(`onboarding.goal.${goalId}.timeline`)
+    };
+  };
+
+  const filteredGoals = useMemo(() => GOALS.filter(g => ACTIVE_GOALS.includes(g.id)), [GOALS]);
 
   const handleGoalSelect = (goalId) => {
     setGoal(goalId);
@@ -215,6 +180,11 @@ export default function OnboardingQuestions({ onComplete }) {
     }
 
     if (step === 3) {
+      setStep(4);
+      return;
+    }
+
+    if (step === 4) {
       if (submitting) return;
       setSubmitting(true);
 
@@ -223,6 +193,7 @@ export default function OnboardingQuestions({ onComplete }) {
         confidenceLevel: confidence,
         practiceCommitment: practiceFrequency,
         commitmentLevel: practiceFrequency,
+        includeEnvironmentFeedback: includeEnvironmentFeedback,
         // Set sensible defaults for removed fields
         difficultyBaseline: 'steady',
         coachArchetype: 'default',
@@ -251,29 +222,40 @@ export default function OnboardingQuestions({ onComplete }) {
     (step === 2 && !confidence) ||
     (step === 3 && !practiceFrequency);
 
-  const totalSteps = 3;
-  const buttonLabel = step === 3 
-    ? (submitting ? 'Getting started...' : 'Get Started') 
-    : 'Continue';
+  const totalSteps = 4;
+  const buttonLabel = step === 4 
+    ? (submitting ? t('onboarding.questions.gettingStarted') : t('onboarding.questions.getStarted')) 
+    : t('onboarding.questions.continue');
 
   const getStepContext = () => {
     switch(step) {
       case 1:
         return {
-          explanation: "This helps us personalize your experience and tailor feedback to your specific goals.",
+          explanation: t('onboarding.questions.step1ContextExplanation'),
           preview: goal
-            ? `You'll get a hands-on practice path for ${GOALS.find(g => g.id === goal)?.label || 'your goal'} — with short missions and clear feedback.`
-            : "You'll pick a goal and immediately see how BodAI will train you with short, focused practice missions."
+            ? t('onboarding.questions.step1ContextPreviewWithGoal', {
+                goalLabel: GOALS.find(g => g.id === goal)?.label || t('onboarding.questions.defaultGoalLabel')
+              })
+            : t('onboarding.questions.step1ContextPreviewDefault')
         };
       case 2:
         return {
-          explanation: "Understanding your confidence level helps us adjust our feedback style and recommendations.",
-          preview: confidence ? `We'll adapt our coaching to match your ${CONFIDENCE_LEVELS.find(c => c.id === confidence)?.label.toLowerCase() || 'confidence'} level` : null
+          explanation: t('onboarding.questions.step2ContextExplanation'),
+          preview: confidence ? t('onboarding.questions.step2ContextPreview', {
+            confidenceLabel: CONFIDENCE_LEVELS.find(c => c.id === confidence)?.label.toLowerCase() || t('onboarding.questions.defaultConfidenceLabel')
+          }) : null
         };
       case 3:
         return {
-          explanation: "This helps us suggest the right practice schedule and set realistic expectations.",
-          preview: practiceFrequency ? `We'll recommend a practice plan that fits your ${PRACTICE_FREQUENCY.find(p => p.id === practiceFrequency)?.label.toLowerCase() || 'schedule'} schedule` : null
+          explanation: t('onboarding.questions.step3ContextExplanation'),
+          preview: practiceFrequency ? t('onboarding.questions.step3ContextPreview', {
+            frequencyLabel: PRACTICE_FREQUENCY.find(p => p.id === practiceFrequency)?.label.toLowerCase() || t('onboarding.questions.defaultFrequencyLabel')
+          }) : null
+        };
+      case 4:
+        return {
+          explanation: t('onboarding.questions.step4ContextExplanation'),
+          preview: null
         };
       default:
         return { explanation: "", preview: null };
@@ -281,10 +263,7 @@ export default function OnboardingQuestions({ onComplete }) {
   };
 
   const stepContext = getStepContext();
-
-  const selectedGoalExplanation = goal
-    ? GOAL_EXPLANATIONS[goal]
-    : null;
+  const selectedGoalExplanation = getGoalExplanation(goal);
 
   return (
     <div className="onboardingQuestions">
@@ -309,16 +288,16 @@ export default function OnboardingQuestions({ onComplete }) {
       {step === 1 && (
         <div className="onboardingQuestions__step">
           <label className="onboardingQuestions__label">
-            What brings you here? <span className="required">*</span>
+            {t('onboarding.questions.step1Label')} <span className="required">{t('onboarding.questions.step1Required')}</span>
           </label>
           <div className="onboardingQuestions__goalLayout">
             <div className="onboardingQuestions__goalList">
               <div className="onboardingQuestions__goalListHeader">
                 <span className="onboardingQuestions__goalListTitle">
-                  Choose your main focus
+                  {t('onboarding.questions.chooseFocusTitle')}
                 </span>
                 <span className="onboardingQuestions__goalListHint">
-                  You’ll learn by doing: short missions, real recordings, clear feedback.
+                  {t('onboarding.questions.chooseFocusHint')}
                 </span>
               </div>
           <div className="onboardingQuestions__options">
@@ -335,8 +314,12 @@ export default function OnboardingQuestions({ onComplete }) {
                     <IconComponent size={32} />
                   </div>
                   <div className="onboardingQuestions__optionContent">
-                    <span className="onboardingQuestions__optionLabel">{goalOption.label}</span>
-                    <span className="onboardingQuestions__optionDescription">{goalOption.description}</span>
+                    <span className="onboardingQuestions__optionLabel">
+                      {goalOption.label}
+                    </span>
+                    <span className="onboardingQuestions__optionDescription">
+                      {goalOption.description}
+                    </span>
                   </div>
                 </button>
               );
@@ -348,25 +331,25 @@ export default function OnboardingQuestions({ onComplete }) {
               <div className="onboardingQuestions__goalDetailsHeader">
                 <span className="onboardingQuestions__goalDetailsBadge">
                   <PlayCircle size={14} />
-                  <span>Learn by doing</span>
+                  <span>{t('onboarding.questions.learnByDoingBadge')}</span>
                 </span>
                 <h3 className="onboardingQuestions__goalDetailsTitle">
                   {selectedGoalExplanation
-                    ? `How BodAI will help with ${selectedGoalExplanation.label}`
-                    : 'See how BodAI will train you'}
+                    ? t('onboarding.questions.goalDetailsTitleWithLabel', { label: selectedGoalExplanation.label })
+                    : t('onboarding.questions.goalDetailsDefaultTitle')}
                 </h3>
                 <p className="onboardingQuestions__goalDetailsSubtitle">
                   {selectedGoalExplanation
                     ? selectedGoalExplanation.headline
-                    : 'Pick a goal on the left to preview the short missions, feedback loops, and reps you’ll run inside BodAI.'}
+                    : t('onboarding.questions.goalDetailsDefaultSubtitle')}
                 </p>
               </div>
 
               <ul className="onboardingQuestions__goalDetailsList">
                 {(selectedGoalExplanation?.bullets || [
-                  'Record a short practice video instead of filling out long forms.',
-                  'Get instant, visual feedback on how you’re doing — not vague advice.',
-                  'Turn each session into a small win that stacks over time.'
+                  t('onboarding.questions.defaultBullet1'),
+                  t('onboarding.questions.defaultBullet2'),
+                  t('onboarding.questions.defaultBullet3')
                 ]).map((item, index) => (
                   <li key={index} className="onboardingQuestions__goalDetailsItem">
                     <span className="onboardingQuestions__goalDetailsIcon">
@@ -383,10 +366,10 @@ export default function OnboardingQuestions({ onComplete }) {
               <div className="onboardingQuestions__goalDetailsFooter">
                 <span className="onboardingQuestions__goalDetailsTimeline">
                   {selectedGoalExplanation?.timeline ||
-                    'Most people feel a noticeable shift after just a few short practice sessions.'}
+                    t('onboarding.questions.goalDetailsTimelineFallback')}
                 </span>
                 <span className="onboardingQuestions__goalDetailsNote">
-                  You’ll see these steps echoed in your dashboard and practice missions so it never feels abstract.
+                  {t('onboarding.questions.goalDetailsNote')}
                 </span>
               </div>
             </div>
@@ -397,7 +380,7 @@ export default function OnboardingQuestions({ onComplete }) {
       {step === 2 && (
         <div className="onboardingQuestions__step">
           <label className="onboardingQuestions__label">
-            How would you describe your current confidence level?
+            {t('onboarding.questions.step2Label')}
             <span className="required"> *</span>
           </label>
           <div className="onboardingQuestions__confidenceOptions">
@@ -415,8 +398,12 @@ export default function OnboardingQuestions({ onComplete }) {
                     <IconComponent size={24} />
                   </div>
                   <div className="onboardingQuestions__confidenceContent">
-                    <span className="onboardingQuestions__confidenceLabel">{level.label}</span>
-                    <span className="onboardingQuestions__confidenceDescription">{level.description}</span>
+                    <span className="onboardingQuestions__confidenceLabel">
+                      {level.label}
+                    </span>
+                    <span className="onboardingQuestions__confidenceDescription">
+                      {level.description}
+                    </span>
                   </div>
                   {confidence === level.id && (
                     <div className="onboardingQuestions__confidenceCheck">
@@ -433,7 +420,7 @@ export default function OnboardingQuestions({ onComplete }) {
       {step === 3 && (
         <div className="onboardingQuestions__step">
           <label className="onboardingQuestions__label">
-            How often do you want to practice?
+            {t('onboarding.questions.step3Label')}
             <span className="required"> *</span>
           </label>
           <div className="onboardingQuestions__options">
@@ -450,9 +437,12 @@ export default function OnboardingQuestions({ onComplete }) {
                     <IconComponent size={32} />
                   </div>
                   <div className="onboardingQuestions__optionContent">
-                    <span className="onboardingQuestions__optionLabel">{freq.label}</span>
+                    <span className="onboardingQuestions__optionLabel">
+                      {freq.label}
+                    </span>
                     <span className="onboardingQuestions__optionDescription">
-                      <strong>{freq.frequency}</strong> — {freq.description}
+                      <strong>{freq.frequency}</strong> —{' '}
+                      {freq.description}
                     </span>
                   </div>
                 </button>
@@ -462,9 +452,59 @@ export default function OnboardingQuestions({ onComplete }) {
         </div>
       )}
 
+      {step === 4 && (
+        <div className="onboardingQuestions__step">
+          <label className="onboardingQuestions__label">
+            {t('onboarding.questions.step4Title')}
+          </label>
+          <p className="onboardingQuestions__description">
+            {t('onboarding.questions.step4Description')}
+          </p>
+          <div className="onboardingQuestions__options">
+            <button
+              type="button"
+              className={`onboardingQuestions__option ${includeEnvironmentFeedback === true ? 'active' : ''}`}
+              onClick={() => setIncludeEnvironmentFeedback(true)}
+            >
+              <div className="onboardingQuestions__icon">
+                <Video size={32} />
+              </div>
+              <div className="onboardingQuestions__optionContent">
+                <span className="onboardingQuestions__optionLabel">
+                  {t('onboarding.questions.environmentFeedbackOption1')}
+                </span>
+                <span className="onboardingQuestions__optionDescription">
+                  {t('onboarding.questions.environmentFeedbackOption1Desc')}
+                </span>
+              </div>
+            </button>
+            <button
+              type="button"
+              className={`onboardingQuestions__option ${includeEnvironmentFeedback === false ? 'active' : ''}`}
+              onClick={() => setIncludeEnvironmentFeedback(false)}
+            >
+              <div className="onboardingQuestions__icon">
+                <Target size={32} />
+              </div>
+              <div className="onboardingQuestions__optionContent">
+                <span className="onboardingQuestions__optionLabel">
+                  {t('onboarding.questions.environmentFeedbackOption2')}
+                </span>
+                <span className="onboardingQuestions__optionDescription">
+                  {t('onboarding.questions.environmentFeedbackOption2Desc')}
+                </span>
+              </div>
+            </button>
+          </div>
+          <p className="onboardingQuestions__note">
+            {t('onboarding.questions.environmentFeedbackNote')}
+          </p>
+        </div>
+      )}
+
       <div className="onboardingQuestions__actions">
         <span className="onboardingQuestions__progress">
-          Step {step} of {totalSteps}
+          {t('onboarding.questions.stepsProgress', { step, total: totalSteps })}
         </span>
         {step > 1 && (
           <button
@@ -472,7 +512,7 @@ export default function OnboardingQuestions({ onComplete }) {
             className="btn btn--ghost"
             onClick={() => setStep(Math.max(1, step - 1))}
           >
-            Back
+            {t('onboarding.questions.back')}
           </button>
         )}
         <button

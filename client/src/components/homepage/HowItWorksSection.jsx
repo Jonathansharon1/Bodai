@@ -1,34 +1,36 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Upload, Brain, TrendingUp, ArrowRight } from 'lucide-react';
 import './HowItWorksSection.css';
 
-const steps = [
-  {
-    number: '01',
-    icon: Upload,
-    title: 'Upload Your Video',
-    description: 'Record or upload a video of yourself speaking. Our AI works with videos from 30 seconds to 45 minutes.',
-    color: '#004E64'
-  },
-  {
-    number: '02',
-    icon: Brain,
-    title: 'AI Analysis',
-    description: 'Our advanced AI analyzes over 25 key signals in your body language and communication - things research shows actually move the needle on how confident, clear, and trustworthy you appear.',
-    color: '#46B5D1'
-  },
-  {
-    number: '03',
-    icon: TrendingUp,
-    title: 'Get Feedback & Improve',
-    description: 'BodAI gives you clear, actionable guidance on what to adjust next.',
-    color: '#FF8C64'
-  }
-];
-
 export default function HowItWorksSection() {
+  const { t } = useTranslation();
   const sectionRef = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
+
+  const steps = useMemo(() => [
+    {
+      number: '01',
+      icon: Upload,
+      title: t('marketing.howItWorks.step1.title'),
+      description: t('marketing.howItWorks.step1.description'),
+      color: '#004E64'
+    },
+    {
+      number: '02',
+      icon: Brain,
+      title: t('marketing.howItWorks.step2.title'),
+      description: t('marketing.howItWorks.step2.description'),
+      color: '#46B5D1'
+    },
+    {
+      number: '03',
+      icon: TrendingUp,
+      title: t('marketing.howItWorks.step3.title'),
+      description: t('marketing.howItWorks.step3.description'),
+      color: '#FF8C64'
+    }
+  ], [t]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -59,9 +61,9 @@ export default function HowItWorksSection() {
     >
       <div className="howItWorksSection__container">
         <div className="howItWorksSection__header">
-          <h2 className="howItWorksSection__title">How It Works</h2>
+          <h2 className="howItWorksSection__title">{t('marketing.howItWorks.title')}</h2>
           <p className="howItWorksSection__subtitle">
-            Get professional body language analysis in three simple steps
+            {t('marketing.howItWorks.subtitle')}
           </p>
         </div>
         <div className="howItWorksSection__steps">

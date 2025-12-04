@@ -1,13 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
+import { useTranslation } from 'react-i18next';
 import { Sparkles, Smile, Meh, Frown } from 'lucide-react';
-
-const MOOD_OPTIONS = [
-  { id: 'energized', label: 'Energized', icon: Sparkles },
-  { id: 'calm', label: 'Calm', icon: Smile },
-  { id: 'neutral', label: 'Neutral', icon: Meh },
-  { id: 'tense', label: 'Tense', icon: Frown }
-];
 
 export default function ReflectionPrompt({
   analysisId,
@@ -15,6 +9,7 @@ export default function ReflectionPrompt({
   onComplete
 }) {
   const { user } = useUser();
+  const { t } = useTranslation();
   const [rating, setRating] = useState(0);
   const [notes, setNotes] = useState('');
   const [mood, setMood] = useState(null);
@@ -22,6 +17,14 @@ export default function ReflectionPrompt({
   const [existingReflection, setExistingReflection] = useState(null);
   const [error, setError] = useState(null);
   const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
+  // Mood options with translations
+  const MOOD_OPTIONS = [
+    { id: 'energized', label: t('analysisResult.reflection.moods.energized'), icon: Sparkles },
+    { id: 'calm', label: t('analysisResult.reflection.moods.calm'), icon: Smile },
+    { id: 'neutral', label: t('analysisResult.reflection.moods.neutral'), icon: Meh },
+    { id: 'tense', label: t('analysisResult.reflection.moods.tense'), icon: Frown }
+  ];
 
   useEffect(() => {
     const loadExisting = async () => {
@@ -91,8 +94,8 @@ export default function ReflectionPrompt({
       <div className="reflectionPrompt__header">
         <Sparkles size={20} />
         <div>
-          <h3>How confident did you feel?</h3>
-          <p>Track your self-perception against the AI score.</p>
+          <h3>{t('analysisResult.reflection.title')}</h3>
+          <p>{t('analysisResult.reflection.subtitle')}</p>
         </div>
       </div>
 
@@ -130,7 +133,7 @@ export default function ReflectionPrompt({
 
       <textarea
         className="reflectionPrompt__notes"
-        placeholder="Any quick notes about this session?"
+        placeholder={t('analysisResult.reflection.notesPlaceholder')}
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
         disabled={disabled}
@@ -144,7 +147,11 @@ export default function ReflectionPrompt({
         onClick={handleSubmit}
         disabled={disabled || !rating}
       >
-        {existingReflection ? 'Reflection saved' : submitting ? 'Saving…' : 'Save reflection'}
+        {existingReflection 
+          ? t('analysisResult.reflection.saved') 
+          : submitting 
+            ? t('analysisResult.reflection.saving') 
+            : t('analysisResult.reflection.save')}
       </button>
     </div>
   );

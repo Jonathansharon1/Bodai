@@ -65,12 +65,43 @@
   align-items: center;
 }
 
+[dir="rtl"] .hero__container {
+  direction: rtl;
+}
+
 .hero__content {
   max-width: 600px;
+  width: 100%;
   text-align: left;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  justify-content: center;
+  gap: 32px;
+  margin-left: 0;
+  margin-right: auto;
+  box-sizing: border-box;
+}
+
+[dir="rtl"] .hero__container {
+  direction: rtl;
+}
+
+[dir="rtl"] .hero__content {
+  text-align: right;
+  /* align-items: flex-start will automatically flip to right in RTL */
+  margin-left: auto;
+  margin-right: 0;
+  /* Remove justify-self/align-self hacks */
+}
+
+[dir="rtl"] .hero__content > * {
+  width: 100%;
+  text-align: right;
+}
+
+[dir="rtl"] .hero__content .hero__actions {
+  /* Remove specific override, rely on base class flex-start */
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -82,10 +113,15 @@
   font-size: var(--text-display-size);
   font-weight: 800;
   line-height: var(--text-display-line-height);
-  margin: 0 0 24px;
+  margin: 0;
   letter-spacing: -0.03em;
   color: #ffffff;
   text-align: left;
+  width: 100%;
+}
+
+[dir="rtl"] .hero__title {
+  text-align: right;
 }
 
 .hero__titleLine1 {
@@ -109,11 +145,16 @@
   font-size: clamp(17px, 1.8vw, 20px);
   line-height: 1.7;
   color: rgba(255, 255, 255, 0.65);
-  margin: 0 0 40px;
-  max-width: 460px;
+  margin: 0;
+  max-width: 100%;
+  width: 100%;
   text-align: left;
   animation: heroFadeSlide 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards;
   opacity: 0;
+}
+
+[dir="rtl"] .hero__subtitle {
+  text-align: right;
 }
 
 @keyframes heroFadeSlide {
@@ -131,20 +172,28 @@
    CTA Button - Premium Animated Design
    ───────────────────────────────────────────────────────────────────────────── */
 
-.hero__actions {
+.hero .hero__actions {
   display: flex;
   gap: 16px;
-  margin-bottom: 24px;
-  justify-content: flex-start;
+  margin: 0;
+  margin-bottom: 0 !important;
+  justify-content: flex-start !important; /* This means Left in LTR, and Right in RTL */
+  align-items: flex-start !important;
+  flex-wrap: nowrap !important;
   width: 100%;
   animation: heroFadeSlide 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.3s forwards;
   opacity: 0;
 }
 
-.hero__cta {
+/* Removed explicit RTL override to let browser handle logical start/end */
+[dir="rtl"] .hero .hero__actions {
+  width: 100%;
+}
+
+.hero .hero__cta {
   --btn-glow: rgba(139, 92, 246, 0.5);
   position: relative;
-  display: inline-flex;
+  display: inline-flex !important;
   align-items: center;
   justify-content: center;
   gap: 10px;
@@ -166,6 +215,9 @@
     0 2px 8px rgba(0, 0, 0, 0.15),
     0 0 0 1px rgba(255, 255, 255, 0.1) inset,
     0 12px 40px -8px var(--btn-glow);
+  margin: 0 !important;
+  width: auto !important;
+  flex-shrink: 0;
 }
 
 /* Animated gradient border */
@@ -281,8 +333,15 @@
 .hero__micro {
   font-size: 14px;
   color: rgba(255, 255, 255, 0.45);
+  margin: 0;
+  width: 100%;
+  text-align: left;
   animation: heroFadeSlide 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.4s forwards;
   opacity: 0;
+}
+
+[dir="rtl"] .hero__micro {
+  text-align: right;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────

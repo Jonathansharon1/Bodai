@@ -1,69 +1,61 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
+import { useTranslation } from 'react-i18next';
 import { Check, ChevronDown } from 'lucide-react';
 import PricingCard from '../components/pricing/PricingCard';
 import './PricingPage.css';
 
 
 
-const faqs = [
+// Helper function to get FAQs with translations
+const getFAQs = (t) => [
   {
-    question: 'What happens after I upload a video?',
-    answer: [
-      'Our AI analyzes your body language, voice, and delivery within 1-2 minutes.',
-      'You receive a detailed report with scores across 25+ communication parameters, plus personalized improvement tips.',
-      'We generate practice exercises tailored to your weakest areas, so you know exactly what to work on next.'
-    ]
+    question: t('pricing.faqs.q1'),
+    answer: t('pricing.faqs.a1', { returnObjects: true })
   },
   {
-    question: 'Can I change or cancel my plan?',
-    answer:
-      'Yes! You can upgrade, downgrade, or cancel anytime with no penalties. All your past analyses, progress data, and practice history stay in your account permanently-even after cancellation. You can always come back and pick up where you left off.'
+    question: t('pricing.faqs.q2'),
+    answer: t('pricing.faqs.a2')
   },
   {
-    question: 'Can I track multiple goals?',
-    answer:
-      'Absolutely! All plans let you create separate practice journeys for different goals-like interview prep, public speaking, sales conversations, or general confidence. Each journey tracks its own progress independently, so you can see how you\'re improving in each area.'
+    question: t('pricing.faqs.q3'),
+    answer: t('pricing.faqs.a3')
   },
   {
-    question: 'What if I exceed my plan\'s monthly limit?',
-    answer:
-      'If you use all your monthly analyses, you can either upgrade to a higher plan or purchase individual analyses at $2.50 per video. We\'ll notify you when you\'re close to your limit so you can decide what works best for you.'
+    question: t('pricing.faqs.q4'),
+    answer: t('pricing.faqs.a4')
   },
   {
-    question: 'How secure is my video data?',
-    answer:
-      'Your privacy is our priority. Videos are encrypted in transit and at rest, stored securely, and never shared with third parties. You can delete any video or analysis at any time from your account. We use enterprise-grade security practices to protect your data.'
-  },
-
-  {
-    question: 'Can I try before I buy?',
-    answer:
-      'Yes! Start with our free plan.You get 1 full analysis per month with all the same features as paid plans. This lets you experience the complete AI analysis, see your scores, and try the practice exercises before committing to a paid plan.'
+    question: t('pricing.faqs.q5'),
+    answer: t('pricing.faqs.a5')
   },
   {
-    question: 'Do you offer team plans?',
-    answer:
-      'Yes! The Unlimited plan works great for teams, and we offer custom enterprise pricing for larger organizations. Teams get shared dashboards, centralized billing, admin controls, and dedicated onboarding support. Contact us for special team pricing and setup help.'
+    question: t('pricing.faqs.q6'),
+    answer: t('pricing.faqs.a6')
   },
   {
-    question: 'How long are my videos and analyses stored?',
-    answer:
-      'Your videos and analyses are stored indefinitely as long as your account is active. Even if you cancel your subscription, your data remains accessible. You can delete individual videos or your entire account at any time from your settings.'
+    question: t('pricing.faqs.q7'),
+    answer: t('pricing.faqs.a7')
   },
   {
-    question: 'What payment methods do you accept?',
-    answer:
-      'We accept all major credit cards (Visa, Mastercard, American Express) and debit cards. Payments are processed securely through Stripe. You can update your payment method or billing information anytime in your account settings.'
+    question: t('pricing.faqs.q8'),
+    answer: t('pricing.faqs.a8')
+  },
+  {
+    question: t('pricing.faqs.q9'),
+    answer: t('pricing.faqs.a9')
   }
 ];
 
 export default function PricingPage() {
   const { isSignedIn } = useUser();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [billingPeriod, setBillingPeriod] = useState('monthly');
   const [openFaqIndex, setOpenFaqIndex] = useState(0);
+
+  const faqs = useMemo(() => getFAQs(t), [t]);
 
   // Lightweight analytics hook – replace with real tracking later
   useEffect(() => {
@@ -75,80 +67,80 @@ export default function PricingPage() {
     }
   }, []);
 
-  const sharedFeatures = [
-    'AI-powered video analysis',
-    'Detailed feedback on body language & voice',
-    'Progress tracking dashboard',
-    'Personalized improvement tips',
-    'Personalized practice exercises included',
-    'Email support'
-  ];
+  const sharedFeatures = useMemo(() => [
+    t('pricing.sharedFeatures.feature1'),
+    t('pricing.sharedFeatures.feature2'),
+    t('pricing.sharedFeatures.feature3'),
+    t('pricing.sharedFeatures.feature4'),
+    t('pricing.sharedFeatures.feature5'),
+    t('pricing.sharedFeatures.feature6')
+  ], [t]);
 
   // Self-serve plans: pricing is based on analyses per month and max video length
-  const plans = [
+  const plans = useMemo(() => [
     {
       id: 'free',
-      name: 'Free',
+      name: t('pricing.plans.free.name'),
       price: 0,
       priceYearly: 0,
       period: 'forever',
-      analysesText: '1 analysis / month · up to 10 min per video',
-      analysesPerMonth: '1 analysis / month',
-      durationText: 'Up to 10 min per video',
+      analysesText: `${t('pricing.plans.free.analysesPerMonth')} · ${t('pricing.plans.free.durationText')}`,
+      analysesPerMonth: t('pricing.plans.free.analysesPerMonth'),
+      durationText: t('pricing.plans.free.durationText'),
       theme: 'slate',
-      cta: 'Start Free',
+      cta: t('pricing.plans.free.cta'),
       ctaVariant: 'secondary',
       recommended: false
     },
     {
       id: 'starter',
-      name: 'Basic',
+      name: t('pricing.plans.starter.name'),
       price: 12,
       priceYearly: 120,
       period: 'per month',
-      analysesText: '8 analyses / month · up to 10 min per video',
-      analysesPerMonth: '8 analyses / month',
-      durationText: 'Up to 10 min per video',
+      analysesText: `${t('pricing.plans.starter.analysesPerMonth')} · ${t('pricing.plans.starter.durationText')}`,
+      analysesPerMonth: t('pricing.plans.starter.analysesPerMonth'),
+      durationText: t('pricing.plans.starter.durationText'),
       theme: 'teal',
-      cta: 'Get Basic',
+      cta: t('pricing.plans.starter.cta'),
       ctaVariant: 'primary',
       recommended: false,
-      valueText: 'Great for 1–2 sessions per week',
-      badgeText: 'Good start'
+      valueText: t('pricing.plans.starter.valueText'),
+      badgeText: t('pricing.plans.starter.badgeText')
     },
     {
       id: 'pro',
-      name: 'Pro',
+      name: t('pricing.plans.pro.name'),
       price: 24,
       priceYearly: 240,
       period: 'per month',
-      analysesText: '20 analyses / month · up to 30 min per video',
-      analysesPerMonth: '20 analyses / month',
-      durationText: 'Up to 30 min per video',
+      analysesText: `${t('pricing.plans.pro.analysesPerMonth')} · ${t('pricing.plans.pro.durationText')}`,
+      analysesPerMonth: t('pricing.plans.pro.analysesPerMonth'),
+      durationText: t('pricing.plans.pro.durationText'),
       theme: 'indigo',
-      cta: 'Get Pro',
+      cta: t('pricing.plans.pro.cta'),
       ctaVariant: 'primary',
       recommended: true,
-      valueText: 'Best for instant improvement and regular practice',
-      badgeText: 'Most popular'
+      valueText: t('pricing.plans.pro.valueText'),
+      badgeText: t('pricing.plans.pro.badgeText')
     },
     {
       id: 'executive',
-      name: 'Unlimited',
+      name: t('pricing.plans.executive.name'),
       price: 49,
       priceYearly: 490,
       period: 'per month',
-      analysesText: 'Unlimited analyses · up to 45 min per video',
-      analysesPerMonth: 'Unlimited analyses',
-      durationText: 'Up to 45 min per video',
+      analysesText: `${t('pricing.plans.executive.analysesPerMonth')} · ${t('pricing.plans.executive.durationText')}`,
+      analysesPerMonth: t('pricing.plans.executive.analysesPerMonth'),
+      durationText: t('pricing.plans.executive.durationText'),
       theme: 'graphite',
-      cta: 'Get Unlimited',
+      cta: t('pricing.plans.executive.cta'),
       ctaVariant: 'primary',
       recommended: false,
-      valueText: 'Best for daily practice and coaching with unlimited videos',
-      badgeText: 'Best value'
+      valueText: t('pricing.plans.executive.valueText'),
+      badgeText: t('pricing.plans.executive.badgeText')
     }
-  ];
+  ], [t]);
 
   const handleSelectPlan = (planId) => {
     // Simple analytics hook – replace with real tracking later
@@ -178,20 +170,17 @@ export default function PricingPage() {
     <div className="pricingPage">
       <div className="pricingPage__container">
         <section className="pricingPage__hero">
-          <h1 className="pricingPage__title">Pick a plan that fits how often you practice</h1>
+          <h1 className="pricingPage__title">{t('pricing.title')}</h1>
           <p className="pricingPage__subtitle">
-            All plans include the same powerful AI analysis. The difference is how often
-            you can practice and how long each video can be.
+            {t('pricing.subtitle')}
           </p>
-
-
         </section>
 
         <section className="pricingPage__included">
           <div className="included__header">
-            <p className="included__eyebrow">Every plan includes</p>
-            <h2>Everything you need to improve</h2>
-            <p>Get the full AI analysis experience regardless of which plan you choose.</p>
+            <p className="included__eyebrow">{t('pricing.includedEyebrow')}</p>
+            <h2>{t('pricing.includedTitle')}</h2>
+            <p>{t('pricing.includedSubtitle')}</p>
           </div>
           <ul className="included__list">
             {sharedFeatures.map((feature) => (
@@ -208,14 +197,14 @@ export default function PricingPage() {
               className={`billingToggle__button ${billingPeriod === 'monthly' ? 'active' : ''}`}
               onClick={() => setBillingPeriod('monthly')}
             >
-              Monthly
+              {t('pricing.billingMonthly')}
             </button>
             <button
               className={`billingToggle__button ${billingPeriod === 'yearly' ? 'active' : ''}`}
               onClick={() => setBillingPeriod('yearly')}
             >
-              Yearly
-              <span className="billingToggle__badge">Save up to 20%</span>
+              {t('pricing.billingYearly')}
+              <span className="billingToggle__badge">{t('pricing.billingSave')}</span>
             </button>
           </div>
         <section className="pricingPage__cards">
@@ -234,13 +223,13 @@ export default function PricingPage() {
         <section className="pricingPage__teams">
           <div className="teamsCard">
             <div className="teamsCard__content">
-              <p className="teamsCard__eyebrow">For teams & organizations</p>
-              <h3 className="teamsCard__title">Teams & Enterprise</h3>
-              <p className="teamsCard__subtitle">Custom pricing for coaches, companies, and schools.</p>
+              <p className="teamsCard__eyebrow">{t('pricing.teamsEyebrow')}</p>
+              <h3 className="teamsCard__title">{t('pricing.teamsTitle')}</h3>
+              <p className="teamsCard__subtitle">{t('pricing.teamsSubtitle')}</p>
               <ul className="teamsCard__list">
-                <li>Multiple seats & shared dashboards</li>
-                <li>Centralized billing</li>
-                <li>Training and onboarding support</li>
+                <li>{t('pricing.teamsFeature1')}</li>
+                <li>{t('pricing.teamsFeature2')}</li>
+                <li>{t('pricing.teamsFeature3')}</li>
               </ul>
             </div>
             <button
@@ -248,7 +237,7 @@ export default function PricingPage() {
               type="button"
               onClick={() => navigate('/contact-teams')}
             >
-              Contact sales
+              {t('pricing.teamsCta')}
             </button>
           </div>
         </section>
@@ -256,24 +245,24 @@ export default function PricingPage() {
         <section className="pricingPage__payAsYouGo">
           <div className="payAsYouGo__card">
             <div className="payAsYouGo__content">
-              <p className="payAsYouGo__eyebrow">Just need one?</p>
-              <h3 className="payAsYouGo__title">Pay per video</h3>
+              <p className="payAsYouGo__eyebrow">{t('pricing.payAsYouGoEyebrow')}</p>
+              <h3 className="payAsYouGo__title">{t('pricing.payAsYouGoTitle')}</h3>
               <p className="payAsYouGo__description">
-                Don't need a subscription? Buy individual analyses anytime.
+                {t('pricing.payAsYouGoDescription')}
               </p>
               <div className="payAsYouGo__price">
-                <span className="payAsYouGo__amount">$2.50</span>
-                <span className="payAsYouGo__period">per video (up to 10 min)</span>
+                <span className="payAsYouGo__amount">{t('pricing.payAsYouGoPrice')}</span>
+                <span className="payAsYouGo__period">{t('pricing.payAsYouGoPeriod')}</span>
               </div>
 
             </div>
             {isSignedIn ? (
               <button className="payAsYouGo__button" onClick={() => navigate('/new-analysis')}>
-                Purchase a single analysis
+                {t('pricing.payAsYouGoCta')}
               </button>
             ) : (
               <Link to="/sign-up" className="payAsYouGo__button">
-                Purchase a single analysis
+                {t('pricing.payAsYouGoCta')}
               </Link>
             )}
           </div>
@@ -281,8 +270,8 @@ export default function PricingPage() {
 
         <section className="pricingPage__faq">
           <div className="faq__header">
-            <p className="faq__eyebrow">Have a question?</p>
-            <h2 className="faq__title">FAQs</h2>
+            <p className="faq__eyebrow">{t('pricing.faqEyebrow')}</p>
+            <h2 className="faq__title">{t('pricing.faqTitle')}</h2>
           </div>
           <div className="faq__list">
             {faqs.map((faq, index) => {

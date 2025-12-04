@@ -388,7 +388,7 @@
   align-items: center;
   font-size: 18px;
   font-weight: 600;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
   color: var(--text-dark);
 }

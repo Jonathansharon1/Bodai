@@ -1,8 +1,10 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Lightbulb, Target, ArrowRight } from 'lucide-react';
 import './TopOpportunityCard.css';
 
 export default function TopOpportunityCard({ opportunity, currentScore, targetScore, onLearnMore, onPractice }) {
+  const { t } = useTranslation();
   if (!opportunity) return null;
 
   const opportunityText = typeof opportunity === 'string' 
@@ -40,7 +42,7 @@ export default function TopOpportunityCard({ opportunity, currentScore, targetSc
         <div className="topOpportunityCard__icon">
           <Lightbulb size={24} />
         </div>
-        <h3 className="topOpportunityCard__title">Biggest Opportunity</h3>
+        <h3 className="topOpportunityCard__title">{t('analysisResult.topCards.biggestOpportunity')}</h3>
       </div>
 
       <div className="topOpportunityCard__content">
@@ -49,12 +51,12 @@ export default function TopOpportunityCard({ opportunity, currentScore, targetSc
         {current && (
           <div className="topOpportunityCard__scores">
             <div className="topOpportunityCard__scoreItem">
-              <span className="topOpportunityCard__scoreLabel">Current:</span>
+              <span className="topOpportunityCard__scoreLabel">{t('analysisResult.topCards.currentLabel')}:</span>
               <span className="topOpportunityCard__scoreValue">{current.toFixed(1)}/10</span>
             </div>
             <ArrowRight size={16} className="topOpportunityCard__arrow" />
             <div className="topOpportunityCard__scoreItem">
-              <span className="topOpportunityCard__scoreLabel">Target:</span>
+              <span className="topOpportunityCard__scoreLabel">{t('analysisResult.topCards.targetLabel')}:</span>
               <span className="topOpportunityCard__scoreValue topOpportunityCard__scoreValue--target">
                 {target.toFixed(1)}/10
               </span>
@@ -65,11 +67,11 @@ export default function TopOpportunityCard({ opportunity, currentScore, targetSc
         {current && (
           <div className="topOpportunityCard__progress topOpportunityCard__progress--meter">
             <div className="topOpportunityCard__progressMeter">
-              <span className="topOpportunityCard__progressLabel">Now</span>
+              <span className="topOpportunityCard__progressLabel">{t('analysisResult.topCards.nowLabel')}</span>
               <span className="topOpportunityCard__progressValue">{current.toFixed(1)}</span>
             </div>
             <div className="topOpportunityCard__progressMeter topOpportunityCard__progressMeter--target">
-              <span className="topOpportunityCard__progressLabel">Target</span>
+              <span className="topOpportunityCard__progressLabel">{t('analysisResult.topCards.targetLabel')}</span>
               <span className="topOpportunityCard__progressValue">{target.toFixed(1)}</span>
             </div>
           </div>
@@ -77,14 +79,14 @@ export default function TopOpportunityCard({ opportunity, currentScore, targetSc
 
         {description && (
           <div className="topOpportunityCard__why">
-            <span className="topOpportunityCard__tag">Why it matters</span>
+            <span className="topOpportunityCard__tag">{t('analysisResult.whyItMatters')}</span>
             <p className="topOpportunityCard__whyText">{description}</p>
           </div>
         )}
 
         {improvementBullets.length > 0 && (
           <div className="topOpportunityCard__improvements">
-            <span className="topOpportunityCard__tag">Focus on</span>
+            <span className="topOpportunityCard__tag">{t('analysisResult.topCards.focusOn')}</span>
             <ul className="topOpportunityCard__improvementList">
               {improvementBullets.map((item, idx) => (
                 <li key={idx} className="topOpportunityCard__improvementItem">
@@ -97,7 +99,7 @@ export default function TopOpportunityCard({ opportunity, currentScore, targetSc
 
         {!description && improvementBullets.length === 0 && (
           <p className="topOpportunityCard__hint">
-            Improving this will help you communicate more effectively. Let's work on it together!
+            {t('analysisResult.topCards.opportunityHint')}
           </p>
         )}
 
@@ -108,7 +110,7 @@ export default function TopOpportunityCard({ opportunity, currentScore, targetSc
               onClick={onLearnMore}
             >
               <Lightbulb size={16} />
-              Learn How
+              {t('analysisResult.topCards.learnHow')}
             </button>
           )}
           {onPractice && (
@@ -117,7 +119,7 @@ export default function TopOpportunityCard({ opportunity, currentScore, targetSc
               onClick={onPractice}
             >
               <Target size={16} />
-              Practice Now
+              {t('analysisResult.topCards.practiceNow')}
             </button>
           )}
         </div>

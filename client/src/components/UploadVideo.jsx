@@ -1,4 +1,5 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CheckCircle2, Video, X, Circle, Square } from 'lucide-react';
 
 // Keep frontend upload limit in sync with server MAX_VIDEO_SIZE_MB default (500MB)
@@ -27,6 +28,7 @@ const extractVideoMetadata = (file) => {
 };
 
 export default function UploadVideo({ file, onSelect, onClear }) {
+  const { t } = useTranslation();
   const inputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -261,7 +263,7 @@ export default function UploadVideo({ file, onSelect, onClear }) {
           <div className="uploadSuccessToast__content">
             <CheckCircle2 className="uploadSuccessToast__icon" size={20} />
             <div className="uploadSuccessToast__text">
-              <div className="uploadSuccessToast__title">Video uploaded successfully!</div>
+              <div className="uploadSuccessToast__title">{t('uploadVideo.successTitle')}</div>
               <div className="uploadSuccessToast__subtitle">{file.name}</div>
             </div>
           </div>
@@ -276,11 +278,11 @@ export default function UploadVideo({ file, onSelect, onClear }) {
         role="button"
         tabIndex={0}
         onClick={onPick}
-        aria-label="Upload video by clicking or dragging a file here"
+        aria-label={t('uploadVideo.ariaLabel')}
       >
         <div className="dropZone__icon">⭳</div>
-        <div className="dropZone__title">Drag & drop your video here</div>
-        <div className="dropZone__or">or</div>
+        <div className="dropZone__title">{t('uploadVideo.dropTitle')}</div>
+        <div className="dropZone__or">{t('uploadVideo.dropOr')}</div>
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
           <button 
             type="button" 
@@ -290,7 +292,7 @@ export default function UploadVideo({ file, onSelect, onClear }) {
               onPick(e);
             }}
           >
-            Upload Video
+            {t('uploadVideo.uploadButton')}
           </button>
           <button 
             type="button" 
@@ -299,10 +301,12 @@ export default function UploadVideo({ file, onSelect, onClear }) {
             style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
           >
             <Video size={18} />
-            Record Video
+            {t('uploadVideo.recordButton')}
           </button>
         </div>
-        <div className="dropZone__meta">Accepted: MP4, MOV, WebM · Max {MAX_UPLOAD_MB}MB</div>
+        <div className="dropZone__meta">
+          {t('uploadVideo.acceptedTypes', { size: MAX_UPLOAD_MB })}
+        </div>
       </div>
 
       <div className="uploadRow" style={{ marginBottom: 12 }}>
@@ -314,10 +318,18 @@ export default function UploadVideo({ file, onSelect, onClear }) {
           onChange={onChange}
         />
         <div className="fileName" style={{ flex: 1 }}>
-          {file ? `${file.name} (${Math.round(file.size / 1024 / 1024 * 10) / 10} MB)` : 'No file selected'}
+          {file
+            ? `${file.name} (${Math.round(file.size / 1024 / 1024 * 10) / 10} MB)`
+            : t('uploadVideo.noFile')}
         </div>
         {file && (
-          <button className="pill-remove" onClick={onClear} aria-label="Remove file">Remove</button>
+          <button
+            className="pill-remove"
+            onClick={onClear}
+            aria-label={t('uploadVideo.removeFile')}
+          >
+            {t('uploadVideo.removeFile')}
+          </button>
         )}
       </div>
 
@@ -327,7 +339,7 @@ export default function UploadVideo({ file, onSelect, onClear }) {
           <div className="recordModal__overlay" onClick={cancelRecording} />
           <div className="recordModal__content">
             <div className="recordModal__header">
-              <h3>Record Video</h3>
+              <h3>{t('uploadVideo.recordModalTitle')}</h3>
               <button 
                 className="recordModal__close" 
                 onClick={cancelRecording}
@@ -366,7 +378,7 @@ export default function UploadVideo({ file, onSelect, onClear }) {
                   style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
                   <Video size={18} />
-                  Start Recording
+                  {t('uploadVideo.startRecording')}
                 </button>
               ) : (
                 <button 
@@ -375,14 +387,14 @@ export default function UploadVideo({ file, onSelect, onClear }) {
                   style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
                   <Square size={18} />
-                  Stop Recording
+                  {t('uploadVideo.stopRecording')}
                 </button>
               )}
               <button 
                 className="btn btn--ghost" 
                 onClick={cancelRecording}
               >
-                Cancel
+                {t('uploadVideo.cancel')}
               </button>
             </div>
           </div>

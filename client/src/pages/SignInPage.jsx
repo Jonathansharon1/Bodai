@@ -1,9 +1,12 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { SignIn } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
 import './AuthPages.css';
 
 export default function SignInPage() {
+  const { t } = useTranslation();
+
   // Memoize Clerk component to prevent re-mounting and duplicate verification codes
   // Stable key ensures Clerk doesn't re-initialize when parent re-renders
   const clerkSignIn = useMemo(() => {
@@ -47,9 +50,11 @@ export default function SignInPage() {
           <span className="authPage__logoText">BodAI</span>
         </Link>
         <div className="authPage__headerRight">
-          <span className="authPage__headerText">Don't have an account?</span>
+          <span className="authPage__headerText">
+            {t('auth.signIn.headerNoAccount')}
+          </span>
           <Link to="/sign-up" className="authPage__headerLink">
-            Sign up
+            {t('auth.signIn.headerCta')}
           </Link>
         </div>
       </header>
@@ -60,10 +65,10 @@ export default function SignInPage() {
           {/* Headline */}
           <div className="authPage__headline">
             <h1 className="authPage__title">
-              Welcome back
+              {t('auth.signIn.title')}
             </h1>
             <p className="authPage__subtitle">
-              Continue your journey to confident communication
+              {t('auth.signIn.subtitle')}
             </p>
           </div>
 
@@ -76,7 +81,7 @@ export default function SignInPage() {
 
       {/* Footer */}
       <footer className="authPage__footer">
-        <p>© {new Date().getFullYear()} BodAI. All rights reserved.</p>
+        <p>{t('auth.footerCopyright', { year: new Date().getFullYear() })}</p>
       </footer>
     </div>
   );

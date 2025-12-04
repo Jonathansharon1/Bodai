@@ -208,6 +208,11 @@
   z-index: 0;
 }
 
+[dir="rtl"] .myProgressPage::before {
+  right: auto;
+  left: 0;
+}
+
 .myProgressPage::after {
   content: '';
   position: fixed;
@@ -218,6 +223,11 @@
   background: radial-gradient(circle, rgba(139, 92, 246, 0.05) 0%, transparent 70%);
   pointer-events: none;
   z-index: 0;
+}
+
+[dir="rtl"] .myProgressPage::after {
+  left: auto;
+  right: 280px;
 }
 
 .myProgressPage__header {
@@ -305,7 +315,7 @@
   padding: 12px 16px;
   cursor: pointer;
   transition: all 0.2s ease;
-  text-align: left;
+  text-align: start;
 }
 
 .guideToggle:hover {
@@ -569,6 +579,51 @@
   font-size: 14px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
+  font-weight: 600;
+}
+
+/* Speaking rate colors */
+.deliveryStats__value--slow {
+  background: #fef3c7;
+  border-color: #fbbf24;
+  color: #92400e;
+}
+
+.deliveryStats__value--optimal {
+  background: #d1fae5;
+  border-color: #10b981;
+  color: #065f46;
+}
+
+.deliveryStats__value--fast {
+  background: #fee2e2;
+  border-color: #ef4444;
+  color: #991b1b;
+}
+
+/* Filler word level colors */
+.deliveryStats__value--low {
+  background: #d1fae5;
+  border-color: #10b981;
+  color: #065f46;
+}
+
+.deliveryStats__value--medium {
+  background: #fef3c7;
+  border-color: #fbbf24;
+  color: #92400e;
+}
+
+.deliveryStats__value--high {
+  background: #fee2e2;
+  border-color: #ef4444;
+  color: #991b1b;
+}
+
+.deliveryStats__value--none {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #64748b;
 }
 
 .deliveryStats__hint {
@@ -618,6 +673,7 @@
   font-size: 15px;
   font-weight: 700;
   color: #0f172a;
+  margin-bottom: 4px;
 }
 
 .trendRow__stage {
@@ -738,7 +794,7 @@
   border: none;
   padding: 0;
   cursor: pointer;
-  text-align: left;
+  text-align: start;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1270,8 +1326,23 @@
 .improvementCard__arrow {
   color: #94a3b8;
   flex-shrink: 0;
-  font-size: 18px;
-  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+[dir="rtl"] .improvementCard__arrow svg {
+  transform: rotate(180deg);
+}
+
+.breadcrumb-separator {
+  display: inline-block;
+  margin: 0 4px;
+  font-weight: bold;
+}
+
+[dir="rtl"] .breadcrumb-separator {
+  transform: scaleX(-1);
 }
 
 .improvementCard__change {
@@ -1771,6 +1842,14 @@
 @media (max-width: 768px) {
   .myProgressPage {
     padding: 24px 16px;
+  }
+  
+  .myProgressPage::after {
+    left: 0;
+  }
+
+  [dir="rtl"] .myProgressPage::after {
+    right: 0;
   }
 
   .myProgressPage__title {

@@ -1,15 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Eye, Mic, Target, Heart, Zap, Award, ChevronDown } from 'lucide-react';
 import './CategoryOverview.css';
-
-const CATEGORIES = [
-  { key: 'presence', label: 'Presence', icon: Eye, color: '#3b82f6' },
-  { key: 'voice_expression', label: 'Voice', icon: Mic, color: '#10b981' },
-  { key: 'clarity', label: 'Clarity', icon: Target, color: '#f59e0b' },
-  { key: 'authenticity', label: 'Authenticity', icon: Heart, color: '#8b5cf6' },
-  { key: 'impact', label: 'Impact', icon: Zap, color: '#ef4444' },
-  { key: 'confidence', label: 'Confidence', icon: Award, color: '#06b6d4' }
-];
 
 const getStars = (score) => {
   const num = Math.round(score / 2); // Convert 0-10 to 0-5 stars
@@ -23,7 +15,17 @@ const getScoreColor = (score) => {
 };
 
 export default function CategoryOverview({ metrics, onCategoryClick }) {
+  const { t } = useTranslation();
   const [expandedCategory, setExpandedCategory] = useState(null);
+
+  const CATEGORIES = useMemo(() => [
+    { key: 'presence', label: t('parameters.metrics.presence'), icon: Eye, color: '#3b82f6' },
+    { key: 'voice_expression', label: t('parameters.metrics.voice'), icon: Mic, color: '#10b981' },
+    { key: 'clarity', label: t('parameters.metrics.clarity'), icon: Target, color: '#f59e0b' },
+    { key: 'authenticity', label: t('parameters.metrics.authenticity'), icon: Heart, color: '#8b5cf6' },
+    { key: 'impact', label: t('parameters.metrics.impact'), icon: Zap, color: '#ef4444' },
+    { key: 'confidence', label: t('parameters.metrics.confidence'), icon: Award, color: '#06b6d4' }
+  ], [t]);
 
   if (!metrics) return null;
 

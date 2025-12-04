@@ -239,6 +239,7 @@
   position: absolute;
   top: 4px;
   bottom: 4px;
+  left: 4px;
   width: calc(50% - 4px);
   background: #ffffff;
   border-radius: 999px;
@@ -252,6 +253,15 @@
 
 .analysisResult__toggleThumb.is-right {
   transform: translateX(100%);
+}
+
+/* RTL: invert thumb direction so it stays under the active tab */
+[dir="rtl"] .analysisResult__toggleThumb.is-left {
+  transform: translateX(100%);
+}
+
+[dir="rtl"] .analysisResult__toggleThumb.is-right {
+  transform: translateX(0);
 }
 
 .analysisResult__copyBtn {
@@ -568,7 +578,7 @@
   background: #ffffff;
   border: none;
   cursor: pointer;
-  text-align: left;
+  text-align: start;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 

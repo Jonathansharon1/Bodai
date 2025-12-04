@@ -1,4 +1,5 @@
 import React, { useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import confetti from 'canvas-confetti';
 import { X, TrendingUp, Star } from 'lucide-react';
 import './CelebrationModal.css';
@@ -11,6 +12,7 @@ export default function CelebrationModal({
   currentScore,
   previousScore
 }) {
+  const { t } = useTranslation();
   const triggerConfetti = useCallback(() => {
     // Fire confetti from both sides
     const count = 200;
@@ -83,15 +85,15 @@ export default function CelebrationModal({
 
   const getMetricLabel = (metricKey) => {
     const labels = {
-      overall: 'Overall Score',
-      presence: 'Presence',
-      voice_expression: 'Voice',
-      clarity: 'Clarity',
-      authenticity: 'Authenticity',
-      impact: 'Impact',
-      confidence: 'Confidence'
+      overall: t('parameters.metrics.overallScore'),
+      presence: t('parameters.metrics.presence'),
+      voice_expression: t('parameters.metrics.voice'),
+      clarity: t('parameters.metrics.clarity'),
+      authenticity: t('parameters.metrics.authenticity'),
+      impact: t('parameters.metrics.impact'),
+      confidence: t('parameters.metrics.confidence')
     };
-    return labels[metricKey] || 'Score';
+    return labels[metricKey] || t('parameters.metrics.overallScore');
   };
 
   const getMessage = () => {

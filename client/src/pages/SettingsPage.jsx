@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
-import { Mail, Bell, CheckCircle2, AlertCircle, Globe } from 'lucide-react';
+import { Mail, Bell, CheckCircle2, AlertCircle, Globe, Video, Target } from 'lucide-react';
 import './SettingsPage.css';
 import LoadingSpinner from '../components/LoadingSpinner';
 import LanguageSwitcher from '../components/LanguageSwitcher';
@@ -13,31 +13,50 @@ export default function SettingsPage() {
   
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [emailMarketing, setEmailMarketing] = useState(true);
+  const [includeEnvironmentFeedback, setIncludeEnvironmentFeedback] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingAnalysisPrefs, setSavingAnalysisPrefs] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null); // 'success' | 'error' | null
+  const [analysisPrefsStatus, setAnalysisPrefsStatus] = useState(null); // 'success' | 'error' | null
 
   useEffect(() => {
     if (!user?.id) return;
     
     const loadPreferences = async () => {
       try {
-        const res = await fetch(`${apiBase}/api/user/email-preferences`, {
+        // Load email preferences
+        const emailRes = await fetch(`${apiBase}/api/user/email-preferences`, {
           headers: {
             'X-Clerk-User-Id': user.id,
             'Content-Type': 'application/json'
           }
         });
         
-        if (res.ok) {
-          const data = await res.json();
-          if (data.preferences) {
-            setEmailNotifications(data.preferences.email_notifications_enabled !== false);
-            setEmailMarketing(data.preferences.email_marketing_enabled !== false);
+        if (emailRes.ok) {
+          const emailData = await emailRes.json();
+          if (emailData.preferences) {
+            setEmailNotifications(emailData.preferences.email_notifications_enabled !== false);
+            setEmailMarketing(emailData.preferences.email_marketing_enabled !== false);
+          }
+        }
+
+        // Load user profile to get environment feedback preference
+        const profileRes = await fetch(`${apiBase}/api/user/profile`, {
+          headers: {
+            'X-Clerk-User-Id': user.id,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (profileRes.ok) {
+          const profileData = await profileRes.json();
+          if (profileData.user && profileData.user.include_environment_feedback !== undefined) {
+            setIncludeEnvironmentFeedback(profileData.user.include_environment_feedback);
           }
         }
       } catch (err) {
-        console.error('Failed to load email preferences:', err);
+        console.error('Failed to load preferences:', err);
       } finally {
         setLoading(false);
       }
@@ -80,6 +99,39 @@ export default function SettingsPage() {
     }
   };
 
+  const handleSaveAnalysisPreferences = async () => {
+    if (!user?.id || savingAnalysisPrefs) return;
+    
+    setSavingAnalysisPrefs(true);
+    setAnalysisPrefsStatus(null);
+    
+    try {
+      const res = await fetch(`${apiBase}/api/user/preferences`, {
+        method: 'PUT',
+        headers: {
+          'X-Clerk-User-Id': user.id,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          include_environment_feedback: includeEnvironmentFeedback
+        })
+      });
+      
+      if (res.ok) {
+        setAnalysisPrefsStatus('success');
+        setTimeout(() => setAnalysisPrefsStatus(null), 3000);
+      } else {
+        throw new Error('Failed to save analysis preferences');
+      }
+    } catch (err) {
+      console.error('Failed to save analysis preferences:', err);
+      setAnalysisPrefsStatus('error');
+      setTimeout(() => setAnalysisPrefsStatus(null), 3000);
+    } finally {
+      setSavingAnalysisPrefs(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="settingsPage">
@@ -107,6 +159,66 @@ export default function SettingsPage() {
             </div>
             <LanguageSwitcher />
           </div>
+        </div>
+      </div>
+
+      <div className="settingsPage__section" id="analysis-preferences">
+        <div className="settingsPage__sectionHeader">
+          <Target size={20} />
+          <h2>{t('settings.analysisPreferences')}</h2>
+        </div>
+        
+        <div className="settingsPage__preferences">
+          <div className="settingsPage__preference">
+            <div className="settingsPage__preferenceInfo">
+              <h3>{t('settings.environmentFeedback')}</h3>
+              <p>{t('settings.environmentFeedbackDesc')}</p>
+            </div>
+            <div className="settingsPage__radioGroup">
+              <label className="settingsPage__radioOption">
+                <input
+                  type="radio"
+                  name="environmentFeedback"
+                  checked={includeEnvironmentFeedback === true}
+                  onChange={() => setIncludeEnvironmentFeedback(true)}
+                />
+                <span>{t('settings.environmentFeedbackEnabled')}</span>
+              </label>
+              <label className="settingsPage__radioOption">
+                <input
+                  type="radio"
+                  name="environmentFeedback"
+                  checked={includeEnvironmentFeedback === false}
+                  onChange={() => setIncludeEnvironmentFeedback(false)}
+                />
+                <span>{t('settings.environmentFeedbackDisabled')}</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div className="settingsPage__actions">
+          <button
+            className="btn btn--primary"
+            onClick={handleSaveAnalysisPreferences}
+            disabled={savingAnalysisPrefs}
+          >
+            {savingAnalysisPrefs ? t('common.buttons.saving') : t('settings.savePreferences')}
+          </button>
+          
+          {analysisPrefsStatus === 'success' && (
+            <div className="settingsPage__status settingsPage__status--success">
+              <CheckCircle2 size={16} />
+              <span>{t('settings.preferencesSaved')}</span>
+            </div>
+          )}
+          
+          {analysisPrefsStatus === 'error' && (
+            <div className="settingsPage__status settingsPage__status--error">
+              <AlertCircle size={16} />
+              <span>{t('settings.preferencesError')}</span>
+            </div>
+          )}
         </div>
       </div>
 

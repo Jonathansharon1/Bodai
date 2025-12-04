@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Check, Calendar, TrendingUp, AlertCircle, ArrowRight } from 'lucide-react';
 import './SubscriptionPage.css';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -8,6 +9,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 export default function SubscriptionPage() {
   const { user } = useUser();
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [subscriptionInfo, setSubscriptionInfo] = useState(null);
   const [usageStats, setUsageStats] = useState(null);
@@ -96,13 +98,7 @@ export default function SubscriptionPage() {
   };
 
   const getSubscriptionDisplayName = (type) => {
-    const names = {
-      free: 'Free',
-      basic: 'Basic',
-      premium: 'Premium',
-      pro: 'Pro'
-    };
-    return names[type] || 'Free';
+    return t(`subscription.planNames.${type}`, { defaultValue: type });
   };
 
   const getSubscriptionIcon = (type) => {
@@ -118,7 +114,7 @@ export default function SubscriptionPage() {
   if (loading) {
     return (
       <div className="subscriptionPage">
-        <LoadingSpinner message="Loading your subscription..." size="large" />
+        <LoadingSpinner message={t('subscription.loading')} size="large" />
       </div>
     );
   }
@@ -133,9 +129,9 @@ export default function SubscriptionPage() {
     <div className="subscriptionPage">
       <div className="subscriptionPage__container">
         <div className="subscriptionPage__header">
-          <h1 className="subscriptionPage__title">My Subscription</h1>
+          <h1 className="subscriptionPage__title">{t('subscription.title')}</h1>
           <p className="subscriptionPage__subtitle">
-            Manage your subscription, track your usage, and upgrade when you're ready
+            {t('subscription.subtitle')}
           </p>
         </div>
 
@@ -146,7 +142,7 @@ export default function SubscriptionPage() {
             <div>
               <h2 className="subscriptionCard__name">{getSubscriptionDisplayName(subscriptionType)}</h2>
               <p className="subscriptionCard__status">
-                {subscriptionInfo?.status === 'active' ? 'Active' : 'Inactive'}
+                {subscriptionInfo?.status === 'active' ? t('subscription.statusActive') : t('subscription.statusInactive')}
               </p>
             </div>
           </div>
@@ -155,7 +151,9 @@ export default function SubscriptionPage() {
             <div className="subscriptionCard__expiry">
               <Calendar size={18} />
               <span>
-                Active until: {new Date(subscriptionInfo.expiresAt).toLocaleDateString('en-US')}
+                {t('subscription.activeUntil', { 
+                  date: new Date(subscriptionInfo.expiresAt).toLocaleDateString(i18n.language === 'he' ? 'he-IL' : 'en-US')
+                })}
               </span>
             </div>
           )}
@@ -163,7 +161,7 @@ export default function SubscriptionPage() {
           {/* Usage Stats */}
           <div className="subscriptionCard__usage">
             <div className="usage__header">
-              <h3 className="usage__title">Analyses This Month</h3>
+              <h3 className="usage__title">{t('subscription.analysesThisMonth')}</h3>
               <div className="usage__count">
                 {isUnlimited ? (
                   <span className="usage__unlimited">∞</span>
@@ -187,11 +185,11 @@ export default function SubscriptionPage() {
                   {usageStats?.remaining === 0 ? (
                     <span className="usage__warning">
                       <AlertCircle size={16} />
-                      You've used all your analyses this month
+                      {t('subscription.usedAllAnalyses')}
                     </span>
                   ) : (
                     <span>
-                      {usageStats?.remaining || 0} analyses remaining
+                      {t('subscription.analysesRemaining', { count: usageStats?.remaining || 0 })}
                     </span>
                   )}
                 </div>
@@ -206,7 +204,7 @@ export default function SubscriptionPage() {
                 className="subscriptionCard__upgradeButton"
                 onClick={() => navigate('/pricing')}
               >
-                Upgrade to a Better Plan
+                {t('subscription.upgradeCta')}
                 <ArrowRight size={18} />
               </button>
             </div>
@@ -215,9 +213,9 @@ export default function SubscriptionPage() {
 
         {/* Subscription Features */}
         <div className="subscriptionFeatures">
-          <h2 className="subscriptionFeatures__title">What's Included in Your Plan</h2>
+          <h2 className="subscriptionFeatures__title">{t('subscription.featuresTitle')}</h2>
           <div className="subscriptionFeatures__list">
-            {getFeaturesForPlan(subscriptionType).map((feature, index) => (
+            {getFeaturesForPlan(subscriptionType, t).map((feature, index) => (
               <div key={index} className="featureItem">
                 <Check className="featureItem__icon" size={20} />
                 <span className="featureItem__text">{feature}</span>
@@ -228,9 +226,9 @@ export default function SubscriptionPage() {
 
         {/* Billing History (Future) */}
         <div className="subscriptionBilling">
-          <h2 className="subscriptionBilling__title">Billing History</h2>
+          <h2 className="subscriptionBilling__title">{t('subscription.billingTitle')}</h2>
           <p className="subscriptionBilling__comingSoon">
-            Coming soon - you'll be able to see all your payments and invoices here
+            {t('subscription.billingComingSoon')}
           </p>
         </div>
       </div>
@@ -238,42 +236,8 @@ export default function SubscriptionPage() {
   );
 }
 
-function getFeaturesForPlan(type) {
-  const features = {
-    free: [
-      '1 full analysis',
-      'Personalized feedback',
-      'Professional insights'
-    ],
-    basic: [
-      '12 analyses per month',
-      'Full progress tracking with charts',
-      'Personalized Action Items',
-      'Advanced Insights',
-      'Achievements & Gamification',
-      'Comparisons with your baseline'
-    ],
-    premium: [
-      '20 analyses per month',
-      'Full progress tracking with charts',
-      'Personalized Action Items',
-      'Advanced Insights',
-      'Achievements & Gamification',
-      'Comparisons with your baseline',
-      'Option to purchase additional analyses'
-    ],
-    pro: [
-      'Unlimited analyses',
-      'Everything in Premium, plus:',
-      'Advanced personalized analyses',
-      'Access to advanced global statistics',
-      'Comparisons with other users',
-      'Priority Support',
-      'Export data to PDF/Excel',
-      'Custom Goals & Metrics',
-      'Longer analyses (up to 10 minutes)'
-    ]
-  };
-  return features[type] || features.free;
+function getFeaturesForPlan(type, t) {
+  const features = t(`subscription.features.${type}`, { returnObjects: true });
+  return Array.isArray(features) ? features : [];
 }
 

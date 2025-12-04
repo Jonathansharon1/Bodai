@@ -1,17 +1,12 @@
 import React, { useMemo } from 'react';
 import { SignUp } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { CheckCircle } from 'lucide-react';
 import './AuthPages.css';
 
-const BENEFITS = [
-  'AI-powered video analysis',
-  'Personalized improvement tips',
-  'Track your progress over time',
-  'First analysis is free'
-];
-
 export default function SignUpPage() {
+  const { t } = useTranslation();
   // Memoize Clerk component to prevent re-mounting and duplicate verification codes
   // Stable key ensures Clerk doesn't re-initialize when parent re-renders
   const clerkSignUp = useMemo(() => (
@@ -45,9 +40,9 @@ export default function SignUpPage() {
           <span className="authPage__logoText">BodAI</span>
         </Link>
         <div className="authPage__headerRight">
-          <span className="authPage__headerText">Already have an account?</span>
+          <span className="authPage__headerText">{t('auth.signUp.headerHaveAccount')}</span>
           <Link to="/sign-in" className="authPage__headerLink">
-            Sign in
+            {t('auth.signUp.headerCta')}
           </Link>
         </div>
       </header>
@@ -60,11 +55,11 @@ export default function SignUpPage() {
             {/* Headline */}
             <div className="authPage__headline">
               <h1 className="authPage__title">
-                Become<br />
-                <span className="authPage__titleAccent">Unforgettable</span>
+                {t('auth.signUp.titleLine1')}<br />
+                <span className="authPage__titleAccent">{t('auth.signUp.titleAccent')}</span>
               </h1>
               <p className="authPage__subtitle">
-                Master your communication skills
+                {t('auth.signUp.subtitle')}
               </p>
             </div>
 
@@ -94,7 +89,7 @@ export default function SignUpPage() {
 
       {/* Footer */}
       <footer className="authPage__footer">
-        <p>© {new Date().getFullYear()} BodAI. All rights reserved.</p>
+        <p>{t('auth.footerCopyright', { year: new Date().getFullYear() })}</p>
       </footer>
     </div>
   );

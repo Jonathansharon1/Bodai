@@ -67,17 +67,24 @@ export default function Header() {
             ))}
           </nav>
 
-          <div className="ctaRow">
+          <div className="siteHeader__divider" />
+
+          <div className="siteHeader__languageSection">
+            <LanguageSwitcher />
+          </div>
+
+          <div className="siteHeader__divider" />
+
+          <div className="siteHeader__authSection">
             <SignedOut>
-              <Link to="/sign-in" className="nav__login">
-                  {t('header.nav.login')}
-              </Link>
               <Link to="/sign-up" className="btn btn--primary btn--sm">
                   {t('header.nav.getStarted')}
               </Link>
+              <Link to="/sign-in" className="nav__login">
+                  {t('header.nav.login')}
+              </Link>
             </SignedOut>
             <SignedIn>
-              <LanguageSwitcher />
               <UserButton afterSignOutUrl="/" />
             </SignedIn>
           </div>

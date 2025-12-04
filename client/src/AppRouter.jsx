@@ -18,6 +18,8 @@ import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
 import Hero from './components/hero/Hero';
 import UpgradeModal from './components/UpgradeModal';
+import VideoTooShortModal from './components/VideoTooShortModal';
+import VideoDuplicateModal from './components/VideoDuplicateModal';
 import FeaturesSection from './components/homepage/FeaturesSection';
 import HowItWorksSection from './components/homepage/HowItWorksSection';
 import SocialProofSection from './components/homepage/SocialProofSection';
@@ -145,7 +147,8 @@ function ProtectedRoute({ children, requireOnboarding = false }) {
           if (completed && userProfile.primary_goal) {
             const context = {
               primaryGoal: userProfile.primary_goal,
-              confidenceLevel: userProfile.confidence_level || 'medium'
+              confidenceLevel: userProfile.confidence_level || 'medium',
+              includeEnvironmentFeedback: userProfile.include_environment_feedback !== undefined ? userProfile.include_environment_feedback : true
             };
             if (userProfile.goal_specific_context) {
               context.goalSpecificContext = userProfile.goal_specific_context;
@@ -430,6 +433,10 @@ export default function AppRouter() {
   const [currentAnalysisId, setCurrentAnalysisId] = useState(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeMessage, setUpgradeMessage] = useState('');
+  const [showVideoTooShortModal, setShowVideoTooShortModal] = useState(false);
+  const [videoTooShortMessage, setVideoTooShortMessage] = useState('');
+  const [showVideoDuplicateModal, setShowVideoDuplicateModal] = useState(false);
+  const [videoDuplicateMessage, setVideoDuplicateMessage] = useState('');
   const [journeys, setJourneys] = useState([]);
   const [journeysLoading, setJourneysLoading] = useState(true);
   const [activeJourneyId, setActiveJourneyId] = useState(null);
@@ -705,9 +712,14 @@ export default function AppRouter() {
   }, [apiBase, user?.id, fetchJourneys, location.pathname, location.search, navigate]);
 
   const handleQuestionsComplete = async (answers) => {
-    setUserContext(answers);
+    // Ensure includeEnvironmentFeedback has a default value
+    const contextWithDefaults = {
+      ...answers,
+      includeEnvironmentFeedback: answers.includeEnvironmentFeedback !== undefined ? answers.includeEnvironmentFeedback : true
+    };
+    setUserContext(contextWithDefaults);
     localStorage.setItem('bodai_questions_completed', 'true');
-    localStorage.setItem('bodai_user_context', JSON.stringify(answers));
+    localStorage.setItem('bodai_user_context', JSON.stringify(contextWithDefaults));
     
     if (user?.id) {
       try {
@@ -818,6 +830,18 @@ export default function AppRouter() {
           setResult('');
           return;
         }
+        if (errorData.reason === 'video_too_short') {
+          setVideoTooShortMessage(errorData.error || '');
+          setShowVideoTooShortModal(true);
+          setResult('');
+          return;
+        }
+        if (errorData.reason === 'duplicate_video') {
+          setVideoDuplicateMessage(errorData.error || '');
+          setShowVideoDuplicateModal(true);
+          setResult('');
+          return;
+        }
         throw new Error(errorData.error || 'Request failed');
       }
       
@@ -831,6 +855,8 @@ export default function AppRouter() {
         }
         // Store in state or pass to AnalysisResult
         setCurrentAnalysisId(data.analysisId);
+        // Redirect to the analysis result page
+        navigate(`/analysis/${data.analysisId}`);
       }
       setDashboardRefreshTrigger(prev => prev + 1);
     } catch (err) {
@@ -876,6 +902,16 @@ export default function AppRouter() {
         isOpen={showUpgradeModal} 
         onClose={() => setShowUpgradeModal(false)}
         message={upgradeMessage}
+      />
+      <VideoTooShortModal 
+        isOpen={showVideoTooShortModal} 
+        onClose={() => setShowVideoTooShortModal(false)}
+        message={videoTooShortMessage}
+      />
+      <VideoDuplicateModal
+        isOpen={showVideoDuplicateModal}
+        onClose={() => setShowVideoDuplicateModal(false)}
+        message={videoDuplicateMessage}
       />
       <Routes>
       {/* Public Routes */}

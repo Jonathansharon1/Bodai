@@ -1,10 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import OnboardingQuestions from '../components/OnboardingQuestions';
 import './OnboardingPage.css';
 
 export default function OnboardingPage({ onComplete }) {
+  const { t } = useTranslation();
+
   return (
     <div className="onboardingPage">
       {/* Background Elements */}
@@ -29,14 +32,14 @@ export default function OnboardingPage({ onComplete }) {
           <div className="onboardingPage__headline">
             <div className="onboardingPage__badge">
               <Sparkles size={14} />
-              <span>Quick Setup</span>
+              <span>{t('onboarding.badge')}</span>
             </div>
             <h1 className="onboardingPage__title">
-              Let's personalize your<br />
-              <span className="onboardingPage__titleAccent">experience</span>
+              {t('onboarding.titleLine1')}<br />
+              <span className="onboardingPage__titleAccent">{t('onboarding.titleAccent')}</span>
             </h1>
             <p className="onboardingPage__subtitle">
-              Answer 3 quick questions so we can tailor your feedback
+              {t('onboarding.subtitle')}
             </p>
           </div>
 
@@ -47,7 +50,7 @@ export default function OnboardingPage({ onComplete }) {
 
           {/* Trust Note */}
           <p className="onboardingPage__trust">
-            Takes about 30 seconds • You can change these later
+            {t('onboarding.trustNote')}
           </p>
         </div>
       </main>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   TrendingUp,
@@ -25,188 +26,134 @@ import JourneySwitcher from '../components/JourneySwitcher';
 import PracticeCommitmentAlert from '../components/PracticeCommitmentAlert';
 import LoadingSpinner from '../components/LoadingSpinner';
 import EmptyState from '../components/EmptyState';
-import { GOAL_EXPLANATIONS } from '../components/OnboardingQuestions';
 
-// All 25 parameters organized by category
-const KPI_FIELDS = [
-  { key: 'overall_score', label: 'Overall Score', description: 'Composite communication score', accent: '#0ea5e9' },
-  { key: 'presence', label: 'Presence', description: 'Body language & eye contact', accent: '#10b981' },
-  { key: 'voice_expression', label: 'Voice', description: 'Tone range & pace', accent: '#3b82f6' },
-  { key: 'clarity', label: 'Clarity', description: 'Structure & flow', accent: '#f97316' }
+// Helper function to get KPI fields with translations
+const getKPIFields = (t) => [
+  { key: 'overall_score', label: t('parameters.metrics.overallScore'), description: t('parameters.descriptions.overallScore'), accent: '#0ea5e9' },
+  { key: 'presence', label: t('parameters.metrics.presence'), description: t('parameters.descriptions.presence'), accent: '#10b981' },
+  { key: 'voice_expression', label: t('parameters.metrics.voice'), description: t('parameters.descriptions.voice'), accent: '#3b82f6' },
+  { key: 'clarity', label: t('parameters.metrics.clarity'), description: t('parameters.descriptions.clarity'), accent: '#f97316' }
 ];
 
-const PRACTICE_METRIC_LABELS = {
-  presence: 'Presence',
-  voice_expression: 'Voice',
-  clarity: 'Clarity',
-  authenticity: 'Authenticity',
-  impact: 'Impact',
-  confidence: 'Confidence',
-  overall: 'Overall'
-};
+// Helper function to get practice metric labels with translations
+const getPracticeMetricLabels = (t) => ({
+  presence: t('parameters.metrics.presence'),
+  voice_expression: t('parameters.metrics.voice'),
+  clarity: t('parameters.metrics.clarity'),
+  authenticity: t('parameters.metrics.authenticity'),
+  impact: t('parameters.metrics.impact'),
+  confidence: t('parameters.metrics.confidence'),
+  overall: t('parameters.metrics.overall')
+});
 
-const PARAMETER_CATEGORIES = {
+// Helper function to get parameter categories with translations
+const getParameterCategories = (t) => ({
   voice: {
-    name: 'Voice Expression',
+    name: t('parameters.categories.voice'),
     icon: Mic,
     color: '#3b82f6',
     parameters: [
-      { key: 'voice_volume_stability', label: 'Volume Stability', description: 'Consistent volume without sudden drops or spikes' },
-      { key: 'voice_tone_variation', label: 'Tone Variation', description: 'Vocal variety and expressiveness' },
-      { key: 'voice_pace_control', label: 'Pace Control', description: 'Appropriate speaking speed, not too fast or slow' },
-      { key: 'voice_articulation', label: 'Articulation', description: 'Clear pronunciation, words are distinct' },
-      { key: 'voice_warmth', label: 'Vocal Warmth', description: 'Friendly, approachable vocal quality' }
+      { key: 'voice_volume_stability', label: t('parameters.voice.volumeStability'), description: t('parameters.voice.volumeStabilityDesc') },
+      { key: 'voice_tone_variation', label: t('parameters.voice.toneVariation'), description: t('parameters.voice.toneVariationDesc') },
+      { key: 'voice_pace_control', label: t('parameters.voice.paceControl'), description: t('parameters.voice.paceControlDesc') },
+      { key: 'voice_articulation', label: t('parameters.voice.articulation'), description: t('parameters.voice.articulationDesc') },
+      { key: 'voice_warmth', label: t('parameters.voice.vocalWarmth'), description: t('parameters.voice.vocalWarmthDesc') }
     ]
   },
   presence: {
-    name: 'Presence',
+    name: t('parameters.categories.presence'),
     icon: Eye,
     color: '#10b981',
     parameters: [
-      { key: 'presence_eye_contact', label: 'Eye Contact', description: 'Consistent, natural eye contact with camera/audience' },
-      { key: 'presence_facial_relaxation', label: 'Facial Relaxation', description: 'Relaxed, natural facial expressions' },
-      { key: 'presence_body_posture', label: 'Body Posture', description: 'Upright, confident posture' },
-      { key: 'presence_hand_naturalness', label: 'Hand Naturalness', description: 'Natural, purposeful gestures' },
-      { key: 'presence_openness', label: 'Openness', description: 'Open body language, approachable' }
+      { key: 'presence_eye_contact', label: t('parameters.presence.eyeContact'), description: t('parameters.presence.eyeContactDesc') },
+      { key: 'presence_facial_relaxation', label: t('parameters.presence.facialRelaxation'), description: t('parameters.presence.facialRelaxationDesc') },
+      { key: 'presence_body_posture', label: t('parameters.presence.bodyPosture'), description: t('parameters.presence.bodyPostureDesc') },
+      { key: 'presence_hand_naturalness', label: t('parameters.presence.handNaturalness'), description: t('parameters.presence.handNaturalnessDesc') },
+      { key: 'presence_openness', label: t('parameters.presence.openness'), description: t('parameters.presence.opennessDesc') }
     ]
   },
   clarity: {
-    name: 'Clarity',
+    name: t('parameters.categories.clarity'),
     icon: MessageSquare,
     color: '#f59e0b',
     parameters: [
-      { key: 'clarity_structure', label: 'Structure', description: 'Clear organization, logical flow' },
-      { key: 'clarity_focus', label: 'Focus', description: 'Stays on topic, clear main points' },
-      { key: 'clarity_example_usage', label: 'Example Usage', description: 'Effective use of examples/stories' },
-      { key: 'clarity_transition_quality', label: 'Transition Quality', description: 'Smooth transitions between ideas' },
-      { key: 'clarity_repetition_control', label: 'Repetition Control', description: 'Avoids unnecessary repetition' }
+      { key: 'clarity_structure', label: t('parameters.clarity.structure'), description: t('parameters.clarity.structureDesc') },
+      { key: 'clarity_focus', label: t('parameters.clarity.focus'), description: t('parameters.clarity.focusDesc') },
+      { key: 'clarity_example_usage', label: t('parameters.clarity.exampleUsage'), description: t('parameters.clarity.exampleUsageDesc') },
+      { key: 'clarity_transition_quality', label: t('parameters.clarity.transitionQuality'), description: t('parameters.clarity.transitionQualityDesc') },
+      { key: 'clarity_repetition_control', label: t('parameters.clarity.repetitionControl'), description: t('parameters.clarity.repetitionControlDesc') }
     ]
   },
   authenticity: {
-    name: 'Authenticity',
+    name: t('parameters.categories.authenticity'),
     icon: Heart,
     color: '#8b5cf6',
     parameters: [
-      { key: 'authenticity_naturalness', label: 'Naturalness', description: 'Appears genuine, not forced' },
-      { key: 'authenticity_emotional_transparency', label: 'Emotional Transparency', description: 'Shows appropriate emotions' },
-      { key: 'authenticity_forced_expression_reduction', label: 'Forced Expression Reduction', description: 'Minimal forced or fake expressions' }
+      { key: 'authenticity_naturalness', label: t('parameters.authenticity.naturalness'), description: t('parameters.authenticity.naturalnessDesc') },
+      { key: 'authenticity_emotional_transparency', label: t('parameters.authenticity.emotionalTransparency'), description: t('parameters.authenticity.emotionalTransparencyDesc') },
+      { key: 'authenticity_forced_expression_reduction', label: t('parameters.authenticity.forcedExpressionReduction'), description: t('parameters.authenticity.forcedExpressionReductionDesc') }
     ]
   },
   impact: {
-    name: 'Impact',
+    name: t('parameters.categories.impact'),
     icon: Zap,
     color: '#ef4444',
     parameters: [
-      { key: 'impact_energy', label: 'Energy', description: 'Appropriate energy level, engaging' },
-      { key: 'impact_engagement', label: 'Engagement', description: 'Keeps audience engaged' },
-      { key: 'impact_persuasiveness', label: 'Persuasiveness', description: 'Convincing, compelling delivery' }
+      { key: 'impact_energy', label: t('parameters.impact.energy'), description: t('parameters.impact.energyDesc') },
+      { key: 'impact_engagement', label: t('parameters.impact.engagement'), description: t('parameters.impact.engagementDesc') },
+      { key: 'impact_persuasiveness', label: t('parameters.impact.persuasiveness'), description: t('parameters.impact.persuasivenessDesc') }
     ]
   },
   confidence: {
-    name: 'Confidence',
+    name: t('parameters.categories.confidence'),
     icon: Award,
     color: '#06b6d4',
     parameters: [
-      { key: 'confidence_filler_word_control', label: 'Filler Word Control', description: 'Minimal "um", "uh", "like"' },
-      { key: 'confidence_pause_control', label: 'Pause Control', description: 'Effective use of pauses' },
-      { key: 'confidence_physical_tension', label: 'Physical Tension', description: 'Low physical tension, relaxed' },
-      { key: 'confidence_vocal_stability', label: 'Vocal Stability', description: 'Stable voice, no shaking/quivering' },
-      { key: 'confidence_comfort_level', label: 'Comfort Level', description: 'Appears comfortable on camera' }
+      { key: 'confidence_filler_word_control', label: t('parameters.confidence.fillerWordControl'), description: t('parameters.confidence.fillerWordControlDesc') },
+      { key: 'confidence_pause_control', label: t('parameters.confidence.pauseControl'), description: t('parameters.confidence.pauseControlDesc') },
+      { key: 'confidence_physical_tension', label: t('parameters.confidence.physicalTension'), description: t('parameters.confidence.physicalTensionDesc') },
+      { key: 'confidence_vocal_stability', label: t('parameters.confidence.vocalStability'), description: t('parameters.confidence.vocalStabilityDesc') },
+      { key: 'confidence_comfort_level', label: t('parameters.confidence.comfortLevel'), description: t('parameters.confidence.comfortLevelDesc') }
     ]
   }
-};
-
-const FOCUS_GUIDANCE = {
-  'voice_articulation': {
-    why: 'Crisp pronunciation keeps every insight clear and trustworthy.',
-    instantTip: 'Slow the first sentence of each idea and exaggerate consonants for those opening words.',
-    microPractice: 'Read the next paragraph of your script aloud while placing a fingertip beneath your chin - if your chin bounces on every syllable you\'re clipping words; reset and repeat.',
-    practiceTime: '45 sec',
-    trackThis: 'Aim for articulation ≥ 7.5 while keeping pace steady.'
-  },
-  'presence_eye_contact': {
-    why: 'Eye contact is the fastest way to hold attention and signal confidence.',
-    instantTip: 'Lock eyes with the lens for the first full sentence of each new idea, then glance briefly to your notes.',
-    microPractice: 'Stick a small dot next to the lens and explain one bullet point while keeping your gaze on the dot for 3-5 seconds before looking away.',
-    practiceTime: '30 sec',
-    trackThis: 'Hold the lens for 70% of sentences to move the score above 8.'
-  },
-  'impact_persuasiveness': {
-    why: 'Persuasiveness converts attention into action; it needs structured emphasis.',
-    instantTip: 'Sum each point with a bold "so here\'s what that means for you..." statement.',
-    microPractice: 'Record a 30-second pitch where every sentence ends with a clear benefit to the listener. Play it back and confirm you can hear the benefit in each line.',
-    practiceTime: '30 sec',
-    trackThis: 'Use benefit-driven closes on every key point until impact > 6.5.'
-  },
-  'confidence_filler_word_control': {
-    why: 'Filler words undermine your authority and make you sound uncertain.',
-    instantTip: 'Replace "um" and "uh" with a 2-second pause. Pauses sound thoughtful, not uncertain.',
-    microPractice: 'Record yourself speaking for 1 minute. Count your filler words, then re-record aiming for zero.',
-    practiceTime: '1 min',
-    trackThis: 'Reduce filler words to less than 2 per minute.'
-  },
-  'presence_body_posture': {
-    why: 'Good posture projects confidence and helps you breathe better for clearer speech.',
-    instantTip: 'Stand or sit with your shoulders back, chest open, and chin parallel to the floor.',
-    microPractice: 'Record yourself standing tall for 30 seconds, then watch it back to see the difference.',
-    practiceTime: '30 sec',
-    trackThis: 'Maintain upright posture throughout your entire recording.'
-  },
-  'voice_tone_variation': {
-    why: 'Varying your tone keeps your audience engaged and emphasizes key points.',
-    instantTip: 'Raise your pitch on important words and lower it for emphasis.',
-    microPractice: 'Read a paragraph three times: monotone, then with variation, then with extreme variation.',
-    practiceTime: '2 min',
-    trackThis: 'Vary your pitch by at least 3-4 notes throughout your delivery.'
-  },
-  default: {
-    why: 'Sharpening this lever has the fastest payoff for your communication goal.',
-    instantTip: 'Name the behavior you want in the very next conversation and do it on the first sentence.',
-    microPractice: 'Record a 45-second run focused only on this cue; watch once and note the moment you nailed it.',
-    practiceTime: '45 sec',
-    trackThis: 'Move this metric above 7.0 and keep it there for two sessions.'
-  }
-};
+});
 
 // Generate narrative explanation for improvements
-const generateImprovementNarrative = (param, improvement) => {
-  const percentChange = improvement.changePercent ? parseFloat(improvement.changePercent) : 0;
+const generateImprovementNarrative = (param, improvement, t) => {
   const change = improvement.change;
   
   const narratives = {
-    'presence_eye_contact': `Your eye contact improved from ${improvement.first.toFixed(1)} to ${improvement.latest.toFixed(1)}. This means you're holding attention longer and building stronger connections with your audience. People feel more engaged when you maintain consistent eye contact.`,
-    'confidence_filler_word_control': `Your filler words decreased by ${percentChange > 0 ? percentChange.toFixed(0) : Math.abs(change).toFixed(1)} points. You're speaking with more confidence and authority. Instead of filling silence with "um" and "uh", you're pausing thoughtfully, which makes you sound more deliberate and prepared.`,
-    'voice_tone_variation': `Your vocal variety improved from ${improvement.first.toFixed(1)} to ${improvement.latest.toFixed(1)}. You're using your voice more expressively, which keeps your audience engaged. Varying your tone helps emphasize key points and prevents monotony.`,
-    'presence_body_posture': `Your posture improved by ${change.toFixed(1)} points. You're standing taller and more confidently, which projects authority and self-assurance. Good posture also helps you breathe better and speak more clearly.`,
-    'clarity_structure': `Your message structure improved from ${improvement.first.toFixed(1)} to ${improvement.latest.toFixed(1)}. You're organizing your thoughts more clearly, making it easier for your audience to follow along. A well-structured message is more persuasive and memorable.`,
-    'impact_energy': `Your energy level increased by ${change.toFixed(1)} points. You're bringing more enthusiasm to your delivery, which makes you more engaging and compelling. Higher energy helps you connect with your audience and keep their attention.`
+    'presence_eye_contact': t('myProgress.narratives.improvement.presence_eye_contact', { first: improvement.first.toFixed(1), latest: improvement.latest.toFixed(1) }),
+    'confidence_filler_word_control': t('myProgress.narratives.improvement.confidence_filler_word_control', { change: Math.abs(change).toFixed(1) }),
+    'voice_tone_variation': t('myProgress.narratives.improvement.voice_tone_variation', { first: improvement.first.toFixed(1), latest: improvement.latest.toFixed(1) }),
+    'presence_body_posture': t('myProgress.narratives.improvement.presence_body_posture', { change: change.toFixed(1) }),
+    'clarity_structure': t('myProgress.narratives.improvement.clarity_structure', { first: improvement.first.toFixed(1), latest: improvement.latest.toFixed(1) }),
+    'impact_energy': t('myProgress.narratives.improvement.impact_energy', { change: change.toFixed(1) })
   };
 
-  return narratives[param.key] || `You've improved your ${param.label.toLowerCase()} from ${improvement.first.toFixed(1)} to ${improvement.latest.toFixed(1)}. This demonstrates your ability to ${param.description.toLowerCase()}, which is making you a more effective communicator.`;
+  return narratives[param.key] || t('myProgress.narratives.improvement.default', { label: param.label.toLowerCase(), first: improvement.first.toFixed(1), latest: improvement.latest.toFixed(1), description: param.description.toLowerCase() });
 };
 
 // Generate narrative explanation for weaknesses
-const generateWeaknessNarrative = (param, current, trend) => {
+const generateWeaknessNarrative = (param, current, trend, t) => {
   const narratives = {
-    'confidence_filler_word_control': `Your filler words are at ${current.toFixed(1)}/10. You're using "um", "uh", and "like" frequently, which undermines your confidence. Practice pausing instead of filling silence - pauses make you sound thoughtful, not uncertain.`,
-    'presence_eye_contact': `Your eye contact is at ${current.toFixed(1)}/10. You're looking away frequently, which makes it harder to connect with your audience. Try to maintain eye contact for 3-5 seconds at a time to build trust and engagement.`,
-    'voice_tone_variation': `Your vocal variety is at ${current.toFixed(1)}/10. You're speaking in a monotone, which can make your audience lose interest. Vary your pitch and pace to emphasize key points and keep listeners engaged.`,
-    'clarity_structure': `Your message structure is at ${current.toFixed(1)}/10. Your thoughts aren't organized clearly, making it hard for your audience to follow. Start with a clear introduction, organize your main points logically, and end with a strong conclusion.`,
-    'impact_energy': `Your energy level is at ${current.toFixed(1)}/10. You're not bringing enough enthusiasm to your delivery, which can make you seem disengaged. Increase your energy to match your message's importance and connect better with your audience.`,
-    'presence_body_posture': `Your posture is at ${current.toFixed(1)}/10. You're slouching or appearing closed off, which projects uncertainty. Stand or sit tall with your shoulders back to project confidence and authority.`
+    'confidence_filler_word_control': t('myProgress.narratives.weakness.confidence_filler_word_control', { current: current.toFixed(1) }),
+    'presence_eye_contact': t('myProgress.narratives.weakness.presence_eye_contact', { current: current.toFixed(1) }),
+    'voice_tone_variation': t('myProgress.narratives.weakness.voice_tone_variation', { current: current.toFixed(1) }),
+    'clarity_structure': t('myProgress.narratives.weakness.clarity_structure', { current: current.toFixed(1) }),
+    'impact_energy': t('myProgress.narratives.weakness.impact_energy', { current: current.toFixed(1) }),
+    'presence_body_posture': t('myProgress.narratives.weakness.presence_body_posture', { current: current.toFixed(1) })
   };
 
   if (narratives[param.key]) {
     return narratives[param.key];
   }
 
-  let narrative = `Your ${param.label.toLowerCase()} is at ${current.toFixed(1)}/10. `;
   if (trend && trend.direction === 'declining') {
-    narrative += `This has been declining, which means you're moving away from your best performance. `;
+    return t('myProgress.narratives.weakness.defaultDeclining', { label: param.label.toLowerCase(), current: current.toFixed(1), description: param.description });
   }
-  narrative += `${param.description}. Focus on improving this area to become a more effective communicator.`;
   
-  return narrative;
+  return t('myProgress.narratives.weakness.defaultStable', { label: param.label.toLowerCase(), current: current.toFixed(1), description: param.description });
 };
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
@@ -288,6 +235,7 @@ export default function MyProgressPage({
 }) {
   const { user } = useUser();
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState([]);
   const [expandedSections, setExpandedSections] = useState({
@@ -298,6 +246,11 @@ export default function MyProgressPage({
   });
   const [reflections, setReflections] = useState([]);
 
+  // Memoize translated parameter categories and fields
+  const PARAMETER_CATEGORIES = useMemo(() => getParameterCategories(t), [t]);
+  const KPI_FIELDS = useMemo(() => getKPIFields(t), [t]);
+  const PRACTICE_METRIC_LABELS = useMemo(() => getPracticeMetricLabels(t), [t]);
+
   const activeJourney = useMemo(
     () => journeys.find(journey => journey.id === activeJourneyId) || null,
     [journeys, activeJourneyId]
@@ -305,19 +258,58 @@ export default function MyProgressPage({
   
   const getGoalLabel = (goal) => {
     const goalMap = {
-      'confidence': 'Build Confidence',
-      'content': 'Content Creator',
-      'presentation': 'Presentation Skills',
-      'leadership': 'Executive Presence',
-      'interview': 'Job Interviews',
-      'sales': 'Face-to-face Sales'
+      'confidence': t('myProgress.goals.confidence'),
+      'content': t('myProgress.goals.content'),
+      'presentation': t('myProgress.goals.presentation'),
+      'leadership': t('myProgress.goals.leadership'),
+      'interview': t('myProgress.goals.interview'),
+      'sales': t('myProgress.goals.sales'),
+      'dating': t('myProgress.goals.dating'),
+      'social': t('myProgress.goals.social'),
+      'general': t('myProgress.goals.general')
     };
     return goalMap[goal] || goal;
+  };
+
+  const getStageLabel = (title) => {
+    if (!title) return t('myProgress.defaultStage');
+    
+    // Map stage titles (like "Confident Communicator") to translation keys
+    const stageMap = {
+      'Emerging Communicator': t('myProgress.stages.Emerging Communicator', { defaultValue: t('myProgress.stages.emerging') }),
+      'Developing Communicator': t('myProgress.stages.Developing Communicator', { defaultValue: t('myProgress.stages.developing') }),
+      'Confident Communicator': t('myProgress.stages.Confident Communicator', { defaultValue: t('myProgress.stages.confident') }),
+      'Impactful Communicator': t('myProgress.stages.Impactful Communicator', { defaultValue: t('myProgress.stages.impactful') }),
+      'Master Communicator': t('myProgress.stages.Master Communicator', { defaultValue: t('myProgress.stages.master') })
+    };
+    
+    if (stageMap[title]) {
+      return stageMap[title];
+    }
+    
+    // Map known goal titles to translation keys (for backward compatibility)
+    const titleMap = {
+      'Build Confidence': t('myProgress.goals.confidence'),
+      'Content Creator': t('myProgress.goals.content'),
+      'Presentation Skills': t('myProgress.goals.presentation'),
+      'Executive Presence': t('myProgress.goals.leadership'),
+      'Job Interviews': t('myProgress.goals.interview'),
+      'Face-to-face Sales': t('myProgress.goals.sales'),
+      'Dating & Romantic': t('myProgress.goals.dating'),
+      'Social Confidence': t('myProgress.goals.social'),
+      'General Improvement': t('myProgress.goals.general'),
+      'Practice': t('myProgress.defaultStage')
+    };
+
+    return titleMap[title] || title;
   };
   
   const focusSlug = activeJourney?.focus_slug;
   const focusLabel = focusSlug ? getGoalLabel(focusSlug) : (activeJourney?.display_name || activeJourney?.focus_label || null);
-  const focusGoalExplanation = focusSlug ? GOAL_EXPLANATIONS[focusSlug] : null;
+  
+  // Only show secondary subtitle for standard goals that have specific guidance
+  const showGoalGuidance = focusSlug && ['confidence', 'content', 'presentation', 'leadership', 'interview', 'sales', 'dating', 'social', 'general'].includes(focusSlug);
+  
   const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
   const location = useLocation();
 
@@ -473,7 +465,7 @@ export default function MyProgressPage({
     });
 
     return improvements;
-  }, [metrics]);
+  }, [metrics, PARAMETER_CATEGORIES]);
 
   // Get top improving parameters
   const topImprovements = useMemo(() => {
@@ -495,7 +487,7 @@ export default function MyProgressPage({
       .filter(item => item.change > 0)
       .sort((a, b) => b.change - a.change)
       .slice(0, 3);
-  }, [parameterImprovements]);
+  }, [parameterImprovements, PARAMETER_CATEGORIES]);
 
   // Get stable strengths
   const stableStrengths = useMemo(() => {
@@ -524,7 +516,7 @@ export default function MyProgressPage({
     });
 
     return strengths.sort((a, b) => b.average - a.average).slice(0, 3);
-  }, [metrics]);
+  }, [metrics, PARAMETER_CATEGORIES]);
 
   // Get weaknesses (below 6.0 OR declining)
   const weaknesses = useMemo(() => {
@@ -596,7 +588,7 @@ export default function MyProgressPage({
     }
 
     return weaknessesList;
-  }, [metrics]);
+  }, [metrics, PARAMETER_CATEGORIES]);
 
   // Smart hero: biggest win OR most critical weakness
   const heroInsight = useMemo(() => {
@@ -611,12 +603,11 @@ export default function MyProgressPage({
         cat.parameters.some(p => p.key === biggestWin.key)
       );
       const param = category?.parameters.find(p => p.key === biggestWin.key);
-      const percentChange = biggestWin.changePercent ? parseFloat(biggestWin.changePercent) : 0;
       
       return {
         type: 'win',
-        title: `Your ${biggestWin.label} (${biggestWin.category}) improved by ${biggestWin.change.toFixed(1)} points!`,
-        description: generateImprovementNarrative(param || { key: biggestWin.key, label: biggestWin.label, description: biggestWin.description }, biggestWin),
+        title: t('myProgress.heroWinTitle', { label: biggestWin.label, category: biggestWin.category, change: biggestWin.change.toFixed(1) }),
+        description: generateImprovementNarrative(param || { key: biggestWin.key, label: biggestWin.label, description: biggestWin.description }, biggestWin, t),
         value: biggestWin.latest.toFixed(1),
         change: `+${biggestWin.change.toFixed(1)}`,
         categoryColor: biggestWin.categoryColor,
@@ -633,17 +624,17 @@ export default function MyProgressPage({
       
       return {
         type: 'opportunity',
-        title: `Focus on ${mostCriticalWeakness.label} (${mostCriticalWeakness.category})`,
-        description: generateWeaknessNarrative(param || { key: mostCriticalWeakness.key, label: mostCriticalWeakness.label, description: mostCriticalWeakness.description }, mostCriticalWeakness.current, mostCriticalWeakness.trend),
+        title: t('myProgress.heroFocusTitle', { label: mostCriticalWeakness.label, category: mostCriticalWeakness.category }),
+        description: generateWeaknessNarrative(param || { key: mostCriticalWeakness.key, label: mostCriticalWeakness.label, description: mostCriticalWeakness.description }, mostCriticalWeakness.current, mostCriticalWeakness.trend, t),
         value: mostCriticalWeakness.current.toFixed(1),
-        change: mostCriticalWeakness.isDeclining ? 'Declining' : 'Needs attention',
+        change: mostCriticalWeakness.isDeclining ? t('myProgress.decliningLabel') : t('myProgress.needsAttentionLabel'),
         categoryColor: '#f59e0b',
         icon: AlertCircle
       };
     }
 
     return null;
-  }, [topImprovements, weaknesses, metrics]);
+  }, [topImprovements, weaknesses, metrics, PARAMETER_CATEGORIES, t]);
 
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
@@ -662,7 +653,7 @@ export default function MyProgressPage({
     if (!timestamp) return '—';
     const date = new Date(timestamp);
     if (Number.isNaN(date.getTime())) return '—';
-    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    return date.toLocaleDateString(i18n.language, { month: 'short', day: 'numeric' });
   };
 
   const getMetricTimestamp = (metric) => metric?.analyses?.created_at || metric?.created_at;
@@ -683,23 +674,24 @@ export default function MyProgressPage({
         delta
       };
     });
-  }, [latestMetrics, previousMetricsEntry]);
+  }, [latestMetrics, previousMetricsEntry, KPI_FIELDS]);
 
   const deliverySnapshot = useMemo(() => {
     if (!latestMetrics) {
       return {
-        speakingRate: null,
-        fillerWords: null,
+        speakingRateLabel: null,
+        fillerWordLevel: null,
         sentiment: null,
         posture: null
       };
     }
-    const fillerValue = parseScore(latestMetrics.filler_word_count);
+    // Get delivery metrics from nested delivery object or flat structure (backward compatibility)
+    const delivery = latestMetrics.delivery || {};
     return {
-      speakingRate: parseScore(latestMetrics.speaking_rate_wpm),
-      fillerWords: fillerValue,
-      sentiment: latestMetrics.sentiment_label || null,
-      posture: latestMetrics.posture_flag || null
+      speakingRateLabel: delivery.speaking_rate_label || latestMetrics.speaking_rate_label || null,
+      fillerWordLevel: delivery.filler_word_level || latestMetrics.filler_word_level || null,
+      sentiment: delivery.sentiment || latestMetrics.sentiment_label || latestMetrics.sentiment || null,
+      posture: delivery.posture_flag || latestMetrics.posture_flag || null
     };
   }, [latestMetrics]);
 
@@ -767,7 +759,7 @@ export default function MyProgressPage({
   if (loading) {
     return (
       <div className="myProgressPage">
-        <LoadingSpinner message="Loading your progress..." size="large" />
+        <LoadingSpinner message={t('myProgress.loading')} size="large" />
       </div>
     );
   }
@@ -783,20 +775,22 @@ export default function MyProgressPage({
             activeJourneyId={activeJourneyId}
             onSelectJourney={onSelectJourney}
           />
-          <h1 className="myProgressPage__title">My Progress</h1>
+          <h1 className="myProgressPage__title">{t('myProgress.title')}</h1>
           <p className="myProgressPage__subtitle">
             {focusLabel
-              ? `${focusLabel}: no sessions yet`
-              : 'Track your communication journey'}
+              ? t('myProgress.emptySubtitleWithFocus', { focusLabel })
+              : t('myProgress.emptySubtitle')}
           </p>
         </div>
         <EmptyState
           variant="progress"
-          title={focusLabel ? `No ${focusLabel} progress yet` : "No progress data yet"}
+          title={focusLabel
+            ? t('myProgress.emptyTitleWithFocus', { focusLabel })
+            : t('myProgress.emptyTitle')}
           description={focusLabel
-            ? `Upload a video to start tracking your ${focusLabel} communication journey. Watch your improvement across key metrics over time.`
-            : "Complete your first analysis to start tracking your improvement across all 25 communication parameters. See your growth over time with detailed insights."}
-          actionLabel="Start Your First Analysis"
+            ? t('myProgress.emptyDescriptionWithFocus', { focusLabel })
+            : t('myProgress.emptyDescription')}
+          actionLabel={t('analysisPage.newAnalysis')}
           onAction={() => navigate('/new-analysis')}
         />
       </div>
@@ -814,15 +808,24 @@ export default function MyProgressPage({
           activeJourneyId={activeJourneyId}
           onSelectJourney={onSelectJourney}
         />
-        <h1 className="myProgressPage__title">My Progress</h1>
+        <h1 className="myProgressPage__title">{t('myProgress.title')}</h1>
         <p className="myProgressPage__subtitle">
           {focusLabel
-            ? `${focusLabel}: ${metrics.length} ${metrics.length === 1 ? 'session' : 'sessions'} tracked`
-            : `Your communication evolution across ${metrics.length} ${metrics.length === 1 ? 'session' : 'sessions'}`}
+            ? t('myProgress.subtitleWithFocus', {
+                focusLabel,
+                count: metrics.length,
+                unit: metrics.length === 1 ? t('myProgress.sessionUnitSingular') : t('myProgress.sessionUnitPlural')
+              })
+            : t('myProgress.subtitle', {
+                count: metrics.length,
+                unit: metrics.length === 1 ? t('myProgress.sessionUnitSingular') : t('myProgress.sessionUnitPlural')
+              })}
         </p>
-        {focusGoalExplanation && (
+        {showGoalGuidance && (
           <p className="myProgressPage__subtitleSecondary">
-            This week, keep learning by doing: run 1–2 short missions that push your {focusGoalExplanation.label.toLowerCase()} and watch the scores move.
+            {t('myProgress.subtitleSecondary', {
+              goal: focusLabel ? focusLabel.toLowerCase() : ''
+            })}
           </p>
         )}
       </div>
@@ -837,7 +840,7 @@ export default function MyProgressPage({
           onClick={() => toggleSection('guide')}
         >
           <BarChart3 size={18} className="guideToggle__icon" />
-          <span className="guideToggle__text">How to Read This Page</span>
+          <span className="guideToggle__text">{t('myProgress.guideToggle')}</span>
           {expandedSections.guide ? (
             <ChevronUp size={18} className="guideToggle__chevron" />
           ) : (
@@ -849,8 +852,7 @@ export default function MyProgressPage({
           <div className="guideContent">
             <div className="guideContent__intro">
               <p className="guideContent__text">
-                Your communication is analyzed across <strong>6 main categories</strong>, each containing multiple <strong>sub-parameters</strong> (25 total). 
-                Each parameter is scored from 0-10, where higher scores indicate better performance.
+                {t('myProgress.guideIntro')}
               </p>
             </div>
 
@@ -864,14 +866,14 @@ export default function MyProgressPage({
                         <CategoryIcon size={24} />
                       </div>
                       <div>
-                        <h3 className="guideCategory__title">{category.name}</h3>
+                    <h3 className="guideCategory__title">{category.name}</h3>
                         <p className="guideCategory__description">
-                          {category.name === 'Voice Expression' && 'How you use your voice to communicate'}
-                          {category.name === 'Presence' && 'Your physical presence and body language'}
-                          {category.name === 'Clarity' && 'How clearly and organized your message is'}
-                          {category.name === 'Authenticity' && 'How genuine and natural you appear'}
-                          {category.name === 'Impact' && 'How engaging and persuasive you are'}
-                          {category.name === 'Confidence' && 'How confident and comfortable you appear'}
+                          {category.name === t('parameters.categories.voice') && t('myProgress.voiceCategoryDescription')}
+                          {category.name === t('parameters.categories.presence') && t('myProgress.presenceCategoryDescription')}
+                          {category.name === t('parameters.categories.clarity') && t('myProgress.clarityCategoryDescription')}
+                          {category.name === t('parameters.categories.authenticity') && t('myProgress.authenticityCategoryDescription')}
+                          {category.name === t('parameters.categories.impact') && t('myProgress.impactCategoryDescription')}
+                          {category.name === t('parameters.categories.confidence') && t('myProgress.confidenceCategoryDescription')}
                         </p>
                       </div>
                     </div>
@@ -889,27 +891,27 @@ export default function MyProgressPage({
             </div>
 
             <div className="guideContent__tips">
-              <h4 className="guideContent__tipsTitle">Understanding Your Scores</h4>
+              <h4 className="guideContent__tipsTitle">{t('myProgress.guideUnderstandingTitle')}</h4>
               <div className="guideContent__tipsGrid">
                 <div className="guideTip">
                   <div className="guideTip__score guideTip__score--high">7-10</div>
                   <div className="guideTip__content">
-                    <strong>Strong</strong>
-                    <p>Excellent performance, keep it up!</p>
+                    <strong>{t('myProgress.guideStrong')}</strong>
+                    <p>{t('myProgress.guideStrongText')}</p>
                   </div>
                 </div>
                 <div className="guideTip">
                   <div className="guideTip__score guideTip__score--medium">4-6</div>
                   <div className="guideTip__content">
-                    <strong>Average</strong>
-                    <p>Room for improvement, focus here</p>
+                    <strong>{t('myProgress.guideAverage')}</strong>
+                    <p>{t('myProgress.guideAverageText')}</p>
                   </div>
                 </div>
                 <div className="guideTip">
                   <div className="guideTip__score guideTip__score--low">0-3</div>
                   <div className="guideTip__content">
-                    <strong>Needs Work</strong>
-                    <p>Priority focus area</p>
+                    <strong>{t('myProgress.guideLow')}</strong>
+                    <p>{t('myProgress.guideLowText')}</p>
                   </div>
                 </div>
               </div>
@@ -930,12 +932,12 @@ export default function MyProgressPage({
                 {heroInsight.type === 'win' ? (
                   <>
                     <Sparkles size={16} />
-                    <span>Biggest Win</span>
+                    <span>{t('myProgress.heroBiggestWin')}</span>
                   </>
                 ) : (
                   <>
                     <Target size={16} />
-                    <span>Focus Area</span>
+                    <span>{t('myProgress.heroFocusArea')}</span>
                   </>
                 )}
               </div>
@@ -944,7 +946,7 @@ export default function MyProgressPage({
             </div>
             <div className="progressHero__score">
               <div className="progressHero__scoreValue">{heroInsight.value}</div>
-              <div className="progressHero__scoreLabel">/ 10</div>
+              <div className="progressHero__scoreLabel">{t('myProgress.categoryScoreLabel')}</div>
               <div className={`progressHero__change progressHero__change--${heroInsight.type}`}>
                 {heroInsight.change}
               </div>
@@ -957,29 +959,29 @@ export default function MyProgressPage({
         <div className="momentumRow">
           {streakInfo.weeks > 0 && (
             <div className={`momentumCard ${streakInfo.warning ? 'momentumCard--warning' : ''}`}>
-              <div className="momentumCard__label">Weekly streak</div>
+              <div className="momentumCard__label">{t('myProgress.momentumStreakLabel')}</div>
               <div className="momentumCard__value">
                 {streakInfo.weeks}
-                <span>weeks</span>
+                <span> {t('myProgress.momentumStreakUnit', { count: streakInfo.weeks })}</span>
               </div>
               <p>
                 {streakInfo.daysUntilBreak !== null
-                  ? `Record within ${Math.ceil(streakInfo.daysUntilBreak)}d to keep it alive`
-                  : 'Upload weekly to extend your streak'}
+                  ? t('myProgress.momentumStreakKeepAlive', { days: Math.ceil(streakInfo.daysUntilBreak) })
+                  : t('myProgress.momentumStreakExtend')}
               </p>
             </div>
           )}
           {cohortPercentile && (
             <div className="momentumCard momentumCard--cohort">
-              <div className="momentumCard__label">Cohort percentile</div>
+              <div className="momentumCard__label">{t('myProgress.momentumCohortLabel')}</div>
               <div className="momentumCard__value">
                 {cohortPercentile}
                 <span>%</span>
               </div>
               <p>
                 {focusLabel
-                  ? `Ahead of ${cohortPercentile}% of ${focusLabel} cohort`
-                  : 'Great momentum vs other communicators'}
+                  ? t('myProgress.momentumCohortWithFocus', { percent: cohortPercentile, focusLabel })
+                  : t('myProgress.momentumCohortGeneric')}
               </p>
             </div>
           )}
@@ -994,7 +996,7 @@ export default function MyProgressPage({
               <div className="progressKpiCard__label">{card.label}</div>
               <div className="progressKpiCard__valueWrapper">
                 <span className="progressKpiCard__value">{card.value !== null ? card.value.toFixed(1) : '—'}</span>
-                <span className="progressKpiCard__unit">/ 10</span>
+                <span className="progressKpiCard__unit">{t('myProgress.categoryScoreLabel')}</span>
               </div>
               {card.delta !== null && (
                 <div className={`progressKpiCard__delta progressKpiCard__delta--${card.delta >= 0 ? 'up' : 'down'}`}>
@@ -1010,47 +1012,59 @@ export default function MyProgressPage({
       {/* Delivery Metrics */}
       <div className="deliveryStats">
         <div className="deliveryStats__card">
-          <div className="deliveryStats__label">Speaking Rate</div>
-          <div className="deliveryStats__value">
-            {deliverySnapshot.speakingRate ? `${Math.round(deliverySnapshot.speakingRate)} wpm` : '—'}
+          <div className="deliveryStats__label">{t('myProgress.delivery.speakingRate')}</div>
+          <div className={`deliveryStats__value deliveryStats__value--pill deliveryStats__value--${deliverySnapshot.speakingRateLabel || 'none'}`}>
+            {deliverySnapshot.speakingRateLabel 
+              ? t(`myProgress.delivery.speakingRateLabels.${deliverySnapshot.speakingRateLabel}`, { defaultValue: deliverySnapshot.speakingRateLabel })
+              : '—'}
           </div>
-          <p className="deliveryStats__hint">Target 120–150 wpm</p>
+          <p className="deliveryStats__hint">
+            {deliverySnapshot.speakingRateLabel 
+              ? t(`myProgress.delivery.hints.speakingRateLabels.${deliverySnapshot.speakingRateLabel}`, { defaultValue: t('myProgress.delivery.hints.speakingRate') })
+              : t('myProgress.delivery.hints.speakingRate')}
+          </p>
         </div>
         <div className="deliveryStats__card">
-          <div className="deliveryStats__label">Filler Words</div>
-          <div className="deliveryStats__value">
-            {deliverySnapshot.fillerWords !== null ? Math.round(deliverySnapshot.fillerWords) : '—'}
+          <div className="deliveryStats__label">{t('myProgress.delivery.fillerWords')}</div>
+          <div className={`deliveryStats__value deliveryStats__value--pill deliveryStats__value--${deliverySnapshot.fillerWordLevel || 'none'}`}>
+            {deliverySnapshot.fillerWordLevel 
+              ? t(`myProgress.delivery.fillerWordLevel.${deliverySnapshot.fillerWordLevel}`, { defaultValue: deliverySnapshot.fillerWordLevel })
+              : '—'}
           </div>
-          <p className="deliveryStats__hint">Aim for fewer than 5 per session</p>
+          <p className="deliveryStats__hint">
+            {deliverySnapshot.fillerWordLevel 
+              ? t(`myProgress.delivery.hints.fillerWordLevel.${deliverySnapshot.fillerWordLevel}`, { defaultValue: t('myProgress.delivery.hints.fillerWords') })
+              : t('myProgress.delivery.hints.fillerWords')}
+          </p>
         </div>
         <div className="deliveryStats__card">
-          <div className="deliveryStats__label">Sentiment</div>
+          <div className="deliveryStats__label">{t('myProgress.delivery.sentiment')}</div>
           <div className="deliveryStats__value deliveryStats__value--pill">
             {deliverySnapshot.sentiment
-              ? deliverySnapshot.sentiment.charAt(0).toUpperCase() + deliverySnapshot.sentiment.slice(1)
+              ? t(`myProgress.moods.${deliverySnapshot.sentiment.toLowerCase()}`, deliverySnapshot.sentiment.charAt(0).toUpperCase() + deliverySnapshot.sentiment.slice(1))
               : '—'}
           </div>
-          <p className="deliveryStats__hint">Overall room energy</p>
+          <p className="deliveryStats__hint">{t('myProgress.delivery.hints.sentiment')}</p>
         </div>
         <div className="deliveryStats__card">
-          <div className="deliveryStats__label">Posture</div>
+          <div className="deliveryStats__label">{t('myProgress.delivery.posture')}</div>
           <div className="deliveryStats__value deliveryStats__value--pill">
             {deliverySnapshot.posture
-              ? deliverySnapshot.posture.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
+              ? t(`myProgress.postureLabels.${deliverySnapshot.posture.replace(/_/g, '')}`, deliverySnapshot.posture.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase()))
               : '—'}
           </div>
-          <p className="deliveryStats__hint">Camera-read posture signal</p>
+          <p className="deliveryStats__hint">{t('myProgress.delivery.hints.posture')}</p>
         </div>
       </div>
 
       {/* Trend list */}
       {trendRows.length > 0 && (
         <div className="myProgressPage__section trendSection">
-          <div className="progressSection__header">
+              <div className="progressSection__header">
             <TrendingUp size={24} className="progressSection__icon progressSection__icon--trend" />
             <div>
-              <h2 className="progressSection__title">Recent Sessions</h2>
-              <p className="progressSection__subtitle">Overall score, speaking rate, and filler control</p>
+              <h2 className="progressSection__title">{t('myProgress.recentSessionsTitle')}</h2>
+              <p className="progressSection__subtitle">{t('myProgress.recentSessionsSubtitle')}</p>
             </div>
           </div>
           <div className="trendList">
@@ -1058,19 +1072,20 @@ export default function MyProgressPage({
               const overall = parseScore(metric.overall_score);
               const prevOverall = previous ? parseScore(previous.overall_score) : null;
               const delta = overall !== null && prevOverall !== null ? overall - prevOverall : null;
-              const speakingRate = parseScore(metric.speaking_rate_wpm);
-              const fillerWords = parseScore(metric.filler_word_count);
+              const delivery = metric.delivery || {};
+              const speakingRateLabel = delivery.speaking_rate_label || metric.speaking_rate_label || null;
+              const fillerWordLevel = delivery.filler_word_level || metric.filler_word_level || null;
               const timestamp = getMetricTimestamp(metric);
 
               return (
                 <div key={`trend-${idx}`} className="trendRow">
                   <div className="trendRow__meta">
                     <span className="trendRow__date">{formatDateLabel(timestamp)}</span>
-                    <span className="trendRow__stage">{metric.stage_title || 'Session'}</span>
+                    <span className="trendRow__stage">{getStageLabel(metric.stage_title)}</span>
                   </div>
                   <div className="trendRow__metrics">
                     <div className="trendRow__metric">
-                      <span className="trendRow__metricLabel">Overall</span>
+                      <span className="trendRow__metricLabel">{t('myProgress.overallLabel')}</span>
                       <strong>{overall !== null ? overall.toFixed(1) : '—'}</strong>
                       {delta !== null && (
                         <span className={`trendRow__delta trendRow__delta--${delta >= 0 ? 'up' : 'down'}`}>
@@ -1079,12 +1094,20 @@ export default function MyProgressPage({
                       )}
                     </div>
                     <div className="trendRow__metric">
-                      <span className="trendRow__metricLabel">Speaking Rate</span>
-                      <strong>{speakingRate ? `${Math.round(speakingRate)} wpm` : '—'}</strong>
+                      <span className="trendRow__metricLabel">{t('myProgress.speakingRateLabel')}</span>
+                      <strong>
+                        {speakingRateLabel 
+                          ? t(`myProgress.delivery.speakingRateLabels.${speakingRateLabel}`, { defaultValue: speakingRateLabel })
+                          : '—'}
+                      </strong>
                     </div>
                     <div className="trendRow__metric">
-                      <span className="trendRow__metricLabel">Filler Words</span>
-                      <strong>{fillerWords !== null ? Math.round(fillerWords) : '—'}</strong>
+                      <span className="trendRow__metricLabel">{t('myProgress.fillerWordsLabel')}</span>
+                      <strong>
+                        {fillerWordLevel 
+                          ? t(`myProgress.delivery.fillerWordLevel.${fillerWordLevel}`, { defaultValue: fillerWordLevel })
+                          : '—'}
+                      </strong>
                     </div>
                   </div>
                 </div>
@@ -1098,16 +1121,16 @@ export default function MyProgressPage({
       {latestReflection && latestMetrics && (
         <div className="myProgressPage__section reflectionSection">
           <div className="reflectionCard">
-            <div className="reflectionCard__header">
+              <div className="reflectionCard__header">
               <Sparkles size={20} />
               <div>
-                <h3>Self perception vs AI</h3>
-                <p>Logged {new Date(latestReflection.created_at).toLocaleDateString()}</p>
+                <h3>{t('myProgress.selfVsAiTitle')}</h3>
+                <p>{t('myProgress.loggedDate', { date: new Date(latestReflection.created_at).toLocaleDateString(i18n.language) })}</p>
               </div>
             </div>
             <div className="reflectionCard__scores">
               <div>
-                <span>Self rating</span>
+                <span>{t('myProgress.selfRating')}</span>
                 <strong>{Number.isFinite(reflectionScore) ? reflectionScore.toFixed(1) : '—'}</strong>
                 <small>/ 5</small>
                 {normalizedReflectionScore !== null && (
@@ -1115,43 +1138,43 @@ export default function MyProgressPage({
                 )}
               </div>
               <div>
-                <span>AI overall</span>
+                <span>{t('myProgress.aiOverall')}</span>
                 <strong>{Number.isFinite(aiOverallScore) ? aiOverallScore.toFixed(1) : '—'}</strong>
                 <small>/ 10</small>
               </div>
               {reflectionDelta !== null && (
                 <div>
-                  <span>Delta</span>
+                  <span>{t('myProgress.delta')}</span>
                   <strong className={reflectionDelta >= 0 ? 'delta--positive' : 'delta--negative'}>
                     {reflectionDelta >= 0 ? '+' : ''}{reflectionDelta.toFixed(1)}
                   </strong>
                   <small>
-                    {reflectionDelta > 0 ? 'AI higher' : reflectionDelta < 0 ? 'You higher' : 'Match'}
+                    {reflectionDelta > 0 ? t('myProgress.aiHigher') : reflectionDelta < 0 ? t('myProgress.youHigher') : t('myProgress.match')}
                   </small>
                 </div>
               )}
               {reflectionTrend !== null && (
                 <div>
-                  <span>Trend</span>
+                  <span>{t('myProgress.trend')}</span>
                   <strong className={reflectionTrend >= 0 ? 'delta--positive' : 'delta--negative'}>
                     {reflectionTrend >= 0 ? '+' : ''}{reflectionTrend.toFixed(1)}
                   </strong>
-                  <small>vs previous</small>
+                  <small>{t('myProgress.vsPrevious')}</small>
                 </div>
               )}
             </div>
             {reflectionDelta !== null && Math.abs(reflectionDelta) > 1 && (
               <div className="reflectionCard__insight">
                 {reflectionDelta > 1 ? (
-                  <p>💡 <strong>Insight:</strong> The AI scored you higher than you rated yourself. You might be underestimating your performance!</p>
+                  <p>💡 <strong>{t('myProgress.insightLabel')}</strong> {t('myProgress.insightAiHigher')}</p>
                 ) : (
-                  <p>💡 <strong>Insight:</strong> You rated yourself higher than the AI. Consider focusing on the specific areas the AI identified for improvement.</p>
+                  <p>💡 <strong>{t('myProgress.insightLabel')}</strong> {t('myProgress.insightYouHigher')}</p>
                 )}
               </div>
             )}
             {latestReflection.mood_label && (
               <div className="reflectionCard__mood">
-                Mood check-in: {latestReflection.mood_label}
+                {t('myProgress.moodCheckIn', { mood: t(`myProgress.moods.${latestReflection.mood_label.toLowerCase()}`, latestReflection.mood_label) })}
               </div>
             )}
             {latestReflection.notes && (
@@ -1164,11 +1187,11 @@ export default function MyProgressPage({
       {/* Areas to Focus On - PROMINENT */}
       {weaknesses.length > 0 && (
         <div className="myProgressPage__section myProgressPage__section--focus">
-          <div className="progressSection__header">
+            <div className="progressSection__header">
             <AlertCircle size={28} className="progressSection__icon progressSection__icon--focus" />
             <div>
-              <h2 className="progressSection__title">Areas to Focus On</h2>
-              <p className="progressSection__subtitle">These parameters need your attention to improve your overall communication</p>
+              <h2 className="progressSection__title">{t('myProgress.areasToFocusTitle')}</h2>
+              <p className="progressSection__subtitle">{t('myProgress.areasToFocusSubtitle')}</p>
             </div>
           </div>
           <div className="focusGrid">
@@ -1178,7 +1201,13 @@ export default function MyProgressPage({
               );
               const param = category?.parameters.find(p => p.key === weakness.key);
               
-              const guidance = FOCUS_GUIDANCE[weakness.key] || FOCUS_GUIDANCE.default;
+              const guidance = {
+                why: t(`myProgress.guidance.${weakness.key}.why`, t('myProgress.guidance.default.why')),
+                instantTip: t(`myProgress.guidance.${weakness.key}.instantTip`, t('myProgress.guidance.default.instantTip')),
+                microPractice: t(`myProgress.guidance.${weakness.key}.microPractice`, t('myProgress.guidance.default.microPractice')),
+                practiceTime: t(`myProgress.guidance.${weakness.key}.practiceTime`, t('myProgress.guidance.default.practiceTime')),
+                trackThis: t(`myProgress.guidance.${weakness.key}.trackThis`, t('myProgress.guidance.default.trackThis'))
+              };
 
               return (
                 <div key={idx} className="focusCard">
@@ -1194,11 +1223,11 @@ export default function MyProgressPage({
                   </div>
                   <div className="focusCard__score">
                     <span className="focusCard__scoreValue">{weakness.current.toFixed(1)}</span>
-                    <span className="focusCard__scoreLabel">/ 10</span>
+                    <span className="focusCard__scoreLabel">{t('myProgress.categoryScoreLabel')}</span>
                     {weakness.isDeclining && (
                       <span className="focusCard__declining">
                         <TrendingDown size={14} />
-                        Declining
+                        {t('myProgress.decliningLabel')}
                       </span>
                     )}
                   </div>
@@ -1212,7 +1241,7 @@ export default function MyProgressPage({
                     />
                   </div>
                   <p className="focusCard__description">
-                    {generateWeaknessNarrative(param || { key: weakness.key, label: weakness.label, description: weakness.description }, weakness.current, weakness.trend)}
+                    {generateWeaknessNarrative(param || { key: weakness.key, label: weakness.label, description: weakness.description }, weakness.current, weakness.trend, t)}
                   </p>
                   <div className="focusCard__why">{guidance.why}</div>
                   
@@ -1222,7 +1251,7 @@ export default function MyProgressPage({
                     className="btn btn--primary focusCard__practiceButton"
                     onClick={() => navigate(`/practice?focus=${weakness.key}`)}
                   >
-                    Practice this
+                    {t('myProgress.practiceThis')}
                     <ArrowRight size={16} />
                   </button>
                 </div>
@@ -1239,11 +1268,13 @@ export default function MyProgressPage({
             className="progressSection__toggle"
             onClick={() => toggleSection('improvements')}
           >
-            <div className="progressSection__header">
+              <div className="progressSection__header">
               <TrendingUp size={24} className="progressSection__icon progressSection__icon--improvement" />
               <div>
-                <h2 className="progressSection__title">What's Getting Better</h2>
-                <p className="progressSection__subtitle">Your top {topImprovements.length} improving parameters</p>
+                <h2 className="progressSection__title">{t('myProgress.whatsGettingBetterTitle')}</h2>
+                <p className="progressSection__subtitle">
+                  {t('myProgress.whatsGettingBetterSubtitle', { count: topImprovements.length })}
+                </p>
               </div>
             </div>
             {expandedSections.improvements ? (
@@ -1270,18 +1301,20 @@ export default function MyProgressPage({
                       <div className="improvementCard__meta">
                         <span className="improvementCard__category">{improvement.category}</span>
                         <span className="improvementCard__label">{improvement.label}</span>
-                        <span className="improvementCard__subtext">{improvement.category} → {improvement.label}</span>
+                        <span className="improvementCard__subtext">{improvement.category} <span className="breadcrumb-separator">›</span> {improvement.label}</span>
                       </div>
                     </div>
                     <div className="improvementCard__progress">
                       <div className="improvementCard__scores">
                         <div className="improvementCard__score">
-                          <span className="improvementCard__scoreLabel">Started</span>
+                          <span className="improvementCard__scoreLabel">{t('myProgress.startedLabel')}</span>
                           <span className="improvementCard__scoreValue">{improvement.first.toFixed(1)}</span>
                         </div>
-                        <div className="improvementCard__arrow">→</div>
+                        <div className="improvementCard__arrow">
+                          <ArrowRight size={20} />
+                        </div>
                         <div className="improvementCard__score">
-                          <span className="improvementCard__scoreLabel">Now</span>
+                          <span className="improvementCard__scoreLabel">{t('myProgress.nowLabel')}</span>
                           <span className="improvementCard__scoreValue improvementCard__scoreValue--current">
                             {improvement.latest.toFixed(1)}
                           </span>
@@ -1290,12 +1323,12 @@ export default function MyProgressPage({
                       <div className="improvementCard__change">
                         <span className="improvementCard__changeValue">+{improvement.change.toFixed(1)}</span>
                         {improvement.changePercent && (
-                          <span className="improvementCard__changePercent">({improvement.changePercent}% improvement)</span>
+                          <span className="improvementCard__changePercent">{t('myProgress.improvementPercent', { percent: improvement.changePercent })}</span>
                         )}
                       </div>
                     </div>
                     <p className="improvementCard__description">
-                      {generateImprovementNarrative(param || { key: improvement.key, label: improvement.label, description: improvement.description }, improvement)}
+                      {generateImprovementNarrative(param || { key: improvement.key, label: improvement.label, description: improvement.description }, improvement, t)}
                     </p>
                   </div>
                 );
@@ -1312,11 +1345,11 @@ export default function MyProgressPage({
             className="progressSection__toggle"
             onClick={() => toggleSection('strengths')}
           >
-            <div className="progressSection__header">
+              <div className="progressSection__header">
               <Star size={24} className="progressSection__icon progressSection__icon--strength" />
               <div>
-                <h2 className="progressSection__title">Your Consistent Strengths</h2>
-                <p className="progressSection__subtitle">What makes you consistently strong</p>
+                <h2 className="progressSection__title">{t('myProgress.yourStrengthsTitle')}</h2>
+                <p className="progressSection__subtitle">{t('myProgress.yourStrengthsSubtitle')}</p>
               </div>
             </div>
             {expandedSections.strengths ? (
@@ -1332,17 +1365,17 @@ export default function MyProgressPage({
                 <div key={idx} className="strengthCard">
                   <div className="strengthCard__header">
                     <div className="strengthCard__icon" style={{ backgroundColor: `${strength.categoryColor}15`, color: strength.categoryColor }}>
-                      <CheckCircle2 size={20} />
+                      {React.createElement(CheckCircle2, { size: 20 })}
                     </div>
                     <div className="strengthCard__meta">
                       <span className="strengthCard__category">{strength.category}</span>
                       <span className="strengthCard__label">{strength.label}</span>
-                      <span className="strengthCard__subtext">{strength.category} → {strength.label}</span>
+                      <span className="strengthCard__subtext">{strength.category} <span className="breadcrumb-separator">›</span> {strength.label}</span>
                     </div>
                   </div>
                   <div className="strengthCard__score">
                     <div className="strengthCard__scoreValue">{strength.average.toFixed(1)}</div>
-                    <div className="strengthCard__scoreLabel">Average Score</div>
+                    <div className="strengthCard__scoreLabel">{t('myProgress.averageScore')}</div>
                   </div>
                   <p className="strengthCard__description">{strength.description}</p>
                 </div>
@@ -1358,11 +1391,11 @@ export default function MyProgressPage({
           className="progressSection__toggle"
           onClick={() => toggleSection('complete')}
         >
-          <div className="progressSection__header">
+              <div className="progressSection__header">
             <BarChart3 size={24} className="progressSection__icon" />
             <div>
-              <h2 className="progressSection__title">Complete Parameter Analysis</h2>
-              <p className="progressSection__subtitle">All 25 communication parameters across your journey</p>
+              <h2 className="progressSection__title">{t('myProgress.completeAnalysisTitle')}</h2>
+              <p className="progressSection__subtitle">{t('myProgress.completeAnalysisSubtitle')}</p>
             </div>
           </div>
           {expandedSections.complete ? (
@@ -1376,7 +1409,9 @@ export default function MyProgressPage({
           <div className="completeAnalysis">
             {Object.entries(PARAMETER_CATEGORIES).map(([catKey, category]) => {
               const CategoryIcon = category.icon;
-              const categoryScore = parseFloat(latestMetrics[catKey]) || 0;
+              // Map category key to metric key if different (e.g. voice -> voice_expression)
+              const metricKey = catKey === 'voice' ? 'voice_expression' : catKey;
+              const categoryScore = parseFloat(latestMetrics[metricKey]) || 0;
 
               return (
                 <div key={catKey} className="parameterCategory">
@@ -1389,7 +1424,7 @@ export default function MyProgressPage({
                         <h3 className="parameterCategory__title">{category.name}</h3>
                         <div className="parameterCategory__score">
                           <span className="parameterCategory__scoreValue">{categoryScore.toFixed(1)}</span>
-                          <span className="parameterCategory__scoreLabel">/ 10</span>
+                          <span className="parameterCategory__scoreLabel">{t('myProgress.categoryScoreLabel')}</span>
                         </div>
                       </div>
                     </div>
@@ -1409,7 +1444,7 @@ export default function MyProgressPage({
                             </div>
                             <div className="parameterCard__score">
                               <span className="parameterCard__scoreValue">{value.toFixed(1)}</span>
-                              <span className="parameterCard__scoreLabel">/ 10</span>
+                              <span className="parameterCard__scoreLabel">{t('myProgress.categoryScoreLabel')}</span>
                             </div>
                           </div>
                           
@@ -1426,7 +1461,11 @@ export default function MyProgressPage({
                           {improvement && improvement.change > 0 && (
                             <div className="parameterCard__improvement">
                               <span className="parameterCard__improvementText">
-                                From {improvement.first.toFixed(1)} to {improvement.latest.toFixed(1)} (+{improvement.change.toFixed(1)})
+                                {t('myProgress.parameterImprovement', {
+                                  first: improvement.first.toFixed(1),
+                                  latest: improvement.latest.toFixed(1),
+                                  change: improvement.change.toFixed(1)
+                                })}
                               </span>
                             </div>
                           )}

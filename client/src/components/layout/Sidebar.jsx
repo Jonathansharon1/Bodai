@@ -20,51 +20,51 @@ export default function Sidebar() {
   const location = useLocation();
   const { t } = useTranslation();
 
-  const SIDEBAR_ITEMS = [
-    {
-      id: 'home',
+const SIDEBAR_ITEMS = [
+  {
+    id: 'home',
       label: t('sidebar.home'),
-      icon: Home,
-      path: '/',
-      external: true,
-    },
-    {
-      id: 'dashboard',
+    icon: Home,
+    path: '/',
+    external: true,
+  },
+  {
+    id: 'dashboard',
       label: t('sidebar.dashboard'),
-      icon: LayoutDashboard,
-      path: 'dashboard',
-    },
-    {
-      id: 'analyses',
+    icon: LayoutDashboard,
+    path: 'dashboard',
+  },
+  {
+    id: 'analyses',
       label: t('sidebar.myAnalyses'),
-      icon: Video,
-      path: 'analyses',
-    },
-    {
-      id: 'grades',
+    icon: Video,
+    path: 'analyses',
+  },
+  {
+    id: 'grades',
       label: t('sidebar.myProgress'),
-      icon: TrendingUp,
-      path: 'grades',
-    },
-    {
-      id: 'practice',
+    icon: TrendingUp,
+    path: 'grades',
+  },
+  {
+    id: 'practice',
       label: t('sidebar.practice'),
-      icon: Target,
-      path: 'practice',
-    },
-    {
-      id: 'subscription',
+    icon: Target,
+    path: 'practice',
+  },
+  {
+    id: 'subscription',
       label: t('sidebar.subscription'),
-      icon: Gem,
-      path: 'subscription',
-    },
-    {
-      id: 'settings',
+    icon: Gem,
+    path: 'subscription',
+  },
+  {
+    id: 'settings',
       label: t('sidebar.settings'),
-      icon: Settings,
-      path: 'settings',
-    },
-  ];
+    icon: Settings,
+    path: 'settings',
+  },
+];
 
   const getActivePage = () => {
     const path = location.pathname;

@@ -1,8 +1,10 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { CheckCircle2, Lightbulb, BarChart3 } from 'lucide-react';
 import './QuickSummary.css';
 
 export default function QuickSummary({ strengths, focusAreas, metrics }) {
+  const { t } = useTranslation();
   // Get top 2 strengths
   const topStrengths = strengths?.slice(0, 2) || [];
   
@@ -58,8 +60,8 @@ export default function QuickSummary({ strengths, focusAreas, metrics }) {
             <BarChart3 size={22} />
           </div>
           <div>
-            <h3 className="quickSummary__title">Quick Summary</h3>
-            <p className="quickSummary__subtitle">Key highlights at a glance</p>
+            <h3 className="quickSummary__title">{t('analysisResult.quickSummary')}</h3>
+            <p className="quickSummary__subtitle">{t('analysisResult.quickSummarySubtitle')}</p>
           </div>
         </div>
       </div>
@@ -82,9 +84,13 @@ export default function QuickSummary({ strengths, focusAreas, metrics }) {
                 <div className="quickSummary__cardTitle">{title}</div>
                 <div className="quickSummary__cardMeta">
                   {score ? (
-                    <span className="quickSummary__cardMetric">Score {score}/10</span>
+                    <span className="quickSummary__cardMetric">
+                      {t('analysisResult.quickSummaryScore', { score })}
+                    </span>
                   ) : (
-                    <span className="quickSummary__cardMetric quickSummary__cardMetric--neutral">Keep doing this</span>
+                    <span className="quickSummary__cardMetric quickSummary__cardMetric--neutral">
+                      {t('analysisResult.quickSummaryKeepDoingThis')}
+                    </span>
                   )}
                 </div>
                 <div className="quickSummary__cardDescription">
@@ -104,21 +110,21 @@ export default function QuickSummary({ strengths, focusAreas, metrics }) {
               <Lightbulb size={24} />
             </div>
             <div className="quickSummary__cardContent">
-              <div className="quickSummary__cardTitle">
-                {typeof topOpportunity === 'string' 
-                  ? topOpportunity.split(/[.:]/)[0]?.trim() || topOpportunity.substring(0, 40)
-                  : topOpportunity.title || 'Improvement Opportunity'}
-              </div>
+                  <div className="quickSummary__cardTitle">
+                    {typeof topOpportunity === 'string' 
+                      ? topOpportunity.split(/[.:]/)[0]?.trim() || topOpportunity.substring(0, 40)
+                      : topOpportunity.title || t('analysisResult.quickSummaryOpportunityTitle')}
+                  </div>
               <div className="quickSummary__cardMeta">
                 {(() => {
                   const score = getScoreForItem(topOpportunity);
                   return score ? (
                     <span className="quickSummary__cardMetric quickSummary__cardMetric--opportunity">
-                      Current {score}/10
+                      {t('analysisResult.quickSummaryCurrentScore', { score })}
                     </span>
                   ) : (
                     <span className="quickSummary__cardMetric quickSummary__cardMetric--opportunity">
-                      Priority focus
+                      {t('analysisResult.quickSummaryPriorityFocus')}
                     </span>
                   );
                 })()}

@@ -1,8 +1,10 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Sparkles, TrendingUp } from 'lucide-react';
 import './TopStrengthCard.css';
 
 export default function TopStrengthCard({ strength, score, category }) {
+  const { t } = useTranslation();
   if (!strength) return null;
 
   const strengthText = typeof strength === 'string' ? strength : strength.title || strength;
@@ -22,7 +24,7 @@ export default function TopStrengthCard({ strength, score, category }) {
         <div className="topStrengthCard__icon">
           <Sparkles size={24} />
         </div>
-        <h3 className="topStrengthCard__title">Your Strongest Point</h3>
+        <h3 className="topStrengthCard__title">{t('analysisResult.topCards.strongestPoint')}</h3>
       </div>
 
       <div className="topStrengthCard__content">
@@ -42,7 +44,7 @@ export default function TopStrengthCard({ strength, score, category }) {
 
         {!description && (
           <p className="topStrengthCard__encouragement">
-            This is one of your strongest communication skills. Keep it up!
+            {t('analysisResult.topCards.strongestEncouragement')}
           </p>
         )}
 

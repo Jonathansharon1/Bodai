@@ -1,16 +1,7 @@
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { TrendingUp, TrendingDown, Minus, Calendar, ChevronDown, ChevronUp, Trophy } from 'lucide-react';
 import './BeforeAfterComparison.css';
-
-const METRIC_LABELS = {
-  overall_score: 'Overall Score',
-  presence: 'Presence',
-  voice_expression: 'Voice',
-  clarity: 'Clarity',
-  authenticity: 'Authenticity',
-  impact: 'Impact',
-  confidence: 'Confidence'
-};
 
 const METRIC_ORDER = ['overall_score', 'presence', 'voice_expression', 'clarity', 'authenticity', 'impact', 'confidence'];
 
@@ -19,7 +10,18 @@ export default function BeforeAfterComparison({
   latestAnalysis,
   allMetrics = []
 }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
+
+  const METRIC_LABELS = {
+    overall_score: t('parameters.metrics.overallScore'),
+    presence: t('parameters.metrics.presence'),
+    voice_expression: t('parameters.metrics.voice'),
+    clarity: t('parameters.metrics.clarity'),
+    authenticity: t('parameters.metrics.authenticity'),
+    impact: t('parameters.metrics.impact'),
+    confidence: t('parameters.metrics.confidence')
+  };
 
   // Calculate comparison data
   const comparisonData = useMemo(() => {

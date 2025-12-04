@@ -1,59 +1,63 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Brain, Eye, Smile, Hand, TrendingUp } from 'lucide-react';
 
+// Facts shown in the loading view while analysis runs
 const BODY_LANGUAGE_FACTS = [
   {
     icon: Eye,
-    text: "Eye contact for 60-70% of a conversation shows confidence and engagement.",
-    color: "#46B5D1"
+    key: 'eyeContact',
+    color: '#46B5D1'
   },
   {
     icon: Smile,
-    text: "A genuine smile uses both the mouth and eyes, creating 'crow's feet' wrinkles.",
-    color: "#46B5D1"
+    key: 'genuineSmile',
+    color: '#46B5D1'
   },
   {
     icon: Hand,
-    text: "Open palm gestures signal honesty and openness, while closed fists may indicate tension.",
-    color: "#46B5D1"
+    key: 'openPalms',
+    color: '#46B5D1'
   },
   {
     icon: Brain,
-    text: "Mirroring someone's body language builds rapport and connection subconsciously.",
-    color: "#2563eb"
+    key: 'mirroring',
+    color: '#2563eb'
   },
   {
     icon: TrendingUp,
-    text: "Upright posture with shoulders back increases perceived confidence by 40%.",
-    color: "#46B5D1"
+    key: 'uprightPosture',
+    color: '#46B5D1'
   },
   {
     icon: Eye,
-    text: "People who maintain eye contact are perceived as more trustworthy and competent.",
-    color: "#46B5D1"
+    key: 'trustEyeContact',
+    color: '#46B5D1'
   },
   {
     icon: Hand,
-    text: "Hand gestures can increase audience retention by up to 60% in presentations.",
-    color: "#2563eb"
+    key: 'handGestures',
+    color: '#2563eb'
   },
   {
     icon: Smile,
-    text: "Smiling releases endorphins and can actually make you feel happier, not just appear happier.",
-    color: "#46B5D1"
+    key: 'smiling',
+    color: '#46B5D1'
   }
 ];
 
+// Background processing steps shown under the progress bar
 const PROCESSING_STEPS = [
-  { label: 'Uploading video...', duration: 5 },
-  { label: 'Analyzing video...', duration: 20 },
-  { label: 'Detecting body language and gestures...', duration: 15 },
-  { label: 'Analyzing voice and speech patterns...', duration: 15 },
-  { label: 'Generating personalized insights...', duration: 10 },
-  { label: 'Almost done!', duration: 5 }
+  { key: 'uploading', duration: 5 },
+  { key: 'analyzing', duration: 20 },
+  { key: 'detectingBodyLanguage', duration: 15 },
+  { key: 'analyzingVoice', duration: 15 },
+  { key: 'generatingInsights', duration: 10 },
+  { key: 'almostDone', duration: 5 }
 ];
 
 export default function LoadingView({ active = true }) {
+  const { t } = useTranslation();
   const [currentStep, setCurrentStep] = useState(0);
   const [factIndex, setFactIndex] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -121,10 +125,10 @@ export default function LoadingView({ active = true }) {
       <div className="loadingView__container">
         {/* Main Title */}
         <h2 className="loadingView__mainTitle">
-          Running your body-language assessment
+          {t('analysisResult.analyzing')}
         </h2>
         <p className="loadingView__subtitle">
-          We’re evaluating movement, eye contact, pacing, and presence signals from your recording.
+          {t('loadingView.subtitle')}
         </p>
 
         {/* Progress Bar */}
@@ -139,7 +143,7 @@ export default function LoadingView({ active = true }) {
 
         {/* Current Step */}
         <p className="loadingView__currentStep">
-          {PROCESSING_STEPS[currentStep].label}
+          {t(`loadingView.steps.${PROCESSING_STEPS[currentStep].key}`)}
         </p>
 
         {/* Fun Fact Section */}
@@ -148,14 +152,16 @@ export default function LoadingView({ active = true }) {
             <div className="loadingView__factIcon" style={{ color: currentFact.color }}>
               <IconComponent size={48} />
             </div>
-            <p className="loadingView__factText">{currentFact.text}</p>
+            <p className="loadingView__factText">
+              {t(`loadingView.facts.${currentFact.key}`)}
+            </p>
           </div>
         </div>
 
         {/* Time Estimate */}
         <div className="loadingView__timeEstimate">
           <p className="loadingView__timeText">
-            Usually takes <strong>1-2 minutes</strong>
+            {t('loadingView.timeEstimate', { minutes: '1–2' })}
           </p>
         </div>
 

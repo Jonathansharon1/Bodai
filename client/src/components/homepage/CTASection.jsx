@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ArrowRight, Rocket } from 'lucide-react';
 import './CTASection.css';
 
 export default function CTASection({ isSignedIn = false }) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const sectionRef = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -37,12 +39,12 @@ export default function CTASection({ isSignedIn = false }) {
             <Rocket size={48} />
           </div>
           <h2 className="ctaSection__title">
-            {isSignedIn ? "Ready for Your Next Practice Session?" : "Ready to Transform Your Communication?"}
+            {isSignedIn ? t('marketing.cta.titleSignedIn') : t('marketing.cta.titleNotSignedIn')}
           </h2>
           <p className="ctaSection__subtitle">
             {isSignedIn 
-              ? "Keep improving your communication skills. Upload a new video analysis or check your progress."
-              : "Join hundreds of users who are already improving their body language and communication skills with BodAI."
+              ? t('marketing.cta.subtitleSignedIn')
+              : t('marketing.cta.subtitleNotSignedIn')
             }
           </p>
           <div className="ctaSection__actions">
@@ -52,30 +54,30 @@ export default function CTASection({ isSignedIn = false }) {
                   className="btn btn--primary ctaSection__button"
                   onClick={() => navigate('/new-analysis')}
                 >
-                  Start New Analysis
+                  {t('marketing.cta.ctaSignedIn')}
                   <ArrowRight size={20} />
                 </button>
                 <button 
                   className="btn btn--ghost ctaSection__button"
                   onClick={() => navigate('/dashboard')}
                 >
-                  Go to Dashboard
+                  {t('marketing.cta.secondarySignedIn')}
                 </button>
               </>
             ) : (
               <>
                 <Link to="/sign-up" className="btn btn--primary ctaSection__button">
-                  Get Started Free
+                  {t('marketing.cta.ctaNotSignedIn')}
                   <ArrowRight size={20} />
                 </Link>
                 <Link to="/pricing" className="btn btn--ghost ctaSection__button">
-                  View Pricing
+                  {t('marketing.cta.secondaryNotSignedIn')}
                 </Link>
               </>
             )}
           </div>
           {!isSignedIn && (
-            <p className="ctaSection__micro">No credit card required • Cancel anytime</p>
+            <p className="ctaSection__micro">{t('marketing.cta.micro')}</p>
           )}
         </div>
       </div>

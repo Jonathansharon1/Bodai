@@ -1,17 +1,25 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import './PricingCard.css';
 
 export default function PricingCard({ plan, billingPeriod, onSelect, isSignedIn }) {
+  const { t } = useTranslation();
   const displayPrice =
     plan.price === 0 ? 0 : billingPeriod === 'yearly' ? plan.priceYearly : plan.price;
-  const billingText =
-    plan.price === 0
-      ? 'No credit card required'
-      : billingPeriod === 'yearly'
-        ? `${plan.period.replace('per month', '')} billed yearly`
-        : 'Billed monthly';
+  
+  const getBillingText = () => {
+    if (plan.price === 0) {
+      return t('pricing.plans.free.billingText');
+    }
+    const planKey = plan.id === 'starter' ? 'starter' : plan.id === 'executive' ? 'executive' : 'pro';
+    return billingPeriod === 'yearly' 
+      ? t(`pricing.plans.${planKey}.billingYearly`)
+      : t(`pricing.plans.${planKey}.billingMonthly`);
+  };
+  
+  const billingText = getBillingText();
 
   const handleClick = () => {
     if (isSignedIn) {
@@ -39,7 +47,7 @@ export default function PricingCard({ plan, billingPeriod, onSelect, isSignedIn 
       {plan.recommended && (
         <div className="pricingCard__badge">
           <Sparkles size={14} />
-          <span>Recommended</span>
+          <span>{t('pricing.recommended')}</span>
         </div>
       )}
       <div className="pricingCard__shell">
@@ -81,7 +89,7 @@ export default function PricingCard({ plan, billingPeriod, onSelect, isSignedIn 
             </Link>
           )}
           {plan.price > 0 && (
-            <p className="pricingCard__note">Cancel anytime—your progress stays saved.</p>
+            <p className="pricingCard__note">{t('pricing.cancelNote')}</p>
           )}
         </div>
       </div>

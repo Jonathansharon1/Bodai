@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
   -- Onboarding questions data
   primary_goal TEXT, -- e.g., 'confidence', 'interview', 'presentation'
   confidence_level TEXT, -- e.g., 'very-high', 'high', 'medium', 'low', 'very-low'
+  include_environment_feedback BOOLEAN DEFAULT true, -- Whether to include background/camera feedback in analysis
   onboarding_completed_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -115,6 +116,14 @@ CREATE TABLE IF NOT EXISTS communication_metrics (
   confidence_physical_tension NUMERIC(4,1) CHECK (confidence_physical_tension BETWEEN 0 AND 10),
   confidence_vocal_stability NUMERIC(4,1) CHECK (confidence_vocal_stability BETWEEN 0 AND 10),
   confidence_comfort_level NUMERIC(4,1) CHECK (confidence_comfort_level BETWEEN 0 AND 10),
+  
+  -- Delivery Metrics
+  speaking_rate_wpm NUMERIC,
+  filler_word_count INTEGER,
+  speaking_rate_label TEXT,
+  filler_word_level TEXT,
+  sentiment_label TEXT,
+  posture_flag TEXT,
   
   -- Structured data
   sub_scores JSONB, -- All sub-scores in structured format

@@ -1,71 +1,73 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Sparkles, Zap, Shield, Rocket, Star, Quote, Users, TrendingUp, Award } from 'lucide-react';
 import './SocialProofSection.css';
 
-const highlights = [
-  {
-    icon: Sparkles,
-    title: 'AI-Powered Precision',
-    description: 'Cutting-edge AI analyzes 25+ communication parameters in real-time, giving you insights that would take hours with a human coach.',
-    gradient: 'linear-gradient(135deg, #06B6D4 0%, #3B82F6 100%)'
-  },
-  {
-    icon: Zap,
-    title: 'Instant Feedback',
-    description: 'Get detailed analysis within seconds. No waiting, no scheduling. Just upload and improve immediately.',
-    gradient: 'linear-gradient(135deg, #F59E0B 0%, #EF4444 100%)'
-  },
-  {
-    icon: Shield,
-    title: 'Privacy First',
-    description: 'Your videos are analyzed securely. We use enterprise-grade encryption and never share your data.',
-    gradient: 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
-  },
-  {
-    icon: Rocket,
-    title: 'Continuous Improvement',
-    description: 'Track your progress across every session. See exactly how you\'re improving with detailed metrics and trends.',
-    gradient: 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)'
-  }
-];
-
-const TESTIMONIALS = [
-  {
-    id: 1,
-    name: 'Sarah M.',
-    role: 'Marketing Manager',
-    text: 'I was nervous about my first big presentation. After just 3 sessions with BodAI, I felt so much more confident. My team noticed the difference immediately!',
-    improvement: '+21.3 score',
-    rating: 5
-  },
-  {
-    id: 2,
-    name: 'David L.',
-    role: 'Software Engineer',
-    text: 'The instant feedback on my body language was eye-opening. I had no idea I was touching my face so much. Small changes, big impact.',
-    improvement: '+47% confidence',
-    rating: 5
-  },
-  {
-    id: 3,
-    name: 'Emily R.',
-    role: 'Sales Executive',
-    text: 'I use BodAI before every important client call. The practice prompts are perfect for quick warm-ups.',
-    improvement: '+4.1 presence',
-    rating: 5
-  }
-];
-
-const STATS = [
-  { label: 'Active Users', value: '500+', icon: Users },
-  { label: 'Videos Analyzed', value: '2000+', icon: TrendingUp },
-  { label: 'Avg. Improvement', value: '+58%', icon: Award }
-];
-
 export default function SocialProofSection() {
+  const { t } = useTranslation();
   const sectionRef = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
   const [activeTestimonial, setActiveTestimonial] = useState(0);
+
+  const highlights = useMemo(() => [
+    {
+      icon: Sparkles,
+      title: t('marketing.socialProof.aiPrecision.title'),
+      description: t('marketing.socialProof.aiPrecision.description'),
+      gradient: 'linear-gradient(135deg, #06B6D4 0%, #3B82F6 100%)'
+    },
+    {
+      icon: Zap,
+      title: t('marketing.socialProof.instantFeedback.title'),
+      description: t('marketing.socialProof.instantFeedback.description'),
+      gradient: 'linear-gradient(135deg, #F59E0B 0%, #EF4444 100%)'
+    },
+    {
+      icon: Shield,
+      title: t('marketing.socialProof.privacy.title'),
+      description: t('marketing.socialProof.privacy.description'),
+      gradient: 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
+    },
+    {
+      icon: Rocket,
+      title: t('marketing.socialProof.improvement.title'),
+      description: t('marketing.socialProof.improvement.description'),
+      gradient: 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)'
+    }
+  ], [t]);
+
+  const TESTIMONIALS = useMemo(() => [
+    {
+      id: 1,
+      name: 'Sarah M.',
+      role: t('marketing.socialProof.testimonials.sarah.role'),
+      text: t('marketing.socialProof.testimonials.sarah.text'),
+      improvement: t('marketing.socialProof.testimonials.sarah.improvement'),
+      rating: 5
+    },
+    {
+      id: 2,
+      name: 'David L.',
+      role: t('marketing.socialProof.testimonials.david.role'),
+      text: t('marketing.socialProof.testimonials.david.text'),
+      improvement: t('marketing.socialProof.testimonials.david.improvement'),
+      rating: 5
+    },
+    {
+      id: 3,
+      name: 'Emily R.',
+      role: t('marketing.socialProof.testimonials.emily.role'),
+      text: t('marketing.socialProof.testimonials.emily.text'),
+      improvement: t('marketing.socialProof.testimonials.emily.improvement'),
+      rating: 5
+    }
+  ], [t]);
+
+  const STATS = useMemo(() => [
+    { label: t('marketing.socialProof.stats.activeUsers'), value: '500+', icon: Users },
+    { label: t('marketing.socialProof.stats.videosAnalyzed'), value: '2000+', icon: TrendingUp },
+    { label: t('marketing.socialProof.stats.avgImprovement'), value: '+58%', icon: Award }
+  ], [t]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -94,7 +96,7 @@ export default function SocialProofSection() {
       setActiveTestimonial((prev) => (prev + 1) % TESTIMONIALS.length);
     }, 5000);
     return () => clearInterval(timer);
-  }, []);
+  }, [TESTIMONIALS.length]);
 
   return (
     <section ref={sectionRef} className={`socialProofSection ${isVisible ? 'socialProofSection--visible' : ''}`}>
@@ -114,7 +116,7 @@ export default function SocialProofSection() {
 
         {/* Testimonials */}
         <div className={`socialProofSection__testimonials ${isVisible ? 'socialProofSection__testimonials--visible' : ''}`}>
-          <h2 className="socialProofSection__testimonialsTitle">Real Results from Real People</h2>
+          <h2 className="socialProofSection__testimonialsTitle">{t('marketing.socialProof.testimonialsTitle')}</h2>
           
           <div className="socialProofSection__carousel">
             <div 
@@ -171,10 +173,10 @@ export default function SocialProofSection() {
 
         <div className="socialProofSection__header">
           <h2 className="socialProofSection__title">
-            Built for people Who Demand Excellence
+            {t('marketing.socialProof.highlightsTitle')}
           </h2>
           <p className="socialProofSection__subtitle">
-            Experience the future of communication coaching. BodAI is powered by advanced AI, designed for real results.
+            {t('marketing.socialProof.highlightsSubtitle')}
           </p>
         </div>
 

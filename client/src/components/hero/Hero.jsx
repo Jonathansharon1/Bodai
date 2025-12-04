@@ -1,10 +1,12 @@
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ArrowRight } from 'lucide-react';
 import './Hero.css';
 
 export default function Hero({ isSignedIn = false, onNewAnalysis }) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const handleCTAClick = (e) => {
     if (isSignedIn) {
@@ -29,13 +31,13 @@ export default function Hero({ isSignedIn = false, onNewAnalysis }) {
         <div className="hero__content">
 
           <h1 className="hero__title">
-            <span className="hero__titleLine1">Every Gesture Tells a Story.</span>
-            <span className="hero__titleLine2">Make Yours Unforgettable.</span>
+            <span className="hero__titleLine1">{t('marketing.hero.titleLine1')}</span>
+            <span className="hero__titleLine2">{t('marketing.hero.titleLine2')}</span>
           </h1>
           <p className="hero__subtitle">
             {isSignedIn
-              ? "Continue your journey to confident communication. Upload a new video to track your progress."
-              : "Master the art of confident communication with AI-guided video feedback. Transform how you present yourself in every interaction."
+              ? t('marketing.hero.subtitleSignedIn')
+              : t('marketing.hero.subtitleNotSignedIn')
             }
           </p>
           <div className="hero__actions">
@@ -44,20 +46,20 @@ export default function Hero({ isSignedIn = false, onNewAnalysis }) {
                 className="hero__cta"
                 onClick={handleCTAClick}
               >
-                <span>Start New Analysis</span>
+                <span>{t('marketing.hero.ctaSignedIn')}</span>
                 <ArrowRight size={18} strokeWidth={2.5} />
                 <div className="hero__ctaGlow" />
               </button>
             ) : (
               <Link to="/sign-up" className="hero__cta">
-                <span>Get Started Free</span>
+                <span>{t('marketing.hero.ctaNotSignedIn')}</span>
                 <ArrowRight size={18} strokeWidth={2.5} />
                 <div className="hero__ctaGlow" />
               </Link>
             )}
           </div>
           {!isSignedIn && (
-            <p className="hero__micro">No credit card required · Start improving today</p>
+            <p className="hero__micro">{t('marketing.hero.micro')}</p>
           )}
         </div>
 
@@ -86,23 +88,23 @@ export default function Hero({ isSignedIn = false, onNewAnalysis }) {
           {/* Pose Tracking Markers */}
           <div className="hero__marker hero__marker--head">
             <div className="hero__markerBracket" />
-            <span className="hero__markerLabel">Posture 94%</span>
+            <span className="hero__markerLabel">{t('marketing.hero.markerPosture', { score: 94 })}</span>
           </div>
           <div className="hero__marker hero__marker--shoulderL">
             <div className="hero__markerBracket" />
-            <span className="hero__markerLabel hero__markerLabel--left">Confidence 91%</span>
+            <span className="hero__markerLabel hero__markerLabel--left">{t('marketing.hero.markerConfidence', { score: 91 })}</span>
           </div>
           <div className="hero__marker hero__marker--shoulderR">
             <div className="hero__markerBracket" />
-            <span className="hero__markerLabel">Eye Contact 89%</span>
+            <span className="hero__markerLabel">{t('marketing.hero.markerEyeContact', { score: 89 })}</span>
           </div>
           <div className="hero__marker hero__marker--handL">
             <div className="hero__markerBracket" />
-            <span className="hero__markerLabel hero__markerLabel--left">Gestures 87%</span>
+            <span className="hero__markerLabel hero__markerLabel--left">{t('marketing.hero.markerGestures', { score: 87 })}</span>
           </div>
           <div className="hero__marker hero__marker--handR">
             <div className="hero__markerBracket" />
-            <span className="hero__markerLabel">Energy 92%</span>
+            <span className="hero__markerLabel">{t('marketing.hero.markerEnergy', { score: 92 })}</span>
           </div>
 
           <img

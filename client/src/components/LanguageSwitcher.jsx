@@ -71,12 +71,14 @@ export default function LanguageSwitcher({ showLabel = false, className = '' }) 
 
   const currentLanguage = i18n.language;
 
+  const { t } = useTranslation();
+
   return (
     <div className={`languageSwitcher ${className}`}>
       {showLabel && (
         <span className="languageSwitcher__label">
           <Globe size={16} />
-          <span>Language</span>
+          <span>{t('header.language.label')}</span>
         </span>
       )}
       <div className="languageSwitcher__options">

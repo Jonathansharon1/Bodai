@@ -1,21 +1,5 @@
 import React from 'react';
-
-const formatGoalLabel = (slug) => {
-  const labels = {
-    confidence: 'Build Confidence',
-    content: 'Content Creator',
-    presentation: 'Presentation Skills',
-    communication: 'Better Communication',
-    leadership: 'Executive Presence',
-    dating: 'Dating & Romantic',
-    social: 'Social Confidence',
-    general: 'General Improvement',
-    interview: 'Job Interviews',
-    sales: 'Face-to-face Sales'
-  };
-  if (!slug) return 'Journey';
-  return labels[slug] || slug.charAt(0).toUpperCase() + slug.slice(1);
-};
+import { useTranslation } from 'react-i18next';
 
 export default function JourneySwitcher({
   journeys = [],
@@ -25,12 +9,30 @@ export default function JourneySwitcher({
   onAddJourney,
   className = ''
 }) {
+  const { t } = useTranslation();
   const containerClass = className?.trim() || 'dashboard__journeyTabs';
+
+  // Re-implement formatGoalLabel using i18n
+  const getGoalLabel = (slug) => {
+    const goalMap = {
+      'confidence': t('myProgress.goals.confidence', 'Build Confidence'),
+      'content': t('myProgress.goals.content', 'Content Creator'),
+      'presentation': t('myProgress.goals.presentation', 'Presentation Skills'),
+      'leadership': t('myProgress.goals.leadership', 'Executive Presence'),
+      'interview': t('myProgress.goals.interview', 'Job Interviews'),
+      'sales': t('myProgress.goals.sales', 'Face-to-face Sales'),
+      'dating': t('myProgress.goals.dating', 'Dating & Romantic'),
+      'social': t('myProgress.goals.social', 'Social Confidence'),
+      'general': t('myProgress.goals.general', 'General Improvement')
+    };
+    if (!slug) return t('dashboard.journey', 'Journey');
+    return goalMap[slug] || slug.charAt(0).toUpperCase() + slug.slice(1);
+  };
 
   if (journeysLoading) {
     return (
       <div className={containerClass}>
-        <div className="journeyTabs__loading">Loading journeys…</div>
+        <div className="journeyTabs__loading">{t('common.buttons.loading', 'Loading...')}</div>
       </div>
     );
   }
@@ -40,9 +42,9 @@ export default function JourneySwitcher({
       <div className={containerClass}>
         <div className="journeyTabs__empty">
           <div>
-            <p className="journeyTabs__emptyTitle">No journeys yet</p>
+            <p className="journeyTabs__emptyTitle">{t('myAnalyses.emptyTitle', 'No journeys yet')}</p>
             <p className="journeyTabs__emptySubtitle">
-              Choose a journey (presentations, confidence, interviews, and more) to get personalized coaching.
+              {t('myAnalyses.emptyDescription', 'Choose a journey to get personalized coaching.')}
             </p>
           </div>
           {onAddJourney && (
@@ -51,7 +53,7 @@ export default function JourneySwitcher({
               className="btn btn--primary"
               onClick={onAddJourney}
             >
-              Start Your First Journey
+              {t('dashboard.newJourney', 'Start Your First Journey')}
             </button>
           )}
         </div>
@@ -62,7 +64,11 @@ export default function JourneySwitcher({
   return (
     <div className={containerClass}>
       {journeys.map((journey) => {
-        const label = journey.display_name || journey.focus_label || formatGoalLabel(journey.focus_slug);
+        // Use translated label if available via goal slug map, fallback to db values
+        const label = journey.focus_slug 
+          ? getGoalLabel(journey.focus_slug) 
+          : (journey.display_name || journey.focus_label);
+          
         return (
           <button
             key={journey.id}
@@ -71,7 +77,6 @@ export default function JourneySwitcher({
             onClick={() => journey.id !== activeJourneyId && onSelectJourney?.(journey.id)}
           >
             <span className="journeyTab__title">{label}</span>
-   
           </button>
         );
       })}
@@ -81,11 +86,9 @@ export default function JourneySwitcher({
           className="journeyTab journeyTab--add"
           onClick={onAddJourney}
         >
-          + New Journey
+          + {t('dashboard.newJourney', 'New Journey')}
         </button>
       )}
     </div>
   );
 }
-
-

@@ -7,6 +7,11 @@
   position: relative;
 }
 
+[dir="rtl"] .dashboardLayout {
+  margin-left: 0;
+  margin-right: 280px;
+}
+
 /* Animated Background */
 .dashboard {
   padding: 40px;
@@ -27,6 +32,11 @@
   z-index: 0;
 }
 
+[dir="rtl"] .dashboard::before {
+  right: auto;
+  left: 0;
+}
+
 .dashboard::after {
   content: '';
   position: fixed;
@@ -37,6 +47,11 @@
   background: radial-gradient(circle, rgba(139, 92, 246, 0.05) 0%, transparent 70%);
   pointer-events: none;
   z-index: 0;
+}
+
+[dir="rtl"] .dashboard::after {
+  left: auto;
+  right: 280px;
 }
 
 /* Header */
@@ -156,7 +171,7 @@
   flex-direction: column;
   gap: 16px;
   margin-bottom: 32px;
-  text-align: left;
+  text-align: start;
 }
 
 .dashboard__welcomeStep {
@@ -173,6 +188,14 @@
 .dashboard__welcomeStep:hover {
   border-color: rgba(37, 99, 235, 0.2);
   transform: translateX(4px);
+}
+
+[dir="rtl"] .dashboard__welcomeStep {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .dashboard__welcomeStep:hover {
+  transform: translateX(-4px);
 }
 
 .dashboard__stepNumber {
@@ -371,6 +394,10 @@
   overflow: hidden;
 }
 
+[dir="rtl"] .profileCard {
+  flex-direction: row; /* Keep row layout, let browser flip content */
+}
+
 .profileCard::before {
   content: '';
   position: absolute;
@@ -381,6 +408,11 @@
   background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
   border-radius: 50%;
   pointer-events: none;
+}
+
+[dir="rtl"] .profileCard::before {
+  right: auto;
+  left: -20%;
 }
 
 .profileCard__score {
@@ -398,6 +430,10 @@
   justify-content: center;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+[dir="rtl"] .profileCard__scoreValue {
+  flex-direction: row-reverse; /* Ensure score number is read correctly if mixed */
 }
 
 .profileCard__trend {
@@ -501,6 +537,10 @@
   border: 1px solid rgba(37, 99, 235, 0.1);
 }
 
+[dir="rtl"] .chartCard__summary {
+  text-align: left;
+}
+
 .chartCard__summaryLabel {
   font-size: 12px;
   color: #64748b;
@@ -574,6 +614,11 @@
   padding: 2px 8px;
   border-radius: 6px;
   display: inline-block;
+}
+
+[dir="rtl"] .chartTooltip__change {
+  margin-left: 0;
+  margin-right: 18px;
 }
 
 .chartTooltip__change.positive {
@@ -697,6 +742,11 @@
   background: #f8fafc;
   border-radius: 14px;
   border-left: 3px solid #2563eb;
+}
+
+[dir="rtl"] .journalCard__item {
+  border-left: none;
+  border-right: 3px solid #2563eb;
 }
 
 .journalCard__itemText {
@@ -873,6 +923,11 @@
   gap: 6px;
   box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
   z-index: 1;
+}
+
+[dir="rtl"] .nextActionCard__priorityBadge {
+  left: auto;
+  right: 28px;
 }
 
 .nextActionCard__header {
@@ -1262,6 +1317,11 @@
   border-left: 3px solid #2563eb;
 }
 
+[dir="rtl"] .chartCard__explanation {
+  border-left: none;
+  border-right: 3px solid #2563eb;
+}
+
 .chartCard__explanationText {
   font-size: 13px;
   color: #64748b;
@@ -1286,12 +1346,20 @@
     margin-left: 0;
   }
 
+  [dir="rtl"] .dashboardLayout {
+    margin-right: 0;
+  }
+
   .dashboard {
     padding: 24px 16px;
   }
   
   .dashboard::after {
     left: 0;
+  }
+
+  [dir="rtl"] .dashboard::after {
+    right: 0;
   }
 
   .dashboard__headerContent {
@@ -1339,7 +1407,7 @@
 
   .chartCard__summary {
     width: 100%;
-    text-align: left;
+    text-align: start;
   }
 
   .chartCard__improvementsGrid {

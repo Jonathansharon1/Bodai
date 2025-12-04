@@ -80,43 +80,49 @@ const parseAnalysisText = (markdown) => {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
 
-    // Detect section headers
-    if ((line.includes('Key Strengths') || line.includes('🎯')) && (line.includes('**') || line.match(/^##?/))) {
+    // Detect section headers (English primary, Hebrew fallback)
+    // Key Strengths / חוזקות מרכזיות
+    if ((line.includes('Key Strengths') || line.includes('חוזקות מרכזיות') || line.includes('🎯')) && (line.includes('**') || line.match(/^##?/))) {
       savePreviousSection();
       currentSection = 'strengths';
       currentContent = [];
       continue;
     }
 
-    if ((line.includes('Focus Areas') || line.includes('💡')) && (line.includes('**') || line.match(/^##?/))) {
+    // Focus Areas / נקודות לשיפור / אזורי מיקוד
+    if ((line.includes('Focus Areas') || line.includes('נקודות לשיפור') || line.includes('אזורי מיקוד') || line.includes('💡')) && (line.includes('**') || line.match(/^##?/))) {
       savePreviousSection();
       currentSection = 'focus';
       currentContent = [];
       continue;
     }
 
-    if ((line.includes('Communication Tips') || line.includes('🗣')) && (line.includes('**') || line.match(/^##?/))) {
+    // Communication Tips / טיפים לתקשורת
+    if ((line.includes('Communication Tips') || line.includes('טיפים לתקשורת') || line.includes('🗣')) && (line.includes('**') || line.match(/^##?/))) {
       savePreviousSection();
       currentSection = 'communication';
       currentContent = [];
       continue;
     }
 
-    if ((line.includes('Body Language Tips') || line.includes('🧍')) && (line.includes('**') || line.match(/^##?/))) {
+    // Body Language Tips / טיפים לשפת גוף
+    if ((line.includes('Body Language Tips') || line.includes('טיפים לשפת גוף') || line.includes('🧍')) && (line.includes('**') || line.match(/^##?/))) {
       savePreviousSection();
       currentSection = 'bodyLanguage';
       currentContent = [];
       continue;
     }
 
-    if ((line.includes('Recording Note') || line.includes('📹')) && (line.includes('**') || line.match(/^##?/))) {
+    // Recording Note / הערה על ההקלטה
+    if ((line.includes('Recording Note') || line.includes('הערה על ההקלטה') || line.includes('📹')) && (line.includes('**') || line.match(/^##?/))) {
       savePreviousSection();
       currentSection = 'recording';
       currentContent = [];
       continue;
     }
 
-    if ((line.includes('Quick Wins') || line.includes('💬') || line.includes('⚡')) && (line.includes('**') || line.match(/^##?/))) {
+    // Quick Wins / ניצחונות מהירים
+    if ((line.includes('Quick Wins') || line.includes('ניצחונות מהירים') || line.includes('💬') || line.includes('⚡')) && (line.includes('**') || line.match(/^##?/))) {
       savePreviousSection();
       currentSection = 'quick';
       currentContent = [];
@@ -167,51 +173,181 @@ const parseTipItems = (text) => {
   const items = [];
   const lines = text.split('\n');
   let currentTip = null;
+  let pendingContent = [];
 
-  for (const line of lines) {
+  // Helper to extract text after label
+  const extractAfterLabel = (text, patterns) => {
+    for (const pattern of patterns) {
+      const match = text.match(new RegExp(`^${pattern}[:\\s-]+(.+)$`, 'i'));
+      if (match) {
+        return match[1].trim();
+      }
+    }
+    return null;
+  };
+
+  // Patterns for "What to practice" in multiple languages/variations
+  const whatToPracticePatterns = [
+    'What to practice',
+    'מה לתרגל',
+    'איך לתרגל',
+    'על מה להתאמן',
+    'מה כדאי לתרגל',
+    'מה כדאי לשנות',
+    'איך לשפר',
+    'במה להתמקד',
+    'מה לעשות',
+    'מה לתרגל:',
+    'מה לתרגל -'
+  ];
+
+  // Patterns for "Why it matters" in multiple languages/variations
+  const whyItMattersPatterns = [
+    'Why it matters',
+    'למה זה חשוב',
+    'החשיבות',
+    'למה זה קריטי',
+    'למה זה משנה',
+    'הערך המוסף',
+    'למה זה רלוונטי',
+    'למה זה חשוב:',
+    'למה זה חשוב -'
+  ];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     const cleaned = line.trim();
-    if (!cleaned) continue;
+    if (!cleaned) {
+      // Empty line - if we have pending content, try to process it
+      if (pendingContent.length > 0 && currentTip) {
+        // Try to parse pending content
+        const pendingText = pendingContent.join(' ').trim();
+        const whatToPractice = extractAfterLabel(pendingText, whatToPracticePatterns);
+        const whyItMatters = extractAfterLabel(pendingText, whyItMattersPatterns);
+        
+        if (whatToPractice && !currentTip.whatToPractice) {
+          currentTip.whatToPractice = whatToPractice;
+        }
+        if (whyItMatters && !currentTip.whyItMatters) {
+          currentTip.whyItMatters = whyItMatters;
+        }
+        pendingContent = [];
+      }
+      continue;
+    }
 
     // Skip section headers
     if (cleaned.match(/^[🎯💡🚀💬✨🪞🗣🧍📹⚡]/) || cleaned.match(/^##?\s/)) {
       continue;
     }
 
-    // Check if this is a new tip title (not starting with dash/bullet, not a detail line)
-    const isDetailLine = cleaned.match(/^[-*•]\s/) || 
-                         cleaned.match(/^(What to practice|Why it matters)[:\s-]/i) ||
-                         line.match(/^\s{2,}/);
+    // Check if this line contains "What to practice" or "Why it matters"
+    const whatToPracticeMatch = extractAfterLabel(cleaned, whatToPracticePatterns);
+    const whyItMattersMatch = extractAfterLabel(cleaned, whyItMattersPatterns);
 
-    if (!isDetailLine && cleaned.length > 5) {
-      // Save previous tip
-      if (currentTip) {
-        items.push(currentTip);
-    }
-      // Start new tip - clean up the title
-      const title = cleaned.replace(/\*\*/g, '').replace(/^\d+[.)]\s*/, '').trim();
-      currentTip = {
-        title: title,
-        whatToPractice: '',
-        whyItMatters: ''
-      };
-    } else if (currentTip && isDetailLine) {
-      // This is a detail for the current tip
-      let detailText = cleaned.replace(/^[-*•]\s*/, '').replace(/\*\*/g, '').trim();
-      
-      if (detailText.match(/^What to practice[:\s-]/i)) {
-        currentTip.whatToPractice = detailText.replace(/^What to practice[:\s-]+/i, '').trim();
-      } else if (detailText.match(/^Why it matters[:\s-]/i)) {
-        currentTip.whyItMatters = detailText.replace(/^Why it matters[:\s-]+/i, '').trim();
-      } else if (!currentTip.whatToPractice) {
-        currentTip.whatToPractice = detailText;
-      } else if (!currentTip.whyItMatters) {
-        currentTip.whyItMatters = detailText;
+    if (whatToPracticeMatch) {
+      if (!currentTip) {
+        // Create a new tip if we don't have one
+        currentTip = {
+          title: pendingContent.join(' ').trim() || 'Communication Tip',
+          whatToPractice: '',
+          whyItMatters: ''
+        };
+        pendingContent = [];
       }
+      currentTip.whatToPractice = whatToPracticeMatch;
+      continue;
+    }
+
+    if (whyItMattersMatch) {
+      if (!currentTip) {
+        // Create a new tip if we don't have one
+        currentTip = {
+          title: pendingContent.join(' ').trim() || 'Communication Tip',
+          whatToPractice: '',
+          whyItMatters: ''
+        };
+        pendingContent = [];
+      }
+      currentTip.whyItMatters = whyItMattersMatch;
+      continue;
+    }
+
+    // Check if this is a new tip title (starts with dash/bullet followed by text, or just text without dash)
+    const isBulletLine = cleaned.match(/^[-*•]\s+/);
+    const isIndentedLine = line.match(/^\s{2,}/);
+    
+    // If it's a bullet line or indented line, it's likely a detail
+    if (isBulletLine || isIndentedLine) {
+      if (currentTip) {
+        // This is a detail line for current tip
+        let detailText = cleaned.replace(/^[-*•]\s*/, '').replace(/\*\*/g, '').trim();
+        pendingContent.push(detailText);
+      }
+      continue;
+    }
+
+    // If we have a current tip and encounter a new non-detail line, save the previous tip
+    if (currentTip && cleaned.length > 5 && !isBulletLine && !isIndentedLine) {
+      // Try to extract any remaining info from pending content
+      if (pendingContent.length > 0) {
+        const pendingText = pendingContent.join(' ').trim();
+        if (!currentTip.whatToPractice) {
+          currentTip.whatToPractice = pendingText;
+        } else if (!currentTip.whyItMatters) {
+          currentTip.whyItMatters = pendingText;
+        }
+        pendingContent = [];
+      }
+      
+      // Save previous tip
+      items.push(currentTip);
+      currentTip = null;
+    }
+
+    // Check if this is a new tip title
+    if (!currentTip && cleaned.length > 5 && !isBulletLine && !isIndentedLine) {
+      // Clean up the title
+      const title = cleaned.replace(/\*\*/g, '').replace(/^\d+[.)]\s*/, '').trim();
+      if (title && !title.match(/^(What to practice|Why it matters|מה לתרגל|איך לתרגל|למה זה חשוב|החשיבות)/i)) {
+        currentTip = {
+          title: title,
+          whatToPractice: '',
+          whyItMatters: ''
+        };
+        pendingContent = [];
+      }
+    } else if (currentTip && !isBulletLine && !isIndentedLine) {
+      // This might be continuation of title or additional content
+      pendingContent.push(cleaned.replace(/\*\*/g, '').trim());
+    }
+  }
+
+  // Process any remaining pending content
+  if (pendingContent.length > 0 && currentTip) {
+    const pendingText = pendingContent.join(' ').trim();
+    const whatToPractice = extractAfterLabel(pendingText, whatToPracticePatterns);
+    const whyItMatters = extractAfterLabel(pendingText, whyItMattersPatterns);
+    
+    if (whatToPractice && !currentTip.whatToPractice) {
+      currentTip.whatToPractice = whatToPractice;
+    } else if (!currentTip.whatToPractice) {
+      currentTip.whatToPractice = pendingText;
+    }
+    
+    if (whyItMatters && !currentTip.whyItMatters) {
+      currentTip.whyItMatters = whyItMatters;
+    } else if (!currentTip.whyItMatters && pendingText !== currentTip.whatToPractice) {
+      currentTip.whyItMatters = pendingText;
     }
   }
 
   // Add last tip
   if (currentTip) {
+    // If we still don't have whatToPractice or whyItMatters, use title as fallback
+    if (!currentTip.whatToPractice && !currentTip.whyItMatters && currentTip.title) {
+      currentTip.whatToPractice = currentTip.title;
+    }
     items.push(currentTip);
   }
 
@@ -636,12 +772,12 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
     if (!metrics) return null;
 
     const categories = [
-      { key: 'presence', label: 'Presence', icon: Eye, color: '#3b82f6' },
-      { key: 'voice_expression', label: 'Voice', icon: Mic, color: '#10b981' },
-      { key: 'clarity', label: 'Clarity', icon: Target, color: '#f59e0b' },
-      { key: 'authenticity', label: 'Authenticity', icon: Heart, color: '#8b5cf6' },
-      { key: 'impact', label: 'Impact', icon: Zap, color: '#ef4444' },
-      { key: 'confidence', label: 'Confidence', icon: Award, color: '#06b6d4' }
+      { key: 'presence', label: t('parameters.metrics.presence'), icon: Eye, color: '#3b82f6' },
+      { key: 'voice_expression', label: t('parameters.metrics.voice'), icon: Mic, color: '#10b981' },
+      { key: 'clarity', label: t('parameters.metrics.clarity'), icon: Target, color: '#f59e0b' },
+      { key: 'authenticity', label: t('parameters.metrics.authenticity'), icon: Heart, color: '#8b5cf6' },
+      { key: 'impact', label: t('parameters.metrics.impact'), icon: Zap, color: '#ef4444' },
+      { key: 'confidence', label: t('parameters.metrics.confidence'), icon: Award, color: '#06b6d4' }
     ];
 
     return categories.map(cat => ({
@@ -691,9 +827,12 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
     ...(sections?.bodyLanguageTips || []).map(tip => ({ ...tip, type: 'bodyLanguage' }))
   ];
   // Convert tips to action item format for NextStepsPreview
+  // Include both structured fields and details array for maximum compatibility
   const actionItems = allTips.map(tip => ({
-    title: tip.title,
+    title: tip.title || 'Communication Tip',
     details: [tip.whatToPractice, tip.whyItMatters].filter(Boolean),
+    whatToPractice: tip.whatToPractice,
+    whyItMatters: tip.whyItMatters,
     type: tip.type
   }));
   const hasActionItems = actionItems.length > 0;
@@ -806,7 +945,7 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
 
   return (
     <div className="analysisResult">
-        <div className="analysisResult__header">
+      <div className="analysisResult__header">
         <div className="analysisResult__titleGroup">
           <h3 className="analysisResult__title">{t('analysisResult.title')}</h3>
           <div className="analysisResult__viewMode">

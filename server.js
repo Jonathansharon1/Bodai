@@ -518,6 +518,23 @@ function estimateAnalysisCostUsd(durationSeconds) {
       }
     }
 
+    // Load user preference from DB if not in header
+    if (clerkUserId && userContext.includeEnvironmentFeedback === undefined) {
+      try {
+        const userData = await getUserWithOnboarding(clerkUserId);
+        if (userData && userData.include_environment_feedback !== undefined) {
+          userContext.includeEnvironmentFeedback = userData.include_environment_feedback;
+        } else {
+          // Default to true if not set
+          userContext.includeEnvironmentFeedback = true;
+        }
+      } catch (e) {
+        console.warn('Failed to load user environment feedback preference:', e);
+        // Default to true on error
+        userContext.includeEnvironmentFeedback = true;
+      }
+    }
+
     let journeyId = req.body?.journey_id || req.body?.journeyId || null;
     console.log('[analyze-video] Received journeyId from request:', journeyId);
     if (clerkUserId) {
@@ -1469,6 +1486,42 @@ app.patch('/api/journeys/:id', async (req, res) => {
   } catch (err) {
     console.error('Error updating journey:', err);
     return res.status(500).json({ error: 'Failed to update journey' });
+  }
+});
+
+// Update user preferences
+app.put('/api/user/preferences', async (req, res) => {
+  try {
+    const clerkUserId = getClerkUserId(req);
+    if (!clerkUserId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const userId = await getOrCreateUser(clerkUserId);
+    const updateData = {};
+
+    if (req.body.include_environment_feedback !== undefined) {
+      updateData.include_environment_feedback = req.body.include_environment_feedback;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ error: 'No valid preferences to update' });
+    }
+
+    const { error } = await supabase
+      .from('users')
+      .update(updateData)
+      .eq('id', userId);
+
+    if (error) {
+      console.error('Error updating user preferences:', error);
+      return res.status(500).json({ error: 'Failed to update preferences' });
+    }
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('Error updating user preferences:', err);
+    return res.status(500).json({ error: 'Failed to update preferences' });
   }
 });
 

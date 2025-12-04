@@ -13,6 +13,14 @@
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.04);
 }
 
+[dir="rtl"] .sidebar {
+  left: auto;
+  right: 0;
+  border-right: none;
+  border-left: 1px solid #E9ECEF;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.04);
+}
+
 .sidebar__header {
   padding: 24px 20px;
   border-bottom: 1px solid #E9ECEF;
@@ -89,6 +97,11 @@
   position: relative;
 }
 
+[dir="rtl"] .sidebar__link {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
 .sidebar__link:hover {
   background: rgba(0, 78, 100, 0.06);
   color: var(--accent);
@@ -112,6 +125,12 @@
   height: 60%;
   background: linear-gradient(180deg, var(--accent) 0%, var(--accent-secondary) 100%);
   border-radius: 0 4px 4px 0;
+}
+
+[dir="rtl"] .sidebar__link--active::before {
+  left: auto;
+  right: 0;
+  border-radius: 4px 0 0 4px;
 }
 
 .sidebar__icon {

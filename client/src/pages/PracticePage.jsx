@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Target,
@@ -18,78 +19,78 @@ import JourneySwitcher from '../components/JourneySwitcher';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { SkeletonCard } from '../components/SkeletonLoader';
 import EmptyState from '../components/EmptyState';
-import { GOAL_EXPLANATIONS } from '../components/OnboardingQuestions';
 
-const PARAMETER_CATEGORIES = {
+// Helper function to get parameter categories with translations
+const getParameterCategories = (t) => ({
   voice: {
-    name: 'Voice Expression',
+    name: t('parameters.categories.voice'),
     icon: MessageSquare,
     color: '#3b82f6',
     parameters: [
-      { key: 'voice_volume_stability', label: 'Volume Stability' },
-      { key: 'voice_tone_variation', label: 'Tone Variation' },
-      { key: 'voice_pace_control', label: 'Pace Control' },
-      { key: 'voice_articulation', label: 'Articulation' },
-      { key: 'voice_warmth', label: 'Vocal Warmth' }
+      { key: 'voice_volume_stability', label: t('parameters.voice.volumeStability') },
+      { key: 'voice_tone_variation', label: t('parameters.voice.toneVariation') },
+      { key: 'voice_pace_control', label: t('parameters.voice.paceControl') },
+      { key: 'voice_articulation', label: t('parameters.voice.articulation') },
+      { key: 'voice_warmth', label: t('parameters.voice.vocalWarmth') }
     ]
   },
   presence: {
-    name: 'Presence',
+    name: t('parameters.categories.presence'),
     icon: Eye,
     color: '#10b981',
     parameters: [
-      { key: 'presence_eye_contact', label: 'Eye Contact' },
-      { key: 'presence_facial_relaxation', label: 'Facial Relaxation' },
-      { key: 'presence_body_posture', label: 'Body Posture' },
-      { key: 'presence_hand_naturalness', label: 'Hand Naturalness' },
-      { key: 'presence_openness', label: 'Openness' }
+      { key: 'presence_eye_contact', label: t('parameters.presence.eyeContact') },
+      { key: 'presence_facial_relaxation', label: t('parameters.presence.facialRelaxation') },
+      { key: 'presence_body_posture', label: t('parameters.presence.bodyPosture') },
+      { key: 'presence_hand_naturalness', label: t('parameters.presence.handNaturalness') },
+      { key: 'presence_openness', label: t('parameters.presence.openness') }
     ]
   },
   clarity: {
-    name: 'Clarity',
+    name: t('parameters.categories.clarity'),
     icon: MessageSquare,
     color: '#f59e0b',
     parameters: [
-      { key: 'clarity_structure', label: 'Structure' },
-      { key: 'clarity_focus', label: 'Focus' },
-      { key: 'clarity_example_usage', label: 'Example Usage' },
-      { key: 'clarity_transition_quality', label: 'Transition Quality' },
-      { key: 'clarity_repetition_control', label: 'Repetition Control' }
+      { key: 'clarity_structure', label: t('parameters.clarity.structure') },
+      { key: 'clarity_focus', label: t('parameters.clarity.focus') },
+      { key: 'clarity_example_usage', label: t('parameters.clarity.exampleUsage') },
+      { key: 'clarity_transition_quality', label: t('parameters.clarity.transitionQuality') },
+      { key: 'clarity_repetition_control', label: t('parameters.clarity.repetitionControl') }
     ]
   },
   authenticity: {
-    name: 'Authenticity',
+    name: t('parameters.categories.authenticity'),
     icon: MessageSquare,
     color: '#8b5cf6',
     parameters: [
-      { key: 'authenticity_naturalness', label: 'Naturalness' },
-      { key: 'authenticity_emotional_transparency', label: 'Emotional Transparency' },
-      { key: 'authenticity_forced_expression_reduction', label: 'Forced Expression Reduction' }
+      { key: 'authenticity_naturalness', label: t('parameters.authenticity.naturalness') },
+      { key: 'authenticity_emotional_transparency', label: t('parameters.authenticity.emotionalTransparency') },
+      { key: 'authenticity_forced_expression_reduction', label: t('parameters.authenticity.forcedExpressionReduction') }
     ]
   },
   impact: {
-    name: 'Impact',
+    name: t('parameters.categories.impact'),
     icon: MessageSquare,
     color: '#ef4444',
     parameters: [
-      { key: 'impact_energy', label: 'Energy' },
-      { key: 'impact_engagement', label: 'Engagement' },
-      { key: 'impact_persuasiveness', label: 'Persuasiveness' }
+      { key: 'impact_energy', label: t('parameters.impact.energy') },
+      { key: 'impact_engagement', label: t('parameters.impact.engagement') },
+      { key: 'impact_persuasiveness', label: t('parameters.impact.persuasiveness') }
     ]
   },
   confidence: {
-    name: 'Confidence',
+    name: t('parameters.categories.confidence'),
     icon: MessageSquare,
     color: '#06b6d4',
     parameters: [
-      { key: 'confidence_filler_word_control', label: 'Filler Word Control' },
-      { key: 'confidence_pause_control', label: 'Pause Control' },
-      { key: 'confidence_physical_tension', label: 'Physical Tension' },
-      { key: 'confidence_vocal_stability', label: 'Vocal Stability' },
-      { key: 'confidence_comfort_level', label: 'Comfort Level' }
+      { key: 'confidence_filler_word_control', label: t('parameters.confidence.fillerWordControl') },
+      { key: 'confidence_pause_control', label: t('parameters.confidence.pauseControl') },
+      { key: 'confidence_physical_tension', label: t('parameters.confidence.physicalTension') },
+      { key: 'confidence_vocal_stability', label: t('parameters.confidence.vocalStability') },
+      { key: 'confidence_comfort_level', label: t('parameters.confidence.comfortLevel') }
     ]
   }
-};
+});
 
 export default function PracticePage({
   journeys = [],
@@ -100,7 +101,11 @@ export default function PracticePage({
   const { user } = useUser();
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
+
+  // Memoize translated parameter categories
+  const PARAMETER_CATEGORIES = useMemo(() => getParameterCategories(t), [t]);
   const [actionItems, setActionItems] = useState([]);
   const [metrics, setMetrics] = useState([]);
   const [weaknesses, setWeaknesses] = useState([]);
@@ -119,12 +124,15 @@ export default function PracticePage({
 
   const getGoalLabel = (goal) => {
     const goalMap = {
-      'confidence': 'Build Confidence',
-      'content': 'Content Creator',
-      'presentation': 'Presentation Skills',
-      'leadership': 'Executive Presence',
-      'interview': 'Job Interviews',
-      'sales': 'Face-to-face Sales'
+      'confidence': t('myProgress.goals.confidence'),
+      'content': t('myProgress.goals.content'),
+      'presentation': t('myProgress.goals.presentation'),
+      'leadership': t('myProgress.goals.leadership'),
+      'interview': t('myProgress.goals.interview'),
+      'sales': t('myProgress.goals.sales'),
+      'dating': t('myProgress.goals.dating'),
+      'social': t('myProgress.goals.social'),
+      'general': t('myProgress.goals.general')
     };
     return goalMap[goal] || goal;
   };
@@ -132,7 +140,6 @@ export default function PracticePage({
   const focusSlug = activeJourney?.focus_slug;
   const focusLabel = focusSlug ? getGoalLabel(focusSlug) : (activeJourney?.display_name || activeJourney?.focus_label || null);
   const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-  const focusGoalExplanation = focusSlug ? GOAL_EXPLANATIONS[focusSlug] : null;
 
   // Check for focus filter in URL
   const urlParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
@@ -396,7 +403,7 @@ export default function PracticePage({
     } finally {
       setLoading(false);
     }
-  }, [user?.id, activeJourneyId, apiBase, focusFilter]);
+  }, [user?.id, activeJourneyId, apiBase, focusFilter, PARAMETER_CATEGORIES]);
 
   useEffect(() => {
     if (user) {
@@ -526,32 +533,32 @@ export default function PracticePage({
       '';
 
     if (!text) {
-      return 'Keep this focus in mind for your next recording.';
+      return t('dashboard.noActionDescription', 'Keep this focus in mind for your next recording.');
     }
 
     return text;
   };
 
   const formatMetricLabel = (metric) => {
-    if (!metric) return 'Overall focus';
+    if (!metric) return t('parameters.metrics.overall');
     const labels = {
-      presence: 'Presence',
-      voice_expression: 'Voice',
-      clarity: 'Clarity',
-      authenticity: 'Authenticity',
-      impact: 'Impact',
-      confidence: 'Confidence',
-      overall: 'Overall'
+      presence: t('parameters.metrics.presence'),
+      voice_expression: t('parameters.metrics.voice'),
+      clarity: t('parameters.metrics.clarity'),
+      authenticity: t('parameters.metrics.authenticity'),
+      impact: t('parameters.metrics.impact'),
+      confidence: t('parameters.metrics.confidence'),
+      overall: t('parameters.metrics.overall')
     };
-    return labels[metric] || 'Overall focus';
+    return labels[metric] || t('parameters.metrics.overall');
   };
 
   if (loading) {
     return (
       <div className="practicePage">
         <div className="practicePage__header">
-          <h1 className="practicePage__title">Practice</h1>
-          <p className="practicePage__subtitle">Loading your practice items...</p>
+          <h1 className="practicePage__title">{t('practice.loadingTitle')}</h1>
+          <p className="practicePage__subtitle">{t('practice.loadingSubtitle')}</p>
         </div>
         <div className="practicePage__skeleton">
           <SkeletonCard />
@@ -572,15 +579,17 @@ export default function PracticePage({
           activeJourneyId={activeJourneyId}
           onSelectJourney={onSelectJourney}
         />
-        <h1 className="practicePage__title">Practice</h1>
+        <h1 className="practicePage__title">{t('practice.title')}</h1>
         <p className="practicePage__subtitle">
           {focusLabel
-            ? `Actionable steps to improve your ${focusLabel} communication`
-            : 'Actionable steps to improve your communication'}
+            ? t('practice.subtitleWithFocus', { focusLabel })
+            : t('practice.subtitle')}
         </p>
-        {focusGoalExplanation && (
+        {focusLabel && (
           <p className="practicePage__subtitleSecondary">
-            Today’s missions for {focusGoalExplanation.label.toLowerCase()} turn one small behavior into a concrete rep you can record and improve.
+            {t('practice.subtitleSecondary', {
+              goal: focusLabel.toLowerCase()
+            })}
           </p>
         )}
       </div>
@@ -588,25 +597,25 @@ export default function PracticePage({
       {/* Hero Section */}
       <div className="practicePage__hero">
         <div className="practiceHero">
-          <h2 className="practiceHero__title">What should I practice next?</h2>
+          <h2 className="practiceHero__title">{t('practice.heroTitle')}</h2>
           <p className="practiceHero__description">
-            Use these tips and exercises to improve your communication skills. Apply action items in your next recording, and complete practice missions to strengthen your weakest areas.
+            {t('practice.heroDescription')}
           </p>
           {/* Completion Stats */}
           {completionStats && completionStats.totalMissions > 0 && (
             <div className="practiceHero__stats">
               <div className="practiceHero__stat">
                 <div className="practiceHero__statValue">{completionStats.totalCompleted}</div>
-                <div className="practiceHero__statLabel">Completed</div>
+                <div className="practiceHero__statLabel">{t('practice.heroCompletedLabel')}</div>
               </div>
               <div className="practiceHero__stat">
                 <div className="practiceHero__statValue">{completionStats.totalMissions}</div>
-                <div className="practiceHero__statLabel">Total Missions</div>
+                <div className="practiceHero__statLabel">{t('practice.heroTotalMissionsLabel')}</div>
               </div>
               {completionStats.streakDays > 0 && (
                 <div className="practiceHero__stat practiceHero__stat--streak">
                   <div className="practiceHero__statValue">🔥 {completionStats.streakDays}</div>
-                  <div className="practiceHero__statLabel">Day Streak</div>
+                  <div className="practiceHero__statLabel">{t('practice.heroDayStreakLabel')}</div>
                 </div>
               )}
             </div>
@@ -620,11 +629,8 @@ export default function PracticePage({
           <div className="practiceSection__header">
             <MessageSquare size={24} className="practiceSection__icon" />
             <div>
-              <h2 className="practiceSection__title">Tips from Your Analyses</h2>
-              <p className="practiceSection__subtitle">
-                <strong>Action Items:</strong> Apply these specific tips in your next recording or daily conversations. 
-                These come directly from your video analyses.
-              </p>
+              <h2 className="practiceSection__title">{t('practice.tipsSectionTitle')}</h2>
+              <p className="practiceSection__subtitle" dangerouslySetInnerHTML={{ __html: t('practice.tipsSectionSubtitle') }} />
             </div>
           </div>
           <div className="actionItemsList">
@@ -639,7 +645,7 @@ export default function PracticePage({
                       {formatMetricLabel(item.practice_prompt_target_metric)}
                     </span>
                     <span className="actionItemCard__chip actionItemCard__chip--accent">
-                      Active focus
+                      {t('practice.tipsActiveFocusChip')}
                     </span>
                   </div>
                   <h3 className="actionItemCard__title">{item.title}</h3>
@@ -648,7 +654,10 @@ export default function PracticePage({
                   </p>
                   {item.analyses && (
                     <div className="actionItemCard__meta">
-                      Added {new Date(item.analyses.created_at).toLocaleDateString()} • {item.analyses.video_filename}
+                      {t('practice.tipsAddedMeta', {
+                        date: new Date(item.analyses.created_at).toLocaleDateString(undefined, { locale: useTranslation.language }),
+                        filename: item.analyses.video_filename
+                      })}
                     </div>
                   )}
                 </div>
@@ -664,11 +673,8 @@ export default function PracticePage({
           <div className="practiceSection__header">
             <Target size={24} className="practiceSection__icon" />
             <div>
-              <h2 className="practiceSection__title">Practice Exercises</h2>
-              <p className="practiceSection__subtitle">
-                <strong>Practice Missions:</strong> Step-by-step exercises to improve your weakest metrics. 
-                These are AI-generated based on your current performance. Focus on the top priority first.
-              </p>
+              <h2 className="practiceSection__title">{t('practice.practiceSectionTitle')}</h2>
+              <p className="practiceSection__subtitle" dangerouslySetInnerHTML={{ __html: t('practice.practiceSectionSubtitle') }} />
             </div>
           </div>
           <div className="practiceMissionsList">
@@ -690,7 +696,7 @@ export default function PracticePage({
                   {isPriority && (
                     <div className="practiceMissionCard__priorityBadge">
                       <Target size={14} />
-                      <span>Priority Focus</span>
+                      <span>{t('practice.priorityBadge')}</span>
                     </div>
                   )}
                   <div className="practiceMissionCard__header">
@@ -701,27 +707,26 @@ export default function PracticePage({
                       <div className="practiceMissionCard__metaTop">
                         <span className="practiceMissionCard__category">{weakness.category}</span>
                         {isPriority && (
-                          <span className="practiceMissionCard__priorityTag">#1 Priority</span>
+                          <span className="practiceMissionCard__priorityTag">{t('practice.priorityTag')}</span>
                         )}
                       </div>
                       <h3 className="practiceMissionCard__label">{weakness.label}</h3>
                       <div className="practiceMissionCard__score">
                         <span className="practiceMissionCard__scoreValue">{weakness.current.toFixed(1)}</span>
-                        <span className="practiceMissionCard__scoreLabel">/ 10</span>
+                        <span className="practiceMissionCard__scoreLabel">{t('practice.scoreLabel')}</span>
                         {weakness.isDeclining && (
                           <span className="practiceMissionCard__declining">
                             <TrendingDown size={14} />
-                            Declining
+                            {t('practice.decliningLabel')}
                           </span>
                         )}
                       </div>
                       {/* Why This Matters */}
                       <div className="practiceMissionCard__whyMatters">
-                        <strong>Why this matters:</strong>{' '}
+                        <strong>{t('practice.whyThisMattersLabel')}</strong>{' '}
                         {weakness.isDeclining 
-                          ? `Your ${weakness.label.toLowerCase()} has been declining. Focusing here will help you get back on track.`
-                          : `Improving your ${weakness.label.toLowerCase()} will strengthen your overall communication and help you achieve your goals.`
-                        }
+                          ? t('practice.whyThisMattersDeclining', { label: weakness.label.toLowerCase() })
+                          : t('practice.whyThisMattersImproving', { label: weakness.label.toLowerCase() })}
                       </div>
                     </div>
                     <button
@@ -729,17 +734,17 @@ export default function PracticePage({
                       className="practiceMissionCard__refresh"
                       onClick={() => fetchPracticeMissions(weakness, true)}
                       disabled={loadingMissions[weakness.key]}
-                      title="Generate new practice missions"
+                      title={t('practice.refreshTitle')}
                     >
                       {loadingMissions[weakness.key] ? (
                         <>
                           <span className="practiceMissionCard__refreshSpinner">⟳</span>
-                          <span className="practiceMissionCard__refreshLabel">Generating...</span>
+                          <span className="practiceMissionCard__refreshLabel">{t('practice.refreshGenerating')}</span>
                         </>
                       ) : (
                         <>
                           <Sparkles size={16} />
-                          <span className="practiceMissionCard__refreshLabel">New Missions</span>
+                          <span className="practiceMissionCard__refreshLabel">{t('practice.refreshNewMissions')}</span>
                         </>
                       )}
                     </button>
@@ -755,7 +760,7 @@ export default function PracticePage({
                       return (
                         <div className="practiceMissionCard__loading">
                           <div className="practiceMissionCard__loadingSpinner"></div>
-                          <p>Generating personalized practice steps...</p>
+                          <p>{t('practice.generatingMissions')}</p>
                         </div>
                       );
                     } else if (missionsArray && missionsArray.length > 0) {
@@ -764,7 +769,7 @@ export default function PracticePage({
                           {isStale && (
                             <div className="practiceMissionCard__staleBadge">
                               <AlertCircle size={14} />
-                              <span>Based on older analysis - click refresh for updated missions</span>
+                              <span>{t('practice.staleBadge')}</span>
                             </div>
                           )}
                           <ol className="practiceMissionCard__missions">
@@ -818,7 +823,7 @@ export default function PracticePage({
                                   />
                                 </div>
                                 <span className="practiceMissionCard__progressText">
-                                  {completedCount} of {totalCount} completed
+                                  {t('practice.progressText', { completed: completedCount, total: totalCount })}
                                 </span>
                               </div>
                             );
@@ -829,7 +834,7 @@ export default function PracticePage({
                               onClick={() => navigate('/new-analysis')}
                             >
                               <Video size={16} />
-                              Practice This Now
+                              {t('practice.practiceNowCta')}
                             </button>
                           </div>
                         </>
@@ -837,7 +842,7 @@ export default function PracticePage({
                     } else {
                       return (
                         <div className="practiceMissionCard__empty">
-                          <p>Click the sparkle icon above to generate personalized practice missions</p>
+                          <p>{t('practice.emptyMissions')}</p>
                         </div>
                       );
                     }
@@ -862,12 +867,11 @@ export default function PracticePage({
                 }}
               >
                 {expandedWeaknesses.size === 0 
-                  ? `Show ${weaknesses.length - 2} more areas` 
-                  : 'Show less'}
+                  ? t('practice.showMoreAreas', { count: weaknesses.length - 2 })
+                  : t('practice.showLessAreas')}
                 <ArrowRight 
                   size={16} 
-                  className={expandedWeaknesses.size > 0 ? 'rotated' : ''}
-                  style={{ transform: expandedWeaknesses.size > 0 ? 'rotate(90deg)' : 'none' }}
+                  className={`practicePage__showMoreIcon ${expandedWeaknesses.size > 0 ? 'practicePage__showMoreIcon--expanded' : ''}`}
                 />
               </button>
             )}
@@ -879,9 +883,9 @@ export default function PracticePage({
       {actionItems.length === 0 && weaknesses.length === 0 && (
         <EmptyState
           variant="practice"
-          title="Ready to practice?"
-          description="Complete your first analysis to get personalized tips and practice exercises tailored to your communication goals."
-          actionLabel="Start Your First Analysis"
+          title={t('practice.emptyStateTitle')}
+          description={t('practice.emptyStateDescription')}
+          actionLabel={t('practice.emptyStateAction')}
           onAction={() => navigate('/new-analysis')}
         />
       )}
@@ -891,13 +895,12 @@ export default function PracticePage({
         <button
           className="practicePage__fab"
           onClick={() => navigate('/new-analysis')}
-          title="Record a new practice video"
+          title={t('practice.fabTitle')}
         >
           <Video size={24} />
-          <span className="practicePage__fabLabel">Practice Now</span>
+          <span className="practicePage__fabLabel">{t('practice.fabLabel')}</span>
         </button>
       )}
     </div>
   );
 }
-

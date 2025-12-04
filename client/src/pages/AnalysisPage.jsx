@@ -12,7 +12,8 @@ import {
   Sun,
   Timer,
   Eye,
-  Trash2
+  Trash2,
+  Play
 } from 'lucide-react';
 import Logo from '../components/Logo';
 import UploadVideo from '../components/UploadVideo';
@@ -24,46 +25,41 @@ import FirstUploadGuide from '../components/FirstUploadGuide';
 import './AnalysisPage.css';
 import { getPromptById } from '../config/recordingPrompts';
 
-const RECORDING_TIPS = [
+// Recording tips metadata (icons + IDs only; text is localized via i18n)
+const RECORDING_TIP_DEFS = [
   {
     id: 'framing',
-    title: 'Show full gestures',
-    description: 'Frame yourself from mid-torso up so posture and hand movement stay in view.',
     icon: Video
   },
   {
     id: 'lighting',
-    title: 'Balance your lighting',
-    description: 'Face soft, even light and avoid backlighting so your expressions stay clear.',
     icon: Sun
   },
   {
     id: 'duration',
-    title: 'Keep it concise',
-    description: 'Aim for 2–3 minutes to spotlight one story or message with full energy.',
     icon: Timer
   },
   {
     id: 'eyeline',
-    title: 'Match camera height',
-    description: 'Place the camera at eye level to instantly boost presence and connection.',
     icon: Eye
   }
 ];
 
-const PRACTICE_METRIC_LABELS = {
-  presence: 'Presence',
-  voice_expression: 'Voice',
-  clarity: 'Clarity',
-  authenticity: 'Authenticity',
-  impact: 'Impact',
-  confidence: 'Confidence',
-  overall: 'Overall'
-};
+// Helper function to get practice metric labels with translations
+const getPracticeMetricLabels = (t) => ({
+  presence: t('parameters.metrics.presence'),
+  voice_expression: t('parameters.metrics.voice'),
+  clarity: t('parameters.metrics.clarity'),
+  authenticity: t('parameters.metrics.authenticity'),
+  impact: t('parameters.metrics.impact'),
+  confidence: t('parameters.metrics.confidence'),
+  overall: t('parameters.metrics.overall')
+});
 
-const formatMetricLabel = (metric) => {
+const formatMetricLabel = (metric, t) => {
   if (!metric) return null;
-  return PRACTICE_METRIC_LABELS[metric] || metric.replace(/_/g, ' ');
+  const labels = getPracticeMetricLabels(t);
+  return labels[metric] || metric.replace(/_/g, ' ');
 };
 
 const renderPromptMeta = (label, value) => {
@@ -347,7 +343,7 @@ export default function AnalysisPage({
     const description = details.why_it_matters 
       || details.what_to_do 
       || (Array.isArray(details.all_details) ? details.all_details[0] : '')
-      || 'Keep this cue top of mind for your next recording.';
+      || t('analysisPage.defaultActionTip', 'Keep this cue top of mind for your next recording.');
 
     return description; // Show full text, no truncation
   };
@@ -427,6 +423,29 @@ export default function AnalysisPage({
         {currentAnalysisData ? (
           <>
             <div className="analysisPage__viewLayout">
+              <div className="analysisPage__viewColumn analysisPage__viewColumn--result">
+                <div className="analysisPage__result analysisPage__result--compact">
+                  <AnalysisResult 
+                    markdown={currentAnalysisData.analysis_result} 
+                    loading={false}
+                    analysisId={currentAnalysisData.id}
+                    viewingAnalysis={currentAnalysisData}
+                  />
+                  {currentAnalysisData.id && (
+                    <div className="analysisPage__actions analysisPage__actions--inline">
+                      <button
+                        type="button"
+                        className="btn btn--ghost"
+                        onClick={() => handleDeleteAnalysis(currentAnalysisData.id)}
+                      >
+                        <Trash2 size={16} />
+                        <span>{t('analysisPage.deleteAnalysis')}</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className="analysisPage__viewColumn">
                 <div className="analysisPage__analysisMetaCard">
                   <div className="analysisPage__analysisMetaRow">
@@ -471,29 +490,6 @@ export default function AnalysisPage({
                     <div className="analysisPage__videoPlaceholder">
                       <div className="analysisPage__videoPlaceholderIcon">🎥</div>
                       <p>{t('analysisPage.videoNotAvailable')}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="analysisPage__viewColumn analysisPage__viewColumn--result">
-                <div className="analysisPage__result analysisPage__result--compact">
-                  <AnalysisResult 
-                    markdown={currentAnalysisData.analysis_result} 
-                    loading={false}
-                    analysisId={currentAnalysisData.id}
-                    viewingAnalysis={currentAnalysisData}
-                  />
-                  {currentAnalysisData.id && (
-                    <div className="analysisPage__actions analysisPage__actions--inline">
-                      <button
-                        type="button"
-                        className="btn btn--ghost"
-                        onClick={() => handleDeleteAnalysis(currentAnalysisData.id)}
-                      >
-                        <Trash2 size={16} />
-                        <span>{t('analysisPage.deleteAnalysis')}</span>
-                      </button>
                     </div>
                   )}
                 </div>
@@ -580,7 +576,7 @@ export default function AnalysisPage({
                               </div>
                               <div className="analysisPage__stepContent">
                                 <div className="analysisPage__stepTitle">{item.title}</div>
-                                <div className="analysisPage__stepInstantLabel">Instant Tip</div>
+                                <div className="analysisPage__stepInstantLabel">{t('analysisPage.instantTipLabel')}</div>
                                 <p className="analysisPage__stepDescription">
                                   {formatActionDescription(item)}
                                 </p>
@@ -653,7 +649,7 @@ export default function AnalysisPage({
                             <div className="analysisPage__promptChips">
                               {selectedPrompt.targetMetric && (
                                 <span className="analysisPage__promptChip">
-                                  {formatMetricLabel(selectedPrompt.targetMetric)}
+                                  {formatMetricLabel(selectedPrompt.targetMetric, t)}
                                 </span>
                               )}
                               {selectedPrompt.difficulty && (
@@ -682,16 +678,20 @@ export default function AnalysisPage({
 
                     <div className="analysisPage__upload analysisPage__uploadCard">
                       <UploadVideo file={file} onSelect={onSelect} onClear={onRemove} />
+                      <div className="analysisPage__uploadNote">
+                        <Timer size={14} />
+                        <span>{t('analysisPage.minVideoDuration', { defaultValue: 'Minimum 30 seconds required for analysis' })}</span>
+                      </div>
                     </div>
 
                     {file && (
                       <div className="analysisPage__actions analysisPage__actions--left">
                         <button 
-                          className="btn btn--primary" 
+                          className="analysisPage__analyzeButton" 
                           onClick={handleAnalyzeClick} 
                           disabled={!file || isLoading}
                         >
-                          {t('analysisPage.analyzeVideo')}
+                          <span>{t('analysisPage.analyzeVideo')}</span>
                         </button>
                       </div>
                     )}
@@ -709,16 +709,18 @@ export default function AnalysisPage({
                         </div>
                       </div>
                       <div className="analysisPage__tipsList">
-                        {RECORDING_TIPS.map((tip) => {
+                        {RECORDING_TIP_DEFS.map((tip) => {
                           const Icon = tip.icon;
+                          const titleKey = `analysisPage.recordingTipsList.${tip.id}.title`;
+                          const descriptionKey = `analysisPage.recordingTipsList.${tip.id}.description`;
                           return (
                             <div key={tip.id} className="analysisPage__tipItem">
                               <div className="analysisPage__tipIcon">
                                 <Icon size={18} />
                               </div>
                               <div className="analysisPage__tipContent">
-                                <div className="analysisPage__tipTitle">{tip.title}</div>
-                                <p className="analysisPage__tipDescription">{tip.description}</p>
+                                <div className="analysisPage__tipTitle">{t(titleKey)}</div>
+                                <p className="analysisPage__tipDescription">{t(descriptionKey)}</p>
                               </div>
                             </div>
                           );
@@ -752,6 +754,21 @@ export default function AnalysisPage({
             {result && !isLoading && (
               <>
                 <div className="analysisPage__viewLayout">
+                  <div className="analysisPage__viewColumn analysisPage__viewColumn--result">
+                    <div className="analysisPage__result">
+                      <AnalysisResult 
+                        markdown={result} 
+                        loading={false}
+                        analysisId={currentAnalysisId}
+                      />
+                      {currentAnalysisId && (
+                        <ReflectionPrompt
+                          analysisId={currentAnalysisId}
+                          journeyId={activeJourneyId}
+                        />
+                      )}
+                    </div>
+                  </div>
                   <div className="analysisPage__viewColumn">
                     <div className="analysisPage__analysisMetaCard">
                       <div className="analysisPage__analysisMetaRow">
@@ -784,21 +801,6 @@ export default function AnalysisPage({
                           <div className="analysisPage__videoPlaceholderIcon">🎥</div>
                           <p>{t('analysisPage.videoNotAvailableSession')}</p>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="analysisPage__viewColumn analysisPage__viewColumn--result">
-                    <div className="analysisPage__result">
-                      <AnalysisResult 
-                        markdown={result} 
-                        loading={false}
-                        analysisId={currentAnalysisId}
-                      />
-                      {currentAnalysisId && (
-                        <ReflectionPrompt
-                          analysisId={currentAnalysisId}
-                          journeyId={activeJourneyId}
-                        />
                       )}
                     </div>
                   </div>

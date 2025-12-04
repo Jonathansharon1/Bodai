@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import './TeamsContactPage.css';
 
 const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 export default function TeamsContactPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -28,7 +30,7 @@ export default function TeamsContactPage() {
     setError('');
 
     if (!form.email || !form.name) {
-      setError('Please add your name and work email so we can contact you.');
+      setError(t('teams.errorRequired'));
       return;
     }
 
@@ -43,14 +45,14 @@ export default function TeamsContactPage() {
       });
 
       if (!res.ok) {
-        throw new Error('Failed to send your request. Please try again.');
+        throw new Error(t('teams.errorGeneric'));
       }
 
       setSubmitted(true);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('Failed to submit teams contact form:', err);
-      setError(err.message || 'Something went wrong. Please try again.');
+      setError(err.message || t('teams.errorFallback'));
     } finally {
       setSubmitting(false);
     }
@@ -60,16 +62,16 @@ export default function TeamsContactPage() {
     return (
       <div className="teamsPage">
         <div className="teamsPage__container">
-          <h1 className="teamsPage__title">Thanks for reaching out</h1>
+          <h1 className="teamsPage__title">{t('teams.successTitle')}</h1>
           <p className="teamsPage__subtitle">
-            We received your message and will get back to you within one business day.
+            {t('teams.successSubtitle')}
           </p>
           <button
             type="button"
             className="teamsPage__button"
             onClick={() => navigate('/dashboard')}
           >
-            Back to dashboard
+            {t('teams.backToDashboard')}
           </button>
         </div>
       </div>
@@ -79,35 +81,34 @@ export default function TeamsContactPage() {
   return (
     <div className="teamsPage">
       <div className="teamsPage__container">
-        <h1 className="teamsPage__title">Talk to us about Teams & Enterprise</h1>
+        <h1 className="teamsPage__title">{t('teams.title')}</h1>
         <p className="teamsPage__subtitle">
-          Tell us a bit about your team and how you’d like to use BodAI. We’ll follow up with
-          pricing and next steps.
+          {t('teams.subtitle')}
         </p>
 
         <form className="teamsPage__form" onSubmit={handleSubmit}>
           <div className="teamsPage__fieldRow">
             <div className="teamsPage__field">
-              <label htmlFor="name">Name</label>
+              <label htmlFor="name">{t('teams.nameLabel')}</label>
               <input
                 id="name"
                 name="name"
                 type="text"
                 value={form.name}
                 onChange={handleChange}
-                placeholder="Your full name"
+                placeholder={t('teams.namePlaceholder')}
                 required
               />
             </div>
             <div className="teamsPage__field">
-              <label htmlFor="email">Work email</label>
+              <label htmlFor="email">{t('teams.emailLabel')}</label>
               <input
                 id="email"
                 name="email"
                 type="email"
                 value={form.email}
                 onChange={handleChange}
-                placeholder="you@company.com"
+                placeholder={t('teams.emailPlaceholder')}
                 required
               />
             </div>
@@ -115,18 +116,18 @@ export default function TeamsContactPage() {
 
           <div className="teamsPage__fieldRow">
             <div className="teamsPage__field">
-              <label htmlFor="company">Company / organization</label>
+              <label htmlFor="company">{t('teams.companyLabel')}</label>
               <input
                 id="company"
                 name="company"
                 type="text"
                 value={form.company}
                 onChange={handleChange}
-                placeholder="Company name"
+                placeholder={t('teams.companyPlaceholder')}
               />
             </div>
             <div className="teamsPage__field">
-              <label htmlFor="teamSize">Team size</label>
+              <label htmlFor="teamSize">{t('teams.teamSizeLabel')}</label>
               <select
                 id="teamSize"
                 name="teamSize"
@@ -142,26 +143,26 @@ export default function TeamsContactPage() {
           </div>
 
           <div className="teamsPage__field">
-            <label htmlFor="useCase">Primary use case</label>
+            <label htmlFor="useCase">{t('teams.useCaseLabel')}</label>
             <input
               id="useCase"
               name="useCase"
               type="text"
               value={form.useCase}
               onChange={handleChange}
-              placeholder="e.g., interview training, content review, internal workshops"
+              placeholder={t('teams.useCasePlaceholder')}
             />
           </div>
 
           <div className="teamsPage__field">
-            <label htmlFor="message">Anything else we should know?</label>
+            <label htmlFor="message">{t('teams.messageLabel')}</label>
             <textarea
               id="message"
               name="message"
               rows={4}
               value={form.message}
               onChange={handleChange}
-              placeholder="Share a bit more about your goals, timeline, and success criteria."
+              placeholder={t('teams.messagePlaceholder')}
             />
           </div>
 
@@ -173,7 +174,7 @@ export default function TeamsContactPage() {
               className="teamsPage__button"
               disabled={submitting}
             >
-              {submitting ? 'Sending…' : 'Send message'}
+              {submitting ? t('teams.submitting') : t('teams.submit')}
             </button>
           </div>
         </form>

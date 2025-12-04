@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@clerk/clerk-react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { 
   Target,
@@ -29,6 +30,7 @@ export default function MyAnalysesPage({
 }) {
   const navigate = useNavigate();
   const { user } = useUser();
+  const { t } = useTranslation();
   const [analyses, setAnalyses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [previewUrls, setPreviewUrls] = useState({});
@@ -136,15 +138,22 @@ export default function MyAnalysesPage({
   );
   
   const getGoalLabel = (goal) => {
-    const goalMap = {
-      'confidence': 'Build Confidence',
-      'content': 'Content Creator',
-      'presentation': 'Presentation Skills',
-      'leadership': 'Executive Presence',
-      'interview': 'Job Interviews',
-      'sales': 'Face-to-face Sales'
-    };
-    return goalMap[goal] || goal;
+    if (!goal) return null;
+    // Prefer localized goal label from myProgress goals map
+    const key = `myProgress.goals.${goal}`;
+    const translated = t(key);
+    // If translation exists, it will differ from the key string
+    if (translated && translated !== key) {
+      return translated;
+    }
+    // Fallback to onboarding goal label if defined
+    const onboardingKey = `onboarding.goal.${goal}.label`;
+    const onboardingLabel = t(onboardingKey);
+    if (onboardingLabel && onboardingLabel !== onboardingKey) {
+      return onboardingLabel;
+    }
+    // Final fallback – raw goal slug
+    return goal;
   };
   
   const focusSlug = activeJourney?.focus_slug;
@@ -153,7 +162,7 @@ export default function MyAnalysesPage({
   if (loading) {
     return (
       <div className="myAnalysesPage">
-        <LoadingSpinner message="Loading your analyses..." size="large" />
+        <LoadingSpinner message={t('myAnalyses.loading')} size="large" />
       </div>
     );
   }
@@ -170,9 +179,11 @@ export default function MyAnalysesPage({
               activeJourneyId={activeJourneyId}
               onSelectJourney={onSelectJourney}
             />
-            <h1 className="myAnalysesPage__title">My Analyses</h1>
+            <h1 className="myAnalysesPage__title">{t('myAnalyses.title')}</h1>
             <p className="myAnalysesPage__subtitle">
-              {focusLabel ? `${focusLabel}: no sessions yet` : 'Start your first analysis to see it here.'}
+              {focusLabel
+                ? t('myAnalyses.emptySubtitleWithFocus', { focusLabel })
+                : t('myAnalyses.emptySubtitle')}
             </p>
           </div>
           <button 
@@ -180,16 +191,18 @@ export default function MyAnalysesPage({
             onClick={() => navigate('/new-analysis')}
           >
             <Plus size={18} />
-            <span>New Analysis</span>
+            <span>{t('myAnalyses.newAnalysis')}</span>
           </button>
         </div>
         <EmptyState
           variant="analyses"
-          title={focusLabel ? `No ${focusLabel} analyses yet` : "No analyses yet"}
+          title={focusLabel
+            ? t('myAnalyses.emptyTitleWithFocus', { focusLabel })
+            : t('myAnalyses.emptyTitle')}
           description={focusLabel
-            ? `Upload a video to begin tracking your ${focusLabel} communication journey. Get instant AI-powered feedback on your body language, voice, and presence.`
-            : "Start your first analysis to see your video insights here. Get instant AI-powered feedback on your body language, voice, and presence."}
-          actionLabel="Upload Your First Video"
+            ? t('myAnalyses.emptyDescriptionWithFocus', { focusLabel })
+            : t('myAnalyses.emptyDescription')}
+          actionLabel={t('myAnalyses.emptyAction')}
           onAction={() => navigate('/new-analysis')}
         />
       </div>
@@ -207,11 +220,18 @@ export default function MyAnalysesPage({
             activeJourneyId={activeJourneyId}
             onSelectJourney={onSelectJourney}
           />
-          <h1 className="myAnalysesPage__title">My Analyses</h1>
+          <h1 className="myAnalysesPage__title">{t('myAnalyses.title')}</h1>
           <p className="myAnalysesPage__subtitle">
             {focusLabel
-              ? `${focusLabel}: ${analyses.length} ${analyses.length === 1 ? 'analysis' : 'analyses'} completed`
-              : `${analyses.length} ${analyses.length === 1 ? 'analysis' : 'analyses'} completed`}
+              ? t('myAnalyses.subtitleWithFocus', {
+                  focusLabel,
+                  count: analyses.length,
+                  unit: analyses.length === 1 ? 'analysis' : 'analyses'
+                })
+              : t('myAnalyses.subtitle', {
+                  count: analyses.length,
+                  unit: analyses.length === 1 ? 'analysis' : 'analyses'
+                })}
           </p>
         </div>
         <button 
@@ -219,7 +239,7 @@ export default function MyAnalysesPage({
           onClick={() => navigate('/new-analysis')}
         >
           <Plus size={18} />
-          <span>New Analysis</span>
+          <span>{t('myAnalyses.newAnalysis')}</span>
         </button>
       </div>
       
@@ -250,7 +270,7 @@ export default function MyAnalysesPage({
                 ) : (
                   <div className="analysisCard__mediaPlaceholder">
                     <div className="analysisCard__mediaIcon">🎞️</div>
-                    <p>Preview unavailable</p>
+                    <p>{t('myAnalyses.previewUnavailable')}</p>
                   </div>
                 )}
               </div>
@@ -260,7 +280,7 @@ export default function MyAnalysesPage({
                   <span className="analysisCard__date">{formatDate(analysis.created_at)}</span>
                   <span className="analysisCard__goalChip">
                     <IconComponent size={16} />
-                    {analysis.user_context?.primaryGoal || 'General'}
+                    {analysis.user_context?.primaryGoal || t('myAnalyses.goalChip', { goal: 'General' })}
                   </span>
                 </div>
                 <div className="analysisCard__filename">{analysis.video_filename}</div>
@@ -274,8 +294,8 @@ export default function MyAnalysesPage({
                     </>
                   ) : (
                     <>
-                      <strong>Free Practice</strong>
-                      <p>General communication practice without a specific focus prompt.</p>
+                      <strong>{t('myAnalyses.freePracticeTitle')}</strong>
+                      <p>{t('myAnalyses.freePracticeDescription')}</p>
                     </>
                   )}
                 </div>
@@ -289,7 +309,7 @@ export default function MyAnalysesPage({
                     }
                   }}
                 >
-                  View Analysis
+                  {t('myAnalyses.viewAnalysis')}
                 </button>
               </div>
             </div>

@@ -1,31 +1,33 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Brain, Target, TrendingUp } from 'lucide-react';
 import './FeaturesSection.css';
 
-const features = [
-  {
-    icon: Brain,
-    title: 'AI-Powered Analysis',
-    description: 'BodAI doesn’t just watch your videos.\n It reads your body language. From posture and gestures to eye contact, energy, and delivery, you get a clear picture of how you truly come across in interviews, presentations, sales calls, and everyday meetings.',
-    color: '#004E64'
-  },
-  {
-    icon: Target,
-    title: 'Personalized Coaching for Your Scenario',
-    description: 'Whether you’re a founder, team lead, content creator, student, or just want to feel more confident, BodAI adapts to you with personalized guidance on what to change in your body language and delivery.',
-    color: '#46B5D1'
-  },
-  {
-    icon: TrendingUp,
-    title: 'Progress Tracking',
-    description: 'Track clear scores and trends over time so you can see your communication improving from session to session.Not just hope it is improving.',
-    color: '#FF8C64'
-  },
-];
-
 export default function FeaturesSection() {
+  const { t } = useTranslation();
   const sectionRef = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
+
+  const features = useMemo(() => [
+    {
+      icon: Brain,
+      title: t('marketing.features.aiAnalysis.title'),
+      description: t('marketing.features.aiAnalysis.description'),
+      color: '#004E64'
+    },
+    {
+      icon: Target,
+      title: t('marketing.features.personalized.title'),
+      description: t('marketing.features.personalized.description'),
+      color: '#46B5D1'
+    },
+    {
+      icon: TrendingUp,
+      title: t('marketing.features.progress.title'),
+      description: t('marketing.features.progress.description'),
+      color: '#FF8C64'
+    },
+  ], [t]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -56,9 +58,9 @@ export default function FeaturesSection() {
     >
       <div className="featuresSection__container">
         <div className="featuresSection__header">
-          <h2 className="featuresSection__title">Why People Practice with BodAI?</h2>
+          <h2 className="featuresSection__title">{t('marketing.features.title')}</h2>
           <p className="featuresSection__subtitle">
-          Advanced AI analysis, personalized coaching by goal, and progress you can actually see - so you show up more confident in real‑world moments.
+            {t('marketing.features.subtitle')}
           </p>
         </div>
         <div className="featuresSection__grid">

@@ -256,6 +256,28 @@ a:hover {
   gap: 20px;
 }
 
+.siteHeader__divider {
+  width: 1px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.2);
+  margin: 0 12px;
+}
+
+.siteHeader--light .siteHeader__divider {
+  background: rgba(15, 23, 42, 0.12);
+}
+
+.siteHeader__languageSection {
+  display: flex;
+  align-items: center;
+}
+
+.siteHeader__authSection {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .nav {
   display: none;
   gap: 4px;
@@ -1772,4 +1794,165 @@ a:hover {
 [dir="rtl"] .container {
   direction: rtl;
   text-align: right;
+}
+
+/* ===== Directional Icons - Flip in RTL ===== */
+/* ArrowRight icons - flip horizontally in RTL */
+[dir="rtl"] .emptyState__actionArrow,
+[dir="rtl"] .topOpportunityCard__arrow,
+[dir="rtl"] .nextStepsPreview__arrow,
+[dir="rtl"] .button__icon,
+[dir="rtl"] .welcomeScreen__stepArrow svg,
+[dir="rtl"] .welcomeScreen__ctaButton svg,
+[dir="rtl"] .hero__cta svg,
+[dir="rtl"] .ctaSection__button svg,
+[dir="rtl"] .focusCard__practiceButton svg,
+[dir="rtl"] .howItWorksSection__arrow svg {
+  transform: scaleX(-1);
+}
+
+/* ArrowLeft icons - flip in RTL (becomes ArrowRight) */
+[dir="rtl"] .analysisPage__navButton svg,
+[dir="rtl"] .onboarding__backBtn svg {
+  transform: scaleX(-1);
+}
+
+/* ChevronRight icons - flip in RTL */
+[dir="rtl"] .nextStepsPreview__arrow[class*="chevron"] {
+  transform: scaleX(-1);
+}
+
+/* General arrow icons in buttons - flip if they're directional */
+[dir="rtl"] .btn svg:last-child:not([class*="icon"]):not([class*="check"]):not([class*="star"]),
+[dir="rtl"] button svg:last-child:not([class*="icon"]):not([class*="check"]):not([class*="star"]) {
+  /* Only flip if it's likely a directional icon (last child in button) */
+  transform: scaleX(-1);
+}
+
+/* ===== Typography Improvements for Hebrew ===== */
+[dir="rtl"] {
+  /* Better line-height for Hebrew text */
+  line-height: 1.7;
+}
+
+[dir="rtl"] .text-body,
+[dir="rtl"] p {
+  line-height: 1.7;
+  letter-spacing: 0;
+}
+
+[dir="rtl"] .text-h1,
+[dir="rtl"] h1 {
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+[dir="rtl"] .text-h2,
+[dir="rtl"] h2 {
+  letter-spacing: -0.005em;
+  line-height: 1.4;
+}
+
+[dir="rtl"] .text-h3,
+[dir="rtl"] h3 {
+  letter-spacing: 0;
+  line-height: 1.5;
+}
+
+/* ===== Number and Mixed Text Formatting ===== */
+/* Ensure numbers and mixed Hebrew/English text display correctly */
+[dir="rtl"] .number,
+[dir="rtl"] [class*="score"],
+[dir="rtl"] [class*="count"],
+[dir="rtl"] [class*="value"] {
+  direction: ltr;
+  display: inline-block;
+  unicode-bidi: embed;
+}
+
+/* Mixed text with numbers - keep numbers LTR */
+[dir="rtl"] .mixed-text {
+  unicode-bidi: plaintext;
+}
+
+/* Dates and times should be LTR in RTL context */
+[dir="rtl"] time,
+[dir="rtl"] [class*="date"],
+[dir="rtl"] [class*="time"] {
+  direction: ltr;
+  display: inline-block;
+  unicode-bidi: embed;
+}
+
+/* ===== Spacing Adjustments for RTL ===== */
+/* Flip margin and padding for common patterns */
+[dir="rtl"] .btn svg:first-child {
+  margin-right: 0;
+  margin-left: 8px;
+}
+
+[dir="rtl"] .btn svg:last-child {
+  margin-left: 0;
+  margin-right: 8px;
+}
+
+/* Icon spacing in buttons */
+[dir="rtl"] .btn > svg + span,
+[dir="rtl"] .btn > span + svg {
+  margin-right: 8px;
+  margin-left: 0;
+}
+
+[dir="rtl"] .btn > span + svg {
+  margin-right: 0;
+  margin-left: 8px;
+}
+
+/* ===== Form Elements RTL ===== */
+[dir="rtl"] input[type="text"],
+[dir="rtl"] input[type="email"],
+[dir="rtl"] input[type="password"],
+[dir="rtl"] textarea,
+[dir="rtl"] select {
+  text-align: right;
+  direction: rtl;
+}
+
+/* Numbers in inputs should be LTR */
+[dir="rtl"] input[type="number"],
+[dir="rtl"] input[type="tel"] {
+  direction: ltr;
+  text-align: left;
+}
+
+/* ===== Animation Adjustments for RTL ===== */
+/* Flip slide-in animations for RTL */
+@keyframes slideInRightRTL {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+[dir="rtl"] .uploadSuccessToast {
+  animation: slideInRightRTL 0.4s cubic-bezier(0.16, 1, 0.3, 1), fadeOut 0.3s ease-out 2.7s forwards;
+}
+
+@keyframes fadeOutRTL {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+}
+
+[dir="rtl"] .uploadSuccessToast {
+  animation: slideInRightRTL 0.4s cubic-bezier(0.16, 1, 0.3, 1), fadeOutRTL 0.3s ease-out 2.7s forwards;
 }

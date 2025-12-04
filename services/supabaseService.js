@@ -645,6 +645,7 @@ export const saveOnboardingAnswers = async (clerkUserId, answers) => {
   const updateData = {
     primary_goal: answers.primaryGoal || 'general',
     confidence_level: answers.confidenceLevel || 'medium',
+    include_environment_feedback: answers.includeEnvironmentFeedback !== undefined ? answers.includeEnvironmentFeedback : true,
     onboarding_completed_at: new Date().toISOString()
   };
 
@@ -699,7 +700,7 @@ export const getUserWithOnboarding = async (clerkUserId) => {
   // Try to fetch with goal_specific_context first
 let { data, error } = await supabase
   .from('users')
-  .select('id, email, first_name, last_name, full_name, phone, profile_image_url, primary_goal, confidence_level, goal_specific_context, onboarding_completed_at, subscription_type, subscription_status, free_analysis_used, consent_version, consent_accepted_at')
+  .select('id, email, first_name, last_name, full_name, phone, profile_image_url, primary_goal, confidence_level, goal_specific_context, include_environment_feedback, onboarding_completed_at, subscription_type, subscription_status, free_analysis_used, consent_version, consent_accepted_at')
   .eq('clerk_user_id', clerkUserId)
   .single();
 
@@ -708,7 +709,7 @@ let { data, error } = await supabase
     console.warn('goal_specific_context column does not exist, fetching without it. Please run migration.');
     const retryResult = await supabase
       .from('users')
-      .select('id, email, first_name, last_name, full_name, phone, profile_image_url, primary_goal, confidence_level, onboarding_completed_at, subscription_type, subscription_status, free_analysis_used, consent_version, consent_accepted_at')
+      .select('id, email, first_name, last_name, full_name, phone, profile_image_url, primary_goal, confidence_level, include_environment_feedback, onboarding_completed_at, subscription_type, subscription_status, free_analysis_used, consent_version, consent_accepted_at')
       .eq('clerk_user_id', clerkUserId)
       .single();
     
@@ -720,7 +721,8 @@ let { data, error } = await supabase
     // Add goal_specific_context as null for backward compatibility
     return {
       ...retryResult.data,
-      goal_specific_context: null
+      goal_specific_context: null,
+      include_environment_feedback: retryResult.data.include_environment_feedback !== undefined ? retryResult.data.include_environment_feedback : true
     };
   }
 
@@ -1171,8 +1173,8 @@ export const saveCommunicationMetrics = async (userId, analysisId, metrics, jour
     authenticity: metrics.authenticity,
     impact: metrics.impact,
     confidence: metrics.confidence,
-    overall_score: metrics.overall_score,
-    stage_title: metrics.stage_title,
+    overall_score: metrics.overall_score || null,
+    stage_title: metrics.stage_title || null,
     // Sub-scores JSONB
     sub_scores: metrics.subScores || null,
     sub_score_evidence: metrics.subScoreEvidence || null,
@@ -1249,6 +1251,14 @@ export const saveCommunicationMetrics = async (userId, analysisId, metrics, jour
 
   if (metrics.delivery) {
     const delivery = metrics.delivery;
+    // Save categorical labels (primary)
+    if (delivery.speaking_rate_label) {
+      insertData.speaking_rate_label = delivery.speaking_rate_label;
+    }
+    if (delivery.filler_word_level) {
+      insertData.filler_word_level = delivery.filler_word_level;
+    }
+    // Backward compatibility: also save numeric values if provided (for future transcription)
     const speakingRate = coerceNumber(
       delivery.speaking_rate_wpm ??
       delivery.speakingRate ??
@@ -1292,6 +1302,7 @@ export const saveCommunicationMetrics = async (userId, analysisId, metrics, jour
 
   console.log(`[saveCommunicationMetrics] Inserting metrics with ${Object.keys(attemptPayload).length} fields`);
   console.log(`[saveCommunicationMetrics] journeyId in payload: ${attemptPayload.journey_id || 'NULL'}`);
+  console.log(`[saveCommunicationMetrics] overall_score: ${attemptPayload.overall_score}, presence: ${attemptPayload.presence}, voice_expression: ${attemptPayload.voice_expression}`);
 
   try {
     let { data, error } = await supabase
@@ -1303,11 +1314,18 @@ export const saveCommunicationMetrics = async (userId, analysisId, metrics, jour
     // If error is due to missing delivery metric columns, remove them and retry
     if (error && error.code === 'PGRST204') {
       const errorMsg = (error.message || '').toLowerCase();
-      const deliveryColumns = ['speaking_rate_wpm', 'filler_word_count', 'sentiment_label', 'posture_flag'];
+      const deliveryColumns = [
+        'speaking_rate_wpm', 
+        'filler_word_count', 
+        'sentiment_label', 
+        'posture_flag',
+        'speaking_rate_label',
+        'filler_word_level'
+      ];
       const missingDeliveryColumn = deliveryColumns.find(col => errorMsg.includes(col.toLowerCase()));
       
-      if (missingDeliveryColumn) {
-        console.warn(`[saveCommunicationMetrics] ${missingDeliveryColumn} column missing, removing delivery metrics and retrying`);
+      if (missingDeliveryColumn || errorMsg.includes('column')) {
+        console.warn(`[saveCommunicationMetrics] Column missing (likely ${missingDeliveryColumn}), removing ALL delivery metrics and retrying`);
         deliveryColumns.forEach(col => {
           if (attemptPayload.hasOwnProperty(col)) {
             delete attemptPayload[col];
@@ -1689,17 +1707,37 @@ const buildFallbackPracticePrompt = (item) => {
   const title = item.title || 'Practice Focus';
   const details = item.details || {};
   const whatToDo = details.what_to_do || (Array.isArray(details.all_details) ? details.all_details[0] : null);
-  const description = `Record a 90-second video practicing "${title}". Explain the main message, then rehearse it once more with improved delivery.`;
+  const whyItMatters = details.why_it_matters || '';
+  const userContext = item.userContext || {};
+  const language = userContext.language || 'en';
+  const isHebrew = language === 'he';
+  
+  // Build description based on Action Item
+  const description = isHebrew 
+    ? `הקלט סרטון של ~45 שניות שבו אתה מתרגל "${title}". ${whatToDo ? whatToDo : 'התמקד בשיפור הנקודה הספציפית הזו.'}`
+    : `Record a ~45 second video where you practice "${title}". ${whatToDo ? whatToDo : 'Focus on improving this specific area.'}`;
+  
+  const setup = isHebrew
+    ? 'מקם את המצלמה בגובה העיניים, במרחק של כף יד. עמוד או שב זקוף עם תאורה טובה.'
+    : "Place your phone or laptop camera at eye level, about an arm's length away. Stand or sit upright with good lighting.";
+  
+  const whatToNotice = isHebrew
+    ? whyItMatters || 'שימו לב לקשר עין, אנרגיה קולית, והאם המחוות שלך תומכות במסר.'
+    : whyItMatters || 'Pay attention to eye contact, vocal energy, and whether your gestures support the message.';
+  
+  const recordingTip = isHebrew
+    ? whatToDo || 'דבר בכוונה, עצור לרגע בין נקודות מפתח, ושמור על מחוות מכוונות.'
+    : whatToDo || 'Speak with intention, pause briefly between key points, and keep your gestures purposeful.';
 
   return {
-    title: `Rehearse: ${title}`,
+    title: isHebrew ? `תרגול: ${title}` : `Rehearse: ${title}`,
     description,
-    setup: 'Place your phone or laptop camera at eye level, about an arm’s length away. Stand or sit upright with good lighting.',
-    whatToNotice: details.why_it_matters || 'Pay attention to eye contact, vocal energy, and whether your gestures support the message.',
-    recordingTip: whatToDo || 'Speak with intention, pause briefly between key points, and keep your gestures purposeful.',
+    setup,
+    whatToNotice,
+    recordingTip,
     targetMetric: item.targetMetric || inferTargetMetricFromTitle(title) || 'overall',
     difficulty: 'intermediate',
-    estimatedTime: '90 seconds',
+    estimatedTime: '45 seconds',
     version: 1,
     source: 'fallback'
   };

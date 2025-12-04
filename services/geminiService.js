@@ -3,6 +3,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { GoogleGenAI } from "@google/genai";
+import { calculateOverallScore, getStageTitle } from './scoringConfig.js';
 
 const capitalizeLabel = (value = '') => {
   if (!value || typeof value !== 'string') return '';
@@ -81,6 +82,40 @@ const buildHistoricalContextBlock = (historicalContext = null) => {
 
 
 
+// 1. Lens Definitions for Analysis
+const lensMapping = {
+  'Content': {
+    role: "Viral Content Strategist & Brand Expert",
+    priority: "Attention retention, 'The Hook', energy levels, visual engagement, and entertainment value.",
+    critical_question: "Would a stranger scroll past this in 1 second?"
+  },
+  'Face-to-Face Sales': {
+    role: "Senior Sales Negotiator & Trust Expert",
+    priority: "Building rapport, objection handling, closing signals, authority, and trustworthiness.",
+    critical_question: "Would I buy from this person based on their vibe alone?"
+  },
+  'Leadership': {
+    role: "Executive Communication Coach",
+    priority: "Gravitas, calmness, pause utilization, vocal depth, and ability to inspire confidence.",
+    critical_question: "Does this person command the room without trying too hard?"
+  },
+  'Interview': {
+    role: "Fortune 500 HR Recruiter",
+    priority: "Professionalism, structured thinking (STAR method), likability, and anxiety management.",
+    critical_question: "Is this candidate competent and easy to work with?"
+  },
+  'Presentation': {
+    role: "TED Talk Speaking Coach",
+    priority: "Narrative flow, stage usage, gesture clarity, and audience connection.",
+    critical_question: "Is the message memorable and structured?"
+  },
+  'Confidence': {
+    role: "Behavioral Psychologist",
+    priority: "Internal state vs. external expression, micro-expressions of fear, and grounding techniques.",
+    critical_question: "Is the confidence genuine or a mask?"
+  }
+};
+
 // Build dynamic prompt based on user context
 const buildPrompt = (userContext = {}) => {
   // Check if this is a Module 1 baseline assessment
@@ -94,18 +129,19 @@ const buildPrompt = (userContext = {}) => {
   const language = userContext.language || 'en';
   const isHebrew = language === 'he';
 
-  // Map goals to specific focus areas (only active goals in the app)
-  const goalFocus = {
-    'content': 'content creation and talking to camera',
-    'leadership': 'leadership presence and executive communication',
-    'confidence': 'self-confidence and presence',
-    'presentation': 'presentations and public speaking',
-    'interview': 'job and promotion interviews',
-    'sales': 'face-to-face sales conversations',
+  // Map user goals to Lens keys
+  const goalToLens = {
+    'content': 'Content',
+    'leadership': 'Leadership',
+    'confidence': 'Confidence',
+    'presentation': 'Presentation',
+    'interview': 'Interview',
+    'sales': 'Face-to-Face Sales'
   };
 
-  // Get focus area with fallback to confidence (default goal)
-  const focusArea = goalFocus[goal] || goalFocus['confidence'];
+  const focusArea = goalToLens[goal] || 'Confidence';
+  const currentLens = lensMapping[focusArea] || lensMapping['Confidence'];
+  
   const goalLabel = goal.replace(/-/g, ' ');
   const recordingPrompt = userContext.recordingPrompt || null;
   const historicalContextBlock = userContext.historicalContext ? buildHistoricalContextBlock(userContext.historicalContext) : '';
@@ -115,18 +151,7 @@ const buildPrompt = (userContext = {}) => {
     ? 'gentle and encouraging' 
     : (confidence === 'medium' ? 'balanced' : 'direct and professional');
 
-  // Practice focus block - only if user is practicing a specific action item
-  const practiceFocusBlock = recordingPrompt?.title ? `
-PRACTICE FOCUS EVALUATION
-The user is practicing: "${recordingPrompt.title}"
-Action Item ID: ${recordingPrompt.actionItemId || 'baseline'}
-Target: ${recordingPrompt.targetMetric || 'overall'}
-Description: ${recordingPrompt.description || 'General practice'}
-
-Evaluate how well they executed this specific practice. Score their performance on this focus area independently from overall analysis. The score determines if they pass (>=7) or need more practice (<7).
-` : '';
-
-  // JSON schema - using varied example values to prevent anchoring
+  // JSON schema
   const jsonSchema = recordingPrompt?.title 
     ? `{
   "sub_scores": {
@@ -146,7 +171,12 @@ Evaluate how well they executed this specific practice. Score their performance 
   "final_scores": { "voice": 0.0, "presence": 0.0, "clarity": 0.0, "authenticity": 0.0, "impact": 0.0, "confidence": 0.0 },
   "overall_score": 0.0,
   "stage_title": "",
-  "delivery_metrics": { "speaking_rate_wpm": 0, "filler_word_count": 0, "sentiment": "", "posture_flag": "" },
+  "delivery_metrics": { 
+    "speaking_rate_label": "slow|optimal|fast",
+    "filler_word_level": "low|medium|high",
+    "sentiment": "",
+    "posture_flag": ""
+  },
   "validation": { "jump_detected": false, "jump_explanation": "", "confidence": 0.0 },
   "insights": ["", "", ""]
 }`
@@ -162,94 +192,148 @@ Evaluate how well they executed this specific practice. Score their performance 
   "final_scores": { "voice": 0.0, "presence": 0.0, "clarity": 0.0, "authenticity": 0.0, "impact": 0.0, "confidence": 0.0 },
   "overall_score": 0.0,
   "stage_title": "",
-  "delivery_metrics": { "speaking_rate_wpm": 0, "filler_word_count": 0, "sentiment": "", "posture_flag": "" },
+  "delivery_metrics": { 
+    "speaking_rate_label": "slow|optimal|fast",
+    "filler_word_level": "low|medium|high",
+    "sentiment": "",
+    "posture_flag": ""
+  },
   "validation": { "jump_detected": false, "jump_explanation": "", "confidence": 0.0 },
   "insights": ["", "", ""]
 }`;
 
   // Language instruction
   const languageInstruction = isHebrew 
-    ? '\n\n**IMPORTANT: Respond entirely in Hebrew (עברית). All text, including section headers, tips, and explanations must be in Hebrew. Only technical terms like JSON field names should remain in English.**'
+    ? `\n\n**IMPORTANT LANGUAGE RULES:**
+1. Respond in Hebrew (עברית) for ALL content text including tips, explanations, descriptions, "Recording Note" content, "Quick Wins" content, and JSON values for "sentiment" and "posture_flag".
+2. Translate "The Game Changer", "Physical Tweak", and "Environment" sub-headers to Hebrew.
+3. However, ALWAYS use these exact English section headers for the main sections: "**Key Strengths**", "**Focus Areas**", "**Communication Tips**", "**Body Language Tips**", "**Recording Note**", "**Quick Wins**".
+4. For tips format, use Hebrew labels: "מה לתרגל:" and "למה זה חשוב:" instead of "What to practice:" and "Why it matters:".
+5. Only technical terms like JSON field names should remain in English.`
     : '';
 
-  // Build the prompt with XML structure (Gemini best practice)
   return `<role>
-Communication and presence coach analyzing a practice video. You evaluate both verbal delivery (speech, clarity, pace) and non-verbal communication (body language, posture, gestures, eye contact, micro-facial-expressions).${languageInstruction}
+You are an elite AI Communication Coach combining the skills of a ${currentLens.role}.
+Your goal is not just to judge, but to provide the specific *unlock* that takes the user to the next level.
+
+**YOUR FOCUS LENS:**
+- **Primary Objectives:** ${currentLens.priority}
+- **The Golden Question:** "${currentLens.critical_question}"
+
+${languageInstruction} 
 </role>
 
 <user_context>
-Goal: ${goalLabel} (${focusArea})
-Confidence Level: ${confidence}
-Tone: ${tone}
-${historicalContextBlock}${practiceFocusBlock}
+**Goal:** ${goalLabel}
+**Focus Area:** ${focusArea}
+**Self-Reported Confidence:** ${confidence}
+**Tone Target:** ${tone}
+**History:** ${historicalContextBlock}
+**Active Practice:** ${recordingPrompt?.title || "Free Practice"}
 </user_context>
 
+<analysis_protocol>
+Use this specific methodology to analyze the video inputs:
+
+1. **The Congruence Scan:** Check alignment between:
+   ${userContext.includeEnvironmentFeedback !== false ? `   - Visuals (Attire, Background) vs. Goal (${goalLabel})` : `   - Visuals (Attire) vs. Goal (${goalLabel})`}
+   - Body Language vs. Voice Tone (e.g., Confident voice but fidgeting hands?)
+
+2. **The "Lens" Filter:** Apply the strict criteria of a ${currentLens.role}.
+   - If "Sales": Are they closing? Are they listening?
+   - If "Leadership": Is there gravitas? Is there calm?
+
+3. **Evidence Extraction:**
+   - **CRITICAL:** Whenever you cite a flaw or strength, you MUST try to reference a specific moment or quote. (e.g., "When you said 'I think so'...")
+</analysis_protocol>
+${userContext.includeEnvironmentFeedback === false ? `\n**IMPORTANT:** Do NOT provide feedback on background, camera angle, lighting, or environment setup. Focus ONLY on body language, speech, voice, and communication skills. Ignore visual setup issues. Do not mention background, camera positioning, lighting quality, or any environmental factors in your analysis.` : ''}
+
 <scoring_reference>
-SCALE (0-10): 0-3 Weak | 4-6 Average | 7-10 Strong
+**CRITICAL: Be STRICT and REALISTIC. Most users score 4-7, not 8-10. Reserve high scores (8.0+) for truly exceptional performance.**
 
-SUB-METRICS:
-- Voice: volume_stability, tone_variation, pace_control, articulation, warmth
-- Presence: eye_contact, facial_relaxation, body_posture, hand_naturalness, openness
-- Clarity: structure, focus, example_usage, transition_quality, repetition_control
-- Authenticity: naturalness, emotional_transparency, forced_expression_reduction
-- Impact: energy, engagement, persuasiveness
-- Confidence: filler_word_control, pause_control, physical_tension, vocal_stability, comfort_level
+SCALE (0-10):
+- **8.0 - 10.0:** World Class. Mastery of the specific lens. Flawless execution. **RARE** - Only award if the user truly excels in ALL aspects.
+- **6.0 - 7.9:** Proficient. Clear and effective, but lacks the "X-Factor" or emotional depth. **Most good videos fall here.**
+- **4.0 - 5.9:** Average. Mechanics are there, but delivery is flat, inconsistent, or lacks intention. **Most average videos fall here.**
+- **0.0 - 3.9:** Weak. Fundamental gaps in confidence, structure, or congruence. **Needs significant work.**
 
-DELIVERY METRICS:
-- speaking_rate_wpm: 90-190 typical
-- filler_word_count: count "um", "uh", "like", "ummm", "ah", and other filler words.
-- sentiment: positive/neutral/tense
-- posture_flag: open/closed/leaning/dynamic
+**Strict Scoring Rules:**
+- **Default to 5.0-6.5 range** unless the video is clearly exceptional or clearly weak.
+- If the user fails the "${currentLens.critical_question}", the overall score cannot exceed 7.5.
+- **Be conservative:** If unsure, score lower rather than higher.
+- **Avoid score inflation:** A "good" video should score 6-7, not 8-9.
+- Be precise with decimals (e.g., 5.8, 6.3, 7.1) based on the weighted sub-metrics.
+- **Sub-metrics must align:** If presence is 8.0 but voice is 4.0, the overall cannot be 8.0.
 
-STAGE TITLES (by overall_score):
-0-40: Beginning Communicator | 41-60: Emerging Communicator | 61-75: Developing Communicator
-76-85: Expressive Communicator | 86-95: Confident Communicator | 96-100: Master Communicator
+**Delivery Metrics (Categorical Only):**
+- For speaking_rate_label: Choose "slow", "optimal", or "fast" based on your assessment of pace impact (not exact WPM count).
+- For filler_word_level: Choose "low", "medium", or "high" based on whether filler words are distracting (not exact count).
+- Focus on the **impact** of these factors, not precise numeric measurements.
 </scoring_reference>
 
 <output_format>
-Based on the video, provide the following sections:
+Provide the output in the following structure specifically designed for our parsing engine.
+**IMPORTANT:** Keep the section headers exactly as written below in English (even if writing the content in Hebrew).
 
 **Key Strengths**
-2-3 strengths the user demonstrated well, with brief explanation of why each matters.
+Identify 2 specific elements the user nailed based on the ${currentLens.role} perspective.
 
 **Focus Areas**
-2-3 areas needing improvement. Be direct and specific about the problems observed.
+Identify 2 specific elements that are blocking success. Focus on the "Low hanging fruit".
 
 **Communication Tips**
-2 prioritized tips to improve speech and delivery. Format each as:
-[Title]
-- What to practice: [specific instruction]
-- Why it matters: [how this helps achieve their ${goalLabel} goal]
+Analyze the content structure, clarity, and word choice. Provide exactly 2 distinct tips.
+
+For EACH tip, use this EXACT format (do not deviate):
+- [Tip Title/Name]
+  - ${isHebrew ? 'מה לתרגל:' : 'What to practice:'} [Specific actionable instruction]
+  - ${isHebrew ? 'למה זה חשוב:' : 'Why it matters:'} [Explanation of impact]
+
+${isHebrew ? `דוגמה:
+- הפחתת מילות מילוי
+  - מה לתרגל: עצור ל-2 שניות לפני שאתה מתחיל לדבר כדי לאסוף את המחשבות שלך
+  - למה זה חשוב: ביטול "אמ" ו"אה" גורם לך להישמע יותר בטוח ומקצועי` : `Example:
+- Reduce filler words
+  - What to practice: Pause for 2 seconds before speaking to gather your thoughts
+  - Why it matters: Eliminating "um" and "uh" makes you sound more confident and professional`}
 
 **Body Language Tips**
-2 prioritized tips to improve presence and non-verbal communication. Format each as:
-[Title]
-- What to practice: [specific instruction]
-- Why it matters: [how this helps achieve their ${goalLabel} goal]
+Analyze the visual delivery (Micro-signals, Posture, Eye Contact). Provide exactly 2 distinct tips.
+*Pro Tip: Cite specific timestamps if possible.*
+
+For EACH tip, use this EXACT format (do not deviate):
+- [Tip Title/Name]
+  - ${isHebrew ? 'מה לתרגל:' : 'What to practice:'} [Specific actionable instruction]
+  - ${isHebrew ? 'למה זה חשוב:' : 'Why it matters:'} [Explanation of impact]
+
+${isHebrew ? `דוגמה:
+- שמירה על קשר עין
+  - מה לתרגל: הסתכל ישירות על עדשת המצלמה למשך 3-5 שניות, ואז הסתכל הצידה באופן טבעי
+  - למה זה חשוב: קשר עין ישיר בונה אמון ומעורבות עם הקהל שלך` : `Example:
+- Maintain eye contact
+  - What to practice: Look directly at the camera lens for 3-5 seconds, then briefly look away naturally
+  - Why it matters: Direct eye contact builds trust and engagement with your audience`}
 
 **Recording Note**
-One sentence about camera setup, framing, or lighting ONLY if it significantly affected the analysis quality.
+A 2-sentence executive summary answering the "Golden Question": "${currentLens.critical_question}".
+${isHebrew ? 'Write the answer entirely in Hebrew.' : 'Start with a direct answer (Yes/No/Almost) and explain why.'}
 
 **Quick Wins**
-1-2 simple actions they can try immediately in their next conversation or recording.
+${isHebrew ? 'Translate sub-headers to Hebrew:' : ''}
+- **The Game Changer:** One major psychological or strategic shift.
+- **Physical Tweak:** One immediate body adjustment (e.g., "Chin up", "Slow down").
+${userContext.includeEnvironmentFeedback !== false ? '- **Environment:** Lighting/Audio/Background fix.' : ''}
 
-End with JSON metrics block:
 \`\`\`json
 ${jsonSchema}
 \`\`\`
 </output_format>
 
 <rules>
-1. Score based ONLY on what you observe in the video. Do not copy placeholder values.
-2. Replace all 0.0 with actual scores (use decimals like 6.5, 7.8).
-3. Be strict: only give 7+ for genuinely strong performance.Do Not give good scores for average performance.
-4. If eye contact is poor, score eye_contact 0-4. If monotone, score tone_variation 0-4.
-5. overall_score = (voice×0.15 + presence×0.15 + clarity×0.15 + authenticity×0.15 + impact×0.20 + confidence×0.20) × 10
-6. ${recordingPrompt?.title ? `prompt_focus.score must reflect actual execution of "${recordingPrompt.title}". Score >=7 means pass, <7 means needs practice.` : 'No practice focus for this video.'}
-7. Provide 3 specific insights for the communication journal.
-8. Communication Tips focus on SPEECH: pace, clarity, structure, filler words, vocal variety.
-9. Body Language Tips focus on NON-VERBAL: posture, gestures, eye contact, facial expressions, openness.
-10. No emojis in the response.
+1. **Be Constructively Tough:** Don't sugarcoat, but always explain *why* it matters for a ${currentLens.role}.
+2. **Context is King:** A suit is good for "Interview" but maybe stiff for "Content". Judge according to the ${focusArea}.
+3. **No Emojis** in the text analysis (unless specified).
+4. ${recordingPrompt?.title ? `Evaluate strictly against the prompt: "${recordingPrompt.title}".` : ''}
 </rules>`;
 };
 
@@ -279,7 +363,7 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
     
     const INLINE_LIMIT_BYTES = 20 * 1024 * 1024; // 20MB
     const fallbackModel = 'gemini-2.5-flash';
-    const modelName = options.model || process.env.GEMINI_MODEL || 'gemini-3-pro-preview';
+    const modelName = options.model || process.env.GEMINI_MODEL || 'gemini-2.5-flash';
     let effectiveModel = modelName;
     const ai = new GoogleGenAI({ apiKey: API_KEY });
     
@@ -512,7 +596,7 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
           };
         } else if (parsed.sub_scores && parsed.final_scores) {
           // New format with sub-scores
-          // New format with sub-scores
+          const calculatedOverallScore = calculateOverallScore(parsed.final_scores);
           metrics = {
             subScores: parsed.sub_scores,
             finalScores: parsed.final_scores,
@@ -522,8 +606,8 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
             authenticity: parsed.final_scores.authenticity,
             impact: parsed.final_scores.impact,
             confidence: parsed.final_scores.confidence,
-            overall_score: parsed.overall_score,
-            stage_title: parsed.stage_title || 'Emerging Communicator',
+            overall_score: calculatedOverallScore,
+            stage_title: getStageTitle(calculatedOverallScore),
             insights: parsed.insights || [],
             analysis: parsed.analysis || {},
             validation: parsed.validation || {}
@@ -592,6 +676,19 @@ export const generatePracticePromptFromAction = async ({
   const confidence = userContext.confidenceLevel || 'medium';
   const language = userContext.language || 'en';
   const isHebrew = language === 'he';
+  
+  // Use lens mapping for context if available
+  const goalToLens = {
+    'content': 'Content',
+    'leadership': 'Leadership',
+    'confidence': 'Confidence',
+    'presentation': 'Presentation',
+    'interview': 'Interview',
+    'sales': 'Face-to-Face Sales'
+  };
+  const focusArea = goalToLens[goal] || 'Confidence';
+  const currentLens = lensMapping[focusArea] || lensMapping['Confidence'];
+
   const detailText = [
     details.what_to_do ? `What to do: ${details.what_to_do}` : null,
     details.why_it_matters ? `Why it matters: ${details.why_it_matters}` : null,
@@ -606,18 +703,23 @@ export const generatePracticePromptFromAction = async ({
     ? '\n\n**IMPORTANT: Respond entirely in Hebrew (עברית). All text fields (title, description, setup, what_to_notice, recording_tip) must be in Hebrew. Only JSON field names should remain in English.**'
     : '';
 
-  const prompt = `You are an expert body language coach designing quick 45-second practice drills that users can rehearse on their own (no upload required, optional self-recording).${languageInstruction}
+  const prompt = `You are an elite AI Coach specializing in ${currentLens.role}. Your goal is to design a quick 45-second practice drill that users can rehearse on their own.
+${languageInstruction}
 
-Goal/Context: ${goal}
-User confidence: ${confidence}
-Target metric to improve: ${targetMetric}
-Recommended difficulty: ${difficulty}
-Recommended duration: ${estimatedTime}
-${priorList}
+User Profile:
+- Goal: ${goal} (${currentLens.priority})
+- Confidence: ${confidence}
+- Target Metric: ${targetMetric}
+- Recommended Difficulty: ${difficulty}
+- Recommended Duration: ${estimatedTime}
+
+Context specific to their goal ("${focusArea}"):
+${currentLens.critical_question}
 
 Action Item to reinforce:
 Title: ${title}
 ${detailText}
+${priorList}
 
 Please respond ONLY with valid JSON (no markdown) in the format:
 {
@@ -631,12 +733,14 @@ Please respond ONLY with valid JSON (no markdown) in the format:
   "estimated_time": "e.g. 2 minutes total",
   "version": 2
 }
-Requirements:
-- description must mention that the drill is ~45 seconds and the theme to talk about.
-- setup/what_to_notice/recording_tip must be specific and observable.
-- Use the supplied difficulty/target metric unless you have a strong reason to adjust (then explain briefly inside recording_tip).
-- Ensure the drill is distinct from prior ones if provided.
-- Remind the user the drill is self-practice, no upload required.`;
+**CRITICAL REQUIREMENTS:**
+1. The drill MUST be directly related to the Action Item title and details above. Do NOT generate generic drills.
+2. The drill MUST align with the user's goal (${goal}). For example, if goal is "Content Creator", the drill should be about talking to camera for content, NOT about sales meetings.
+3. The description must explicitly mention: "Record a ~45 second video where you [specific action related to the Action Item]"
+4. The setup, what_to_notice, and recording_tip must be SPECIFIC and ACTIONABLE, not vague.
+5. The drill must be PRACTICAL - something the user can do right now without special equipment.
+6. Ensure the drill is distinct from prior ones if provided.
+7. Remind the user the drill is self-practice, no upload required.`;
 
   const runGeneration = async (model) => {
     console.log(`[Gemini] Calling API with model: ${model} (Practice Prompt Generation)`);
