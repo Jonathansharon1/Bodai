@@ -133,7 +133,7 @@ export default function CelebrationModal({
           
           <div className="celebrationModal__improvement">
             <span className="celebrationModal__plus">+{improvement.toFixed(1)}</span>
-            <span>points since last session</span>
+            <span>{t('dashboard.pointsSinceLastSession')}</span>
           </div>
           
           <p className="celebrationModal__message">{getMessage()}</p>

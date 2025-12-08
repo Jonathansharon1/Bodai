@@ -181,7 +181,7 @@
   box-shadow: 0 4px 12px rgba(56, 189, 248, 0.4);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .videoDuplicateModal__content {
     padding: 24px 20px;
     max-width: 90%;
@@ -195,5 +195,7 @@
     font-size: 13px;
   }
 }
+
+
 
 

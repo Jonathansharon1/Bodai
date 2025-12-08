@@ -1,920 +1,667 @@
-/* Practice Page - Modern Design System */
-
 .practicePage {
-  padding: 40px;
-  max-width: 1600px;
+  padding: 24px;
+  max-width: 1200px;
   margin: 0 auto;
-  position: relative;
+  padding-bottom: 80px; /* Space for FAB */
+  font-family: 'Inter', sans-serif;
+  color: #1e293b;
 }
 
-/* Animated Background */
-.practicePage::before {
-  content: '';
-  position: fixed;
-  top: 0;
-  right: 0;
-  width: 600px;
-  height: 600px;
-  background: radial-gradient(circle, rgba(37, 99, 235, 0.06) 0%, transparent 70%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-[dir="rtl"] .practicePage::before {
-  right: auto;
-  left: 0;
-}
-
-.practicePage::after {
-  content: '';
-  position: fixed;
-  bottom: 0;
-  left: 280px;
-  width: 500px;
-  height: 500px;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.05) 0%, transparent 70%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-[dir="rtl"] .practicePage::after {
-  left: auto;
-  right: 280px;
-}
-
-/* Header */
 .practicePage__header {
   margin-bottom: 32px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
-  position: relative;
-  z-index: 1;
 }
 
 .practicePage__title {
-  font-size: var(--text-h1-size);
-  line-height: var(--text-h1-line-height);
+  font-size: 32px;
   font-weight: 800;
-  color: var(--text-dark);
-  margin: 0;
-  letter-spacing: -0.03em;
-  font-family: var(--font-display);
+  margin: 16px 0 8px 0;
+  color: #0f172a;
+  letter-spacing: -0.5px;
 }
 
 .practicePage__subtitle {
-  font-size: var(--text-body-size);
-  line-height: var(--text-body-line-height);
-  color: var(--text-muted);
-  margin: 8px 0 0;
+  font-size: 16px;
+  color: #64748b;
+  margin: 0;
 }
 
 .practicePage__journeyTabs {
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
-/* Hero Section */
-.practicePage__hero {
-  margin-bottom: 40px;
-  position: relative;
-  z-index: 1;
+.practicePage__content {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+/* --- 1. Hero Section --- */
+.practicePage__heroSection {
+  width: 100%;
 }
 
 .practiceHero {
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  border-radius: 16px;
+  background: linear-gradient(145deg, #ffffff 0%, #eff6ff 100%);
+  border-radius: 20px;
   padding: 32px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 16px;
+  box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.1), 0 8px 10px -6px rgba(59, 130, 246, 0.1);
+  border: 1px solid #bfdbfe;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.practiceHero__icon {
-  color: #2563eb;
-  margin-bottom: 8px;
+.practiceHero:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 25px -5px rgba(59, 130, 246, 0.15), 0 8px 10px -6px rgba(59, 130, 246, 0.1);
+}
+
+.practiceHero--focus {
+  background: linear-gradient(145deg, #ffffff 0%, #eff6ff 100%);
+  border-color: #bfdbfe;
+}
+
+.practiceHero--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  box-shadow: none;
+}
+
+.practiceHero__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #eff6ff;
+  color: #3b82f6;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 16px;
 }
 
 .practiceHero__title {
-  font-size: var(--text-h2-size);
+  font-size: 24px;
   font-weight: 700;
-  color: var(--text-dark);
-  margin: 0;
-  letter-spacing: -0.02em;
+  color: #0f172a;
+  margin: 0 0 12px 0;
+  line-height: 1.3;
 }
 
 .practiceHero__description {
-  font-size: var(--text-body-size);
-  line-height: var(--text-body-line-height);
-  color: var(--text-muted);
-  max-width: 600px;
-  margin: 0;
-  line-height: 1.6;
-}
-
-.practiceHero__stats {
-  display: flex;
-  gap: 24px;
-  margin-top: 24px;
-  padding-top: 24px;
-  border-top: 1px solid rgba(226, 232, 240, 0.8);
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-.practiceHero__stat {
-  text-align: center;
-}
-
-.practiceHero__statValue {
-  font-size: var(--text-h2-size);
-  font-weight: 700;
-  color: #0f172a;
-  margin-bottom: 4px;
-}
-
-.practiceHero__statLabel {
-  font-size: var(--text-caption-size);
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 600;
-}
-
-.practiceHero__stat--streak .practiceHero__statValue {
-  color: #f59e0b;
-}
-
-/* Section */
-.practicePage__section {
-  margin-bottom: 40px;
-  position: relative;
-  z-index: 1;
-}
-
-.practiceSection__header {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.practiceSection__icon {
-  color: #2563eb;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.practiceSection__title {
-  font-size: var(--text-h2-size);
-  font-weight: 700;
-  color: var(--text-dark);
-  margin: 0 0 4px;
-  letter-spacing: -0.02em;
-}
-
-.practiceSection__subtitle {
-  font-size: 14px;
-  color: var(--text-muted);
-  margin: 0;
-  line-height: 1.6;
-}
-
-.practiceSection__subtitle strong {
-  color: #0f172a;
-  font-weight: 600;
-}
-
-/* Action Items List */
-.actionItemsList {
-  display: grid;
-  gap: 16px;
-}
-
-.actionItemCard {
-  background: #ffffff;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  border-radius: 12px;
-  padding: 20px;
-  display: flex;
-  gap: 16px;
-  transition: all 0.2s ease;
-}
-
-.actionItemCard:hover {
-  border-color: #2563eb;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
-}
-
-.actionItemCard__icon {
-  color: #2563eb;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.actionItemCard__body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.actionItemCard__meta {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.actionItemCard__chip {
-  font-size: 12px;
-  font-weight: 600;
-  padding: 4px 12px;
-  border-radius: 6px;
-  background: #f1f5f9;
+  font-size: 16px;
   color: #475569;
+  margin: 0 0 24px 0;
+  line-height: 1.6;
+  max-width: 600px;
 }
 
-.actionItemCard__chip--accent {
-  background: #dbeafe;
-  color: #1e40af;
+.practiceHero__actions {
+  display: flex;
+  gap: 12px;
 }
 
-.actionItemCard__title {
+.practiceHero__startBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: #0f172a;
+  color: white;
+  border-radius: 12px;
+  font-weight: 600;
+  transition: all 0.2s;
+  border: none;
+  cursor: pointer;
+}
+
+.practiceHero__startBtn:hover {
+  background: #334155;
+  transform: translateY(-1px);
+}
+
+.practiceHero__iconBox {
+  width: 64px;
+  height: 64px;
+  background: #ecfdf5;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px auto;
+}
+
+/* --- 2. Warm Up Zone --- */
+.practicePage__warmUpSection {
+  width: 100%;
+}
+
+.warmUpRow__title {
   font-size: 18px;
   font-weight: 600;
-  color: #0f172a;
-  margin: 0;
-}
-
-.actionItemCard__description {
-  font-size: 14px;
-  color: #64748b;
-  margin: 0;
-  line-height: 1.5;
-}
-
-/* Practice Missions List */
-.practiceMissionsList {
-  display: grid;
-  gap: 24px;
-}
-
-.practiceMissionCard {
-  background: #ffffff;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  border-radius: 12px;
-  padding: 24px;
-  transition: all 0.2s ease;
-  position: relative;
-}
-
-.practiceMissionCard:hover {
-  border-color: #2563eb;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
-}
-
-.practiceMissionCard--priority {
-  border: 2px solid #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.02) 0%, rgba(139, 92, 246, 0.02) 100%);
-}
-
-.practiceMissionCard--priority:hover {
-  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.2), 0 0 0 3px rgba(37, 99, 235, 0.15);
-}
-
-.practiceMissionCard__priorityBadge {
-  position: absolute;
-  top: -12px;
-  left: 24px;
-  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
-  color: white;
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
+  color: #334155;
+  margin: 0 0 16px 0;
   display: flex;
   align-items: center;
-  gap: 6px;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
-  z-index: 1;
+  gap: 8px;
 }
 
-.practiceMissionCard__header {
-  display: flex;
-  align-items: flex-start;
+.warmUpRow__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 16px;
-  margin-bottom: 20px;
 }
 
-.practiceMissionCard__icon {
+.warmUpCard {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  width: 100%;
+}
+
+.warmUpCard:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  transform: translateY(-2px);
+}
+
+.warmUpCard__icon {
+  font-size: 24px;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  border-radius: 12px;
+}
+
+.warmUpCard__info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.warmUpCard__label {
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.warmUpCard__duration {
+  font-size: 13px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+}
+
+/* --- 3. Skill Stations --- */
+.practicePage__stationsSection {
+  width: 100%;
+}
+
+.practicePage__sectionTitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 20px 0;
+}
+
+.stationsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.skillStation {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.skillStation:hover {
+  border-color: #cbd5e1;
+}
+
+.skillStation__header {
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  background: white;
+}
+
+.skillStation__header:hover {
+  background: #f8fafc;
+}
+
+.skillStation__left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.skillStation__icon {
   width: 48px;
   height: 48px;
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
 }
 
-.practiceMissionCard__meta {
-  flex: 1;
+.skillStation__info {
   display: flex;
   flex-direction: column;
-  gap: 8px;
 }
 
-.practiceMissionCard__metaTop {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.practiceMissionCard__category {
-  font-size: 12px;
-  font-weight: 600;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.practiceMissionCard__priorityTag {
-  font-size: 11px;
-  font-weight: 700;
-  color: #2563eb;
-  background: #dbeafe;
-  padding: 3px 8px;
-  border-radius: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.practiceMissionCard__label {
-  font-size: 20px;
+.skillStation__title {
+  font-size: 16px;
   font-weight: 700;
   color: #0f172a;
   margin: 0;
 }
 
-.practiceMissionCard__score {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.practiceMissionCard__scoreValue {
-  font-size: 24px;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.practiceMissionCard__scoreLabel {
-  font-size: 14px;
-  color: #64748b;
-}
-
-.practiceMissionCard__declining {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #ef4444;
-  margin-left: 8px;
-}
-
-.practiceMissionCard__whyMatters {
+.skillStation__count {
   font-size: 13px;
-  color: #475569;
-  line-height: 1.5;
-  padding: 12px;
-  background: #f8fafc;
-  border-radius: 8px;
-  border-left: 3px solid #2563eb;
-  margin-top: 8px;
+  color: #64748b;
 }
 
-.practiceMissionCard__whyMatters strong {
-  color: #0f172a;
-  font-weight: 600;
+.skillStation__chevron {
+  color: #94a3b8;
+  transition: transform 0.2s ease;
 }
 
-.practiceMissionCard__refresh {
-  background: transparent;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  border-radius: 8px;
-  padding: 8px 12px;
+.skillStation__chevron--expanded {
+  transform: rotate(90deg);
+}
+
+.skillStation__content {
+  border-top: 1px solid #f1f5f9;
+  background: #fafafa;
+  animation: slideDown 0.2s ease-out;
+}
+
+.skillStation__list {
+  list-style: none;
+  margin: 0;
+  padding: 16px;
+}
+
+.skillStation__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  margin-bottom: 8px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
   cursor: pointer;
-  color: #64748b;
   transition: all 0.2s ease;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: fit-content;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
-.practiceMissionCard__refresh:hover:not(:disabled) {
-  background: #f1f5f9;
-  border-color: #2563eb;
-  color: #2563eb;
+.skillStation__item:last-child {
+  margin-bottom: 0;
+  border-bottom: 1px solid #e2e8f0;
 }
 
-.practiceMissionCard__refreshLabel {
-  font-size: 12px;
+.skillStation__item:hover {
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  background: white;
+}
+
+.skillStation__itemContent h4 {
+  margin: 0;
+  font-size: 14px;
   font-weight: 500;
-  white-space: nowrap;
+  color: #334155;
 }
 
-.practiceMissionCard__refresh:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.practiceMissionCard__refreshSpinner {
-  display: inline-block;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.practiceMissionCard__loading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 32px;
-  color: #64748b;
-}
-
-.practiceMissionCard__loadingSpinner {
+.skillStation__playBtn {
   width: 32px;
   height: 32px;
-  border: 3px solid rgba(37, 99, 235, 0.1);
-  border-top: 3px solid #2563eb;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-.practiceMissionCard__missions {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.practiceMissionCard__mission {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-}
-
-.practiceMissionCard__mission:hover {
-  background: #f8fafc;
-}
-
-.practiceMissionCard__mission--completed {
-  opacity: 0.7;
-}
-
-.practiceMissionCard__mission--celebrating {
-  animation: celebrate 0.6s ease-out;
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%);
-}
-
-.practiceMissionCard__missionCheckbox {
-  background: transparent;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  flex-shrink: 0;
-  margin-top: 2px;
+  background: white;
+  border: 1px solid #e2e8f0;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.2s ease;
-}
-
-.practiceMissionCard__missionCheckbox:hover:not(:disabled) {
-  transform: scale(1.1);
-}
-
-.practiceMissionCard__missionCheckbox:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.practiceMissionCard__missionIcon {
-  flex-shrink: 0;
-  transition: all 0.2s ease;
-}
-
-.practiceMissionCard__missionIcon--completed {
-  color: #10b981;
-}
-
-.practiceMissionCard__missionIcon--uncompleted {
-  width: 18px;
-  height: 18px;
-  border: 2px solid #cbd5e1;
-  border-radius: 4px;
-  background: white;
-}
-
-.practiceMissionCard__missionCheckbox:hover .practiceMissionCard__missionIcon--uncompleted {
-  border-color: #2563eb;
-  background: #f1f5f9;
-}
-
-.practiceMissionCard__missionSpinner {
-  width: 18px;
-  height: 18px;
-  border: 2px solid #e2e8f0;
-  border-top: 2px solid #2563eb;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-.practiceMissionCard__missionText--completed {
-  text-decoration: line-through;
-  color: #94a3b8;
-}
-
-.practiceMissionCard__progress {
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid #e2e8f0;
-}
-
-.practiceMissionCard__progressBar {
-  width: 100%;
-  height: 8px;
-  background: #e2e8f0;
-  border-radius: 4px;
-  overflow: hidden;
-  margin-bottom: 8px;
-}
-
-.practiceMissionCard__progressFill {
-  height: 100%;
-  background: linear-gradient(90deg, #10b981 0%, #059669 100%);
-  border-radius: 4px;
-  transition: width 0.3s ease;
-}
-
-.practiceMissionCard__progressText {
-  font-size: 13px;
   color: #64748b;
-  font-weight: 500;
+  transition: all 0.2s;
 }
 
-@keyframes celebrate {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-  100% {
-    transform: scale(1);
-  }
+.skillStation__item:hover .skillStation__playBtn {
+  background: #0f172a;
+  color: white;
+  border-color: #0f172a;
 }
 
-.practiceMissionCard__mission {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-  font-size: 14px;
-  color: #0f172a;
-  line-height: 1.5;
-}
-
-.practiceMissionCard__mission:hover {
-  background: #f8fafc;
-}
-
-.practiceMissionCard__mission--completed {
-  opacity: 0.7;
-}
-
-.practiceMissionCard__mission--celebrating {
-  animation: celebrate 0.6s ease-out;
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%);
-}
-
-.practiceMissionCard__missionCheckbox {
-  background: transparent;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  flex-shrink: 0;
-  margin-top: 2px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.2s ease;
-}
-
-.practiceMissionCard__missionCheckbox:hover:not(:disabled) {
-  transform: scale(1.1);
-}
-
-.practiceMissionCard__missionCheckbox:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.practiceMissionCard__missionIcon {
-  flex-shrink: 0;
-  transition: all 0.2s ease;
-}
-
-.practiceMissionCard__missionIcon--completed {
-  color: #10b981;
-}
-
-.practiceMissionCard__missionIcon--uncompleted {
-  width: 18px;
-  height: 18px;
-  border: 2px solid #cbd5e1;
-  border-radius: 4px;
-  background: white;
-}
-
-.practiceMissionCard__missionCheckbox:hover .practiceMissionCard__missionIcon--uncompleted {
-  border-color: #2563eb;
-  background: #f1f5f9;
-}
-
-.practiceMissionCard__missionSpinner {
-  width: 18px;
-  height: 18px;
-  border: 2px solid #e2e8f0;
-  border-top: 2px solid #2563eb;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-.practiceMissionCard__missionText--completed {
-  text-decoration: line-through;
-  color: #94a3b8;
-}
-
-.practiceMissionCard__progress {
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid #e2e8f0;
-}
-
-.practiceMissionCard__progressBar {
-  width: 100%;
-  height: 8px;
-  background: #e2e8f0;
-  border-radius: 4px;
-  overflow: hidden;
-  margin-bottom: 8px;
-}
-
-.practiceMissionCard__progressFill {
-  height: 100%;
-  background: linear-gradient(90deg, #10b981 0%, #059669 100%);
-  border-radius: 4px;
-  transition: width 0.3s ease;
-}
-
-.practiceMissionCard__progressText {
-  font-size: 13px;
-  color: #64748b;
-  font-weight: 500;
-}
-
-.practiceMissionCard__empty {
-  padding: 32px;
+.skillStation__empty {
+  padding: 24px;
   text-align: center;
-  color: #64748b;
+  color: #94a3b8;
   font-size: 14px;
 }
 
-.practiceMissionCard__staleBadge {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: #fef3c7;
-  border: 1px solid #fbbf24;
-  border-radius: 8px;
-  color: #92400e;
-  font-size: 12px;
-  font-weight: 600;
-  margin-bottom: 16px;
-}
-
-.practiceMissionCard__staleBadge svg {
-  flex-shrink: 0;
-}
-
-/* Empty State */
-.practicePage__empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 80px 20px;
-  text-align: center;
-  position: relative;
-  z-index: 1;
-}
-
-.practicePage__empty svg {
-  color: #cbd5e1;
-  margin-bottom: 24px;
-}
-
-.practicePage__empty h2 {
-  font-size: 24px;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 0 0 8px;
-}
-
-.practicePage__empty p {
-  font-size: 16px;
-  color: #64748b;
-  margin: 0 0 24px;
-  max-width: 400px;
-}
-
-.practiceMissionCard__actions {
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid #e2e8f0;
-}
-
-.practiceMissionCard__practiceBtn {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-/* Floating Action Button */
+/* FAB */
 .practicePage__fab {
   position: fixed;
   bottom: 32px;
   right: 32px;
-  width: 64px;
-  height: 64px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+  background: #0f172a;
   color: white;
-  border: none;
-  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.4);
-  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
-  z-index: 100;
-  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.3);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 90;
 }
 
 .practicePage__fab:hover {
-  transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 12px 32px rgba(37, 99, 235, 0.5);
+  transform: scale(1.05);
+  background: #1e293b;
 }
 
-.practicePage__fab:active {
-  transform: translateY(0) scale(0.98);
-}
-
-.practicePage__fabLabel {
-  position: absolute;
-  right: 80px;
-  white-space: nowrap;
-  background: #0f172a;
-  color: white;
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
-}
-
-.practicePage__fab:hover .practicePage__fabLabel {
-  opacity: 1;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .practicePage {
-    padding: 24px;
-  }
-
-  .practiceHero {
-    padding: 24px;
-  }
-
-  .practiceHero__title {
-    font-size: 24px;
-  }
-
-  .practiceSection__title {
-    font-size: 20px;
-  }
-
-  .practicePage__fab {
-    bottom: 24px;
-    right: 24px;
-    width: 56px;
-    height: 56px;
-  }
-
-  .practicePage__fab svg {
-    width: 20px;
-    height: 20px;
-  }
-
-  .practicePage__fabLabel {
-    display: none;
-  }
-
-  .actionItemCard {
-    flex-direction: column;
-  }
-
-  .practiceMissionCard__header {
-    flex-wrap: wrap;
-  }
-
-  .practicePage__skeleton {
-    gap: 20px;
-  }
-}
-
+/* Skeleton */
 .practicePage__skeleton {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  margin-top: 32px;
+  gap: 20px;
 }
 
+/* Animations */
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
-/* Show More Button */
-.practicePage__showMore {
+/* Responsive */
+@media (max-width: 767px) {
+  .practicePage {
+    padding: 16px;
+    padding-bottom: 90px;
+  }
+  
+  .practiceHero {
+    padding: 24px;
+  }
+  
+  .practiceHero__title {
+    font-size: 20px;
+  }
+  
+  .warmUpRow__list {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Mission Modal */
+.missionModal__overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  background: transparent;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  border-radius: 8px;
-  padding: 12px;
-  width: 100%;
-  color: #64748b;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  margin-top: 16px;
+  z-index: 1000;
+  padding: 20px;
+  animation: fadeIn 0.2s ease-out;
 }
 
-.practicePage__showMore:hover {
+.missionModal__content {
+  background: white;
+  border-radius: 24px;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.missionModal__header {
+  padding: 24px 32px;
+  display: flex;
+  align-items: center; /* Changed from flex-start to center for icon alignment */
+  justify-content: space-between;
+  border-bottom: 1px solid #f1f5f9;
+  gap: 16px; /* Space between icon and title if needed */
+}
+
+.missionModal__headerIcon {
+  font-size: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.missionModal__title {
+  font-size: 24px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+  line-height: 1.3;
+  flex: 1; /* Allow title to take available space */
+}
+
+.missionModal__closeBtn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 8px;
+  margin: 0; /* Reset margin */
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ... existing styles ... */
+
+.missionModal__meta {
+  display: flex;
+  align-items: center;
+  gap: 16px; /* Increased gap */
+  color: #64748b;
+  font-size: 14px;
+  margin-top: 24px; /* Moved to bottom of content usually */
+  font-weight: 500;
+  background: #f8fafc; /* Lighter bg */
+  padding: 12px 16px;
+  border-radius: 12px;
+  align-self: flex-start;
+  width: 100%; /* Full width looks better for meta bar */
+  border: 1px solid #f1f5f9;
+}
+
+.missionModal__metaItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.missionModal__closeBtn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.missionModal__body {
+  padding: 32px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.missionModal__description {
+  font-size: 18px;
+  line-height: 1.6;
+  color: #334155;
+  margin-bottom: 24px;
+}
+
+.missionModal__richContent {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.missionModal__section h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.missionModal__section p {
+  font-size: 15px;
+  line-height: 1.6;
+  color: #475569;
+  margin: 0;
+}
+
+
+.missionModal__context {
+  background: #f8fafc;
+  padding: 20px;
+  border-radius: 12px;
+  font-size: 15px;
+  color: #475569;
+  border-left: 4px solid #3b82f6;
+  line-height: 1.6;
+  margin-top: 24px;
+}
+
+.missionModal__context strong {
+  color: #0f172a;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.missionModal__footer {
+  padding: 24px 32px;
+  border-top: 1px solid #f1f5f9;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.missionModal__startBtn {
+  width: 100%;
+  padding: 16px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+  border: none;
+  cursor: pointer;
+}
+
+.missionModal__completeBtn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.missionModal__completeBtn:hover {
   background: #f8fafc;
   color: #0f172a;
   border-color: #cbd5e1;
 }
 
-.practicePage__showMoreIcon {
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-.practicePage__showMoreIcon--expanded {
-  transform: rotate(90deg);
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* RTL Support for show more icon */
-[dir="rtl"] .practicePage__showMoreIcon {
-  transform: scaleX(-1);
+/* RTL Support */
+[dir="rtl"] .missionModal__context {
+  border-left: none;
+  border-right: 4px solid #3b82f6;
 }
 
-[dir="rtl"] .practicePage__showMoreIcon--expanded {
-  /* Left Arrow (<) rotated -90deg (CCW) becomes Down (v) */
-  transform: scaleX(-1) rotate(-90deg);
+[dir="rtl"] .missionModal__closeBtn {
+  margin: -8px 0 0 -8px;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .missionModal__content {
+    max-height: 100vh;
+    height: 100%;
+    border-radius: 0;
+  }
+  
+  .missionModal__header {
+    padding: 20px;
+  }
+  
+  .missionModal__body {
+    padding: 20px;
+  }
+  
+  .missionModal__footer {
+    padding: 20px;
+  }
 }

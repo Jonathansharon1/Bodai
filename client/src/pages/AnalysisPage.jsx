@@ -13,7 +13,9 @@ import {
   Timer,
   Eye,
   Trash2,
-  Play
+  Play,
+  LayoutDashboard,
+  Target
 } from 'lucide-react';
 import Logo from '../components/Logo';
 import UploadVideo from '../components/UploadVideo';
@@ -92,7 +94,7 @@ export default function AnalysisPage({
   const { user } = useUser();
   const { id } = useParams();
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
   const [videoUrl, setVideoUrl] = useState(null);
   const [loadedAnalysis, setLoadedAnalysis] = useState(null);
@@ -137,13 +139,170 @@ export default function AnalysisPage({
     return false;
   });
 
+  // --- New Personalization Logic ---
+  const [metricsHistory, setMetricsHistory] = useState([]);
+  const [streakData, setStreakData] = useState({ count: 0, period: 'day', label: 'Day Streak', progress: 0, target: 0 });
+  const [personalizedChecklist, setPersonalizedChecklist] = useState([]);
+
+  const calculateSmartStreak = (analyses, commitment = 'regular') => {
+    if (!analyses || !analyses.length) return;
+
+    let streak = 0;
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    // Helper to check if same day
+    const isSameDay = (d1, d2) => d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
+    
+    // Helper to get ISO week number
+    const getWeek = (d) => {
+      const date = new Date(d.getTime());
+      date.setHours(0, 0, 0, 0);
+      date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
+      const week1 = new Date(date.getFullYear(), 0, 4);
+      return 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+    };
+    
+    // Helper to get Year-Week string (e.g., "2023-45")
+    const getYearWeek = (d) => `${d.getFullYear()}-${getWeek(d)}`;
+
+    if (commitment === 'intensive') {
+      // Daily streak
+      let currentCheck = new Date(today);
+      
+      // Check if today has analysis
+      const hasToday = analyses.some(a => isSameDay(new Date(a.created_at), today));
+      
+      // If NOT today, start check from yesterday
+      if (!hasToday) {
+         currentCheck.setDate(currentCheck.getDate() - 1);
+      }
+      
+      while (true) {
+        const hasAnalysis = analyses.some(a => isSameDay(new Date(a.created_at), currentCheck));
+        if (hasAnalysis) {
+          streak++;
+          currentCheck.setDate(currentCheck.getDate() - 1);
+        } else {
+            break; 
+        }
+      }
+      setStreakData({ count: streak, period: 'day', label: t('streak.dayStreak') || 'Day Streak', progress: hasToday ? 1 : 0, target: 1 });
+    } else {
+      // Weekly streak (Casual or Regular)
+      const target = commitment === 'regular' ? 3 : 1;
+      const analysesByWeek = {};
+      
+      analyses.forEach(a => {
+        const yw = getYearWeek(new Date(a.created_at));
+        analysesByWeek[yw] = (analysesByWeek[yw] || 0) + 1;
+      });
+
+      let currentWeek = new Date(today);
+      const currentYW = getYearWeek(currentWeek);
+      const currentCount = analysesByWeek[currentYW] || 0;
+      
+      // Check previous weeks
+      let checkDate = new Date(today);
+      checkDate.setDate(checkDate.getDate() - 7); // Start from last week
+      
+      while (true) {
+        const yw = getYearWeek(checkDate);
+        if ((analysesByWeek[yw] || 0) >= target) {
+          streak++;
+          checkDate.setDate(checkDate.getDate() - 7);
+        } else {
+          break;
+        }
+      }
+      
+      // Add current week if target met
+      if (currentCount >= target) streak++;
+      
+      setStreakData({ 
+        count: streak, 
+        period: 'week', 
+        label: t('streak.weekStreak') || 'Week Streak', 
+        progress: Math.min(currentCount, target), 
+        target 
+      });
+    }
+  };
+
+  const generateChecklist = (analyses) => {
+     if (!analyses || analyses.length < 1) {
+         setPersonalizedChecklist([
+             { id: 'default1', key: 'checklist.default1', text: 'Check your lighting' },
+             { id: 'default2', key: 'checklist.default2', text: 'Ensure clear audio' },
+             { id: 'default3', key: 'checklist.default3', text: 'Look at the lens' }
+         ]);
+         return;
+     }
+
+     // Calculate average metrics from last 3 analyses
+     const recent = analyses.slice(0, 3);
+     const metrics = ['presence', 'voice_expression', 'clarity', 'authenticity', 'impact', 'confidence'];
+     const averages = metrics.map(m => {
+         const sum = recent.reduce((acc, a) => acc + (a.metrics?.[m] || 0), 0);
+         return { metric: m, score: sum / recent.length };
+     });
+     
+     // Find 3 weakest
+     const weakest = averages.sort((a, b) => a.score - b.score).slice(0, 3);
+     
+     const checklistMap = {
+         presence: t('checklist.presence') || 'Stand tall and fill the frame',
+         voice_expression: t('checklist.voice') || 'Vary your tone and pace',
+         clarity: t('checklist.clarity') || 'Structure your opening clearly',
+         authenticity: t('checklist.authenticity') || 'Be yourself, relax shoulders',
+         impact: t('checklist.impact') || 'Focus on your key message',
+         confidence: t('checklist.confidence') || 'Maintain steady eye contact'
+     };
+     
+     setPersonalizedChecklist(weakest.map((w, i) => ({
+         id: `weak-${i}`,
+         text: checklistMap[w.metric] || w.metric,
+         metric: w.metric
+     })));
+  };
+
+  // Recalculate checklist when history or language changes
+  useEffect(() => {
+    generateChecklist(metricsHistory);
+  }, [metricsHistory, t]);
+
+  // Fetch history for personalization
+  useEffect(() => {
+    if (!user?.id) return;
+    
+    const fetchHistory = async () => {
+      try {
+        const res = await fetch(`${apiBase}/api/analyses`, {
+          headers: { 'X-Clerk-User-Id': user.id }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const validAnalyses = (data.analyses || [])
+            .filter(a => a.status === 'completed')
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+          
+          setMetricsHistory(validAnalyses.slice(0, 10)); 
+          calculateSmartStreak(validAnalyses, userContext?.practiceCommitment);
+        }
+      } catch (err) {
+        console.error('Failed to fetch history:', err);
+      }
+    };
+    fetchHistory();
+  }, [user?.id, apiBase, userContext?.practiceCommitment]);
+
   useEffect(() => {
     if (currentAnalysisData) return;
     // Don't auto-select - let user choose from action items
     setSelectedPrompt(null);
     setPracticeAcknowledged(true);
     setPracticeAckTouched(false);
-  }, [actionPromptOption, currentAnalysisData]);
+  }, [currentAnalysisData]);
 
   const handleAnalyzeClick = () => {
     // Only require acknowledgment if user selected a prompt
@@ -241,14 +400,17 @@ export default function AnalysisPage({
 
     let isMounted = true;
     const controller = new AbortController();
+    let timeoutId = null;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 10; // Max 30 seconds (10 * 3s)
 
-    let pollInterval = null;
-
-    const fetchActionItems = async (isInitial = false) => {
-      if (isInitial) {
+    const fetchActionItems = async () => {
+      // Only show loading on first attempt
+      if (attempts === 0) {
         setActionItemsLoading(true);
       }
       setActionItemsError(null);
+      
       try {
         const params = new URLSearchParams({ status: 'pending' });
         if (activeJourneyId) {
@@ -279,59 +441,47 @@ export default function AnalysisPage({
 
           setRecentActionItems(sorted.slice(0, 2));
           
-          // Check if we need to poll for practice prompts
+          // Check if we need to poll for practice prompts (if items are pending generation)
           const hasItemsWithoutPrompts = sorted.some(item => 
             !item.practice_prompt_generated && 
             !item.practice_prompt_title && 
             item.status === 'pending'
           );
           
-          // If there are items without prompts, poll every 3 seconds for up to 30 seconds
-          if (hasItemsWithoutPrompts && !pollInterval) {
-            let pollCount = 0;
-            const maxPolls = 10; // 10 polls * 3 seconds = 30 seconds max
-            pollInterval = setInterval(() => {
-              pollCount++;
-              if (pollCount >= maxPolls || !isMounted) {
-                if (pollInterval) {
-                  clearInterval(pollInterval);
-                  pollInterval = null;
-                }
-                return;
-              }
-              fetchActionItems(false);
-            }, 3000);
-          } else if (!hasItemsWithoutPrompts && pollInterval) {
-            clearInterval(pollInterval);
-            pollInterval = null;
+          // If there are items without prompts, schedule next poll
+          if (hasItemsWithoutPrompts && attempts < MAX_ATTEMPTS) {
+            attempts++;
+            timeoutId = setTimeout(fetchActionItems, 3000);
           }
         } else {
-          setActionItemsError('Unable to load your latest action items right now.');
+          if (attempts === 0) {
+            setActionItemsError('Unable to load your latest action items right now.');
+          }
         }
       } catch (error) {
         if (error.name !== 'AbortError') {
           console.error('Failed to fetch action items:', error);
-          if (isMounted) {
+          if (isMounted && attempts === 0) {
             setActionItemsError('Unable to load your latest action items right now.');
           }
         }
       } finally {
-        if (isMounted && isInitial) {
+        if (isMounted && attempts === 0) {
           setActionItemsLoading(false);
         }
       }
     };
 
-    fetchActionItems(true);
+    fetchActionItems();
 
     return () => {
       isMounted = false;
       controller.abort();
-      if (pollInterval) {
-        clearInterval(pollInterval);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
       }
     };
-  }, [user, id, viewingAnalysis, activeJourneyId, refreshTrigger, result]);
+  }, [user?.id, id, activeJourneyId, refreshTrigger]); // Reduced dependencies to prevent restarts
 
   const isViewingExisting = Boolean(currentAnalysisData);
   const showNewAnalysisFlow = !isViewingExisting && !isLoading && !result;
@@ -351,10 +501,11 @@ export default function AnalysisPage({
   const latestAnalysisDate = useMemo(() => {
     if (!recentActionItems || recentActionItems.length === 0) return null;
     const latest = recentActionItems[0];
+    const locale = i18n.language === 'he' ? 'he-IL' : 'en-US';
     return latest?.analyses?.created_at
-      ? new Date(latest.analyses.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      ? new Date(latest.analyses.created_at).toLocaleDateString(locale, { month: 'short', day: 'numeric' })
       : null;
-  }, [recentActionItems]);
+  }, [recentActionItems, i18n.language]);
 
   return (
     <div className="analysisPage">
@@ -398,7 +549,7 @@ export default function AnalysisPage({
                 {currentAnalysisData?.video_filename}
               </h1>
               <p className="analysisPage__subtitle analysisPage__subtitle--muted">
-                {new Date(currentAnalysisData.created_at).toLocaleDateString('en-US', { 
+                {new Date(currentAnalysisData.created_at).toLocaleDateString(i18n.language === 'he' ? 'he-IL' : 'en-US', { 
                   year: 'numeric', 
                   month: 'long', 
                   day: 'numeric',
@@ -451,7 +602,7 @@ export default function AnalysisPage({
                   <div className="analysisPage__analysisMetaRow">
                     <span className="analysisPage__metaLabel">{t('analysisPage.uploadedOn')}</span>
                     <span className="analysisPage__metaValue">
-                      {new Date(currentAnalysisData.created_at).toLocaleDateString('en-US', { 
+                      {new Date(currentAnalysisData.created_at).toLocaleDateString(i18n.language === 'he' ? 'he-IL' : 'en-US', { 
                         year: 'numeric', 
                         month: 'long', 
                         day: 'numeric',
@@ -493,6 +644,34 @@ export default function AnalysisPage({
                     </div>
                   )}
                 </div>
+
+                <div className="analysisPage__quickActions">
+                  <button 
+                    className="btn btn--primary btn--fullWidth" 
+                    onClick={() => {
+                      navigate('/new-analysis');
+                      onRemove?.();
+                      setVideoUrl(null);
+                    }}
+                  >
+                    <Plus size={18} />
+                    <span>{t('analysisPage.newAnalysis')}</span>
+                  </button>
+                  <button 
+                    className="btn btn--secondary btn--fullWidth" 
+                    onClick={() => navigate('/practice')}
+                  >
+                    <Target size={18} />
+                    <span>{t('analysisPage.goToPractice')}</span>
+                  </button>
+                  <button 
+                    className="btn btn--secondary btn--fullWidth" 
+                    onClick={onBackToDashboard}
+                  >
+                    <LayoutDashboard size={18} />
+                    <span>{t('analysisPage.dashboard')}</span>
+                  </button>
+                </div>
               </div>
             </div>
           </>
@@ -503,16 +682,26 @@ export default function AnalysisPage({
               <>
                 <div className="analysisPage__newLayout">
                   <div className="analysisPage__mainColumn">
-                    <div className="analysisPage__nextStepsCard">
-                      <div className="analysisPage__cardHeader">
-                        <div className="analysisPage__cardHeaderIcon">
-                          <Sparkles size={18} />
+                    <div className="analysisPage__dashboardContainer">
+                      {/* Streak Section */}
+                      <div className="analysisPage__streakCard">
+                        <div className="analysisPage__streakHeader">
+                          <div className="analysisPage__streakCount">
+                            <span className="analysisPage__fireIcon">🔥</span>
+                            <span className="analysisPage__streakNumber">{streakData.count}</span>
+                            <span className="analysisPage__streakLabel">{streakData.label}</span>
+                          </div>
                         </div>
-                        <div>
-                          <p className="analysisPage__cardTitle">{t('analysisPage.nextSteps')}</p>
-                          <span className="analysisPage__cardSubtitle">
-                            {latestAnalysisDate ? t('analysisPage.basedOnSession', { date: latestAnalysisDate }) : t('analysisPage.basedOnLatest')}
-                          </span>
+                        <div className="analysisPage__streakProgress">
+                           <div className="analysisPage__progressBar">
+                              <div 
+                                 className="analysisPage__progressFill" 
+                                 style={{ width: `${(streakData.progress / (streakData.target || 1)) * 100}%` }} 
+                              />
+                           </div>
+                           <span className="analysisPage__progressText">
+                              {streakData.progress} / {streakData.target} {t('streak.videosThisPeriod') || 'videos'}
+                           </span>
                         </div>
                       </div>
                       {practiceCompletionNotices && practiceCompletionNotices.length > 0 && (
@@ -537,74 +726,81 @@ export default function AnalysisPage({
                           </button>
                         </div>
                       )}
-                      <div className="analysisPage__stepList">
-                        {actionItemsLoading && (
-                          <>
-                            {[1, 2, 3].map((skeleton) => (
-                              <div key={skeleton} className="analysisPage__stepItem analysisPage__stepItem--skeleton">
-                                <div className="analysisPage__stepIconPlaceholder" />
-                                <div className="analysisPage__stepTextPlaceholder">
-                                  <div className="analysisPage__stepLine line--short" />
-                                  <div className="analysisPage__stepLine line--long" />
-                                </div>
-                              </div>
-                            ))}
-                          </>
-                        )}
-
-                        {!actionItemsLoading && actionItemsError && (
-                          <div className="analysisPage__emptyState">
-                            <p>{actionItemsError}</p>
-                          </div>
-                        )}
-
-                        {!actionItemsLoading && !actionItemsError && recentActionItems.length === 0 && (
-                          <div className="analysisPage__emptyState">
-                            <p>
-                              {hasCompletedAnalysis
-                                ? t('analysisPage.noTipsAvailable')
-                                : t('analysisPage.completeFirstAnalysis')}
-                            </p>
-                          </div>
-                        )}
-
-                        {!actionItemsLoading && !actionItemsError && recentActionItems.length > 0 && (
-                          recentActionItems.map((item, index) => (
-                            <div key={item.id || index} className="analysisPage__stepItem">
-                              <div className="analysisPage__stepIcon">
-                                <CheckCircle2 size={18} />
-                              </div>
-                              <div className="analysisPage__stepContent">
-                                <div className="analysisPage__stepTitle">{item.title}</div>
-                                <div className="analysisPage__stepInstantLabel">{t('analysisPage.instantTipLabel')}</div>
-                                <p className="analysisPage__stepDescription">
-                                  {formatActionDescription(item)}
-                                </p>
-                                {item.practice_prompt_title && item.practice_prompt_description && (
-                                  <button
-                                    type="button"
-                                    className="analysisPage__stepPracticeButton"
-                                    onClick={() => item.practice_prompt_description && setSelectedPrompt({
-                                      id: item.practice_prompt_id || item.id,
-                                      title: item.practice_prompt_title,
-                                      description: item.practice_prompt_description,
-                                      setup: item.practice_prompt_setup,
-                                      whatToNotice: item.practice_prompt_notice,
-                                      recordingTip: item.practice_prompt_tip,
-                                      targetMetric: item.practice_prompt_target_metric,
-                                      difficulty: item.practice_prompt_difficulty,
-                                      estimatedTime: item.practice_prompt_time,
-                                      source: 'action',
-                                      actionItemId: item.id
-                                    })}
-                                  >
-                                    {t('analysisPage.optionalExercise')}
-                                  </button>
-                                )}
-                              </div>
-                              <span className="analysisPage__stepBadge">Step {index + 1}</span>
-                            </div>
-                          ))
+                      <div className="analysisPage__focusSection">
+                        {actionItemsLoading ? (
+                          <div className="analysisPage__heroSkeleton" />
+                        ) : recentActionItems.length > 0 ? (
+                           <>
+                             {/* Hero Card */}
+                             <div className="analysisPage__heroCard">
+                               <div className="analysisPage__heroHeader">
+                                  <h3>{recentActionItems[0].title}</h3>
+                               </div>
+                               <div className="analysisPage__heroContent">
+                                  <p>{formatActionDescription(recentActionItems[0])}</p>
+                                  {recentActionItems[0].practice_prompt_description && (
+                                    <button 
+                                      className="analysisPage__heroAction"
+                                      onClick={() => setSelectedPrompt({
+                                          id: recentActionItems[0].practice_prompt_id || recentActionItems[0].id,
+                                          title: recentActionItems[0].practice_prompt_title,
+                                          description: recentActionItems[0].practice_prompt_description,
+                                          setup: recentActionItems[0].practice_prompt_setup,
+                                          whatToNotice: recentActionItems[0].practice_prompt_notice,
+                                          recordingTip: recentActionItems[0].practice_prompt_tip,
+                                          targetMetric: recentActionItems[0].practice_prompt_target_metric,
+                                          difficulty: recentActionItems[0].practice_prompt_difficulty,
+                                          estimatedTime: recentActionItems[0].practice_prompt_time,
+                                          source: 'action',
+                                          actionItemId: recentActionItems[0].id
+                                      })}
+                                    >
+                                       <Play size={16} fill="currentColor" /> {t('analysisPage.practiceThis') || 'Practice This'}
+                                    </button>
+                                  )}
+                               </div>
+                             </div>
+                             
+                             {/* Secondary Focus - UPDATED */}
+                             {recentActionItems.length > 1 && (
+                               <div className="analysisPage__secondaryCard">
+                                  <div className="analysisPage__secondaryHeader">
+                                      <div className="analysisPage__secondaryTitleRow">
+                                          <Target size={16} className="analysisPage__secondaryIcon" />
+                                          <h4>{recentActionItems[1].title}</h4>
+                                      </div>
+                                      <span className="analysisPage__secondaryLabel">{t('analysisPage.secondaryFocus')}</span>
+                                  </div>
+                                  <div className="analysisPage__secondaryBody">
+                                      <p>{formatActionDescription(recentActionItems[1])}</p>
+                                      {recentActionItems[1].practice_prompt_description && (
+                                          <button
+                                              className="analysisPage__secondaryAction"
+                                              onClick={() => setSelectedPrompt({
+                                                  id: recentActionItems[1].practice_prompt_id || recentActionItems[1].id,
+                                                  title: recentActionItems[1].practice_prompt_title,
+                                                  description: recentActionItems[1].practice_prompt_description,
+                                                  setup: recentActionItems[1].practice_prompt_setup,
+                                                  whatToNotice: recentActionItems[1].practice_prompt_notice,
+                                                  recordingTip: recentActionItems[1].practice_prompt_tip,
+                                                  targetMetric: recentActionItems[1].practice_prompt_target_metric,
+                                                  difficulty: recentActionItems[1].practice_prompt_difficulty,
+                                                  estimatedTime: recentActionItems[1].practice_prompt_time,
+                                                  source: 'action',
+                                                  actionItemId: recentActionItems[1].id
+                                              })}
+                                          >
+                                              <Play size={14} /> {t('analysisPage.practiceThis')}
+                                          </button>
+                                      )}
+                                  </div>
+                               </div>
+                             )}
+                           </>
+                        ) : (
+                           <div className="analysisPage__emptyState">
+                              <p>{t('analysisPage.completeFirstAnalysis')}</p>
+                           </div>
                         )}
                       </div>
                     </div>
@@ -676,15 +872,17 @@ export default function AnalysisPage({
                       </>
                     )}
 
-                    <div className="analysisPage__upload analysisPage__uploadCard">
-                      <UploadVideo file={file} onSelect={onSelect} onClear={onRemove} />
-                      <div className="analysisPage__uploadNote">
-                        <Timer size={14} />
-                        <span>{t('analysisPage.minVideoDuration', { defaultValue: 'Minimum 30 seconds required for analysis' })}</span>
+                    {!isLoading && (
+                      <div className="analysisPage__upload analysisPage__uploadCard">
+                        <UploadVideo file={file} onSelect={onSelect} onClear={onRemove} />
+                        <div className="analysisPage__uploadNote">
+                          <Timer size={14} />
+                          <span>{t('analysisPage.minVideoDuration', { defaultValue: 'Minimum 30 seconds required for analysis' })}</span>
+                        </div>
                       </div>
-                    </div>
+                    )}
 
-                    {file && (
+                    {file && !isLoading && (
                       <div className="analysisPage__actions analysisPage__actions--left">
                         <button 
                           className="analysisPage__analyzeButton" 
@@ -704,27 +902,22 @@ export default function AnalysisPage({
                           <Lightbulb size={18} />
                         </div>
                         <div>
-                          <p className="analysisPage__cardTitle">{t('analysisPage.recordingTips')}</p>
-                          <span className="analysisPage__cardSubtitle">{t('analysisPage.keepFundamentals')}</span>
+                          <p className="analysisPage__cardTitle">{t('analysisPage.preFlightCheck') || 'Pre-Flight Check'}</p>
                         </div>
                       </div>
                       <div className="analysisPage__tipsList">
-                        {RECORDING_TIP_DEFS.map((tip) => {
-                          const Icon = tip.icon;
-                          const titleKey = `analysisPage.recordingTipsList.${tip.id}.title`;
-                          const descriptionKey = `analysisPage.recordingTipsList.${tip.id}.description`;
-                          return (
-                            <div key={tip.id} className="analysisPage__tipItem">
-                              <div className="analysisPage__tipIcon">
-                                <Icon size={18} />
-                              </div>
-                              <div className="analysisPage__tipContent">
-                                <div className="analysisPage__tipTitle">{t(titleKey)}</div>
-                                <p className="analysisPage__tipDescription">{t(descriptionKey)}</p>
-                              </div>
+                        {personalizedChecklist.map((item) => (
+                          <div key={item.id} className="analysisPage__tipItem">
+                            <div className="analysisPage__tipIcon">
+                              <CheckCircle2 size={18} />
                             </div>
-                          );
-                        })}
+                            <div className="analysisPage__tipContent">
+                              <p className="analysisPage__tipDescription">
+                                {item.key ? t(item.key) : item.text}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
 
@@ -774,7 +967,7 @@ export default function AnalysisPage({
                       <div className="analysisPage__analysisMetaRow">
                         <span className="analysisPage__metaLabel">{t('analysisPage.uploadedOn')}</span>
                         <span className="analysisPage__metaValue">
-                          {new Date().toLocaleDateString('en-US', { 
+                          {new Date().toLocaleDateString(i18n.language === 'he' ? 'he-IL' : 'en-US', { 
                             year: 'numeric', 
                             month: 'long', 
                             day: 'numeric',
@@ -803,36 +996,46 @@ export default function AnalysisPage({
                         </div>
                       )}
                     </div>
+
+                    <div className="analysisPage__quickActions">
+                      <button 
+                        className="btn btn--primary btn--fullWidth" 
+                        onClick={() => {
+                          navigate('/new-analysis');
+                          onRemove?.();
+                          setVideoUrl(null);
+                        }}
+                      >
+                        <Plus size={18} />
+                        <span>{t('analysisPage.newAnalysis')}</span>
+                      </button>
+                      <button 
+                        className="btn btn--secondary btn--fullWidth" 
+                        onClick={() => navigate('/practice')}
+                      >
+                        <Target size={18} />
+                        <span>{t('analysisPage.goToPractice')}</span>
+                      </button>
+                      <button 
+                        className="btn btn--secondary btn--fullWidth" 
+                        onClick={onBackToDashboard}
+                      >
+                        <LayoutDashboard size={18} />
+                        <span>{t('analysisPage.dashboard')}</span>
+                      </button>
+                      {currentAnalysisId && (
+                        <button
+                          type="button"
+                          className="btn btn--ghost btn--fullWidth"
+                          onClick={() => handleDeleteAnalysis(currentAnalysisId)}
+                          style={{ marginTop: '8px', color: '#ef4444', borderColor: '#fee2e2', background: '#fef2f2' }}
+                        >
+                          <Trash2 size={16} />
+                          <span>{t('analysisPage.deleteSession')}</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div className="analysisPage__actions">
-                  <button 
-                    className="btn btn--primary" 
-                    onClick={onBackToDashboard}
-                  >
-                    {t('analysisPage.viewInDashboard')}
-                  </button>
-                  <button 
-                    className="btn btn--secondary" 
-                    onClick={() => {
-                      navigate('/new-analysis');
-                      onRemove?.();
-                      setVideoUrl(null);
-                    }}
-                  >
-                    <Plus size={18} />
-                    <span>{t('analysisPage.newAnalysis')}</span>
-                  </button>
-          {currentAnalysisId && (
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={() => handleDeleteAnalysis(currentAnalysisId)}
-            >
-              <Trash2 size={16} />
-              <span>{t('analysisPage.deleteSession')}</span>
-            </button>
-          )}
                 </div>
               </>
             )}

@@ -145,7 +145,7 @@
   margin: 0 0 6px;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .quickSummary__grid {
     flex-direction: column;
   }

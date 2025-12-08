@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -9,16 +9,40 @@ import {
   Gem, 
   Settings,
   Home,
-  Target
+  Target,
+  X,
+  Menu
 } from 'lucide-react';
 import Logo from '../Logo';
+import { useSidebar } from './SidebarContext';
 import './Sidebar.css';
+
+// Prefetch components on hover for faster navigation
+const prefetchMap = {
+  '/dashboard': () => import('../../components/Dashboard'),
+  '/analyses': () => import('../../pages/MyAnalysesPage'),
+  '/grades': () => import('../../pages/MyProgressPage'),
+  '/practice': () => import('../../pages/PracticePage'),
+  '/subscription': () => import('../../pages/SubscriptionPage'),
+  '/settings': () => import('../../pages/SettingsPage'),
+};
+
+const prefetchComponent = (path) => {
+  const prefetchFn = prefetchMap[path];
+  if (prefetchFn) {
+    // Prefetch the component chunk
+    prefetchFn().catch(() => {
+      // Silently fail if prefetch doesn't work
+    });
+  }
+};
 
 export default function Sidebar() {
   const { user } = useUser();
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
+  const { isOpen, close, toggle } = useSidebar();
 
 const SIDEBAR_ITEMS = [
   {
@@ -80,14 +104,90 @@ const SIDEBAR_ITEMS = [
 
   const activePage = getActivePage();
 
+  // Prefetch component on hover for faster navigation
+  const handleMouseEnter = useCallback((path) => {
+    if (path && path !== location.pathname) {
+      prefetchComponent(path);
+    }
+  }, [location.pathname]);
+
+  // Close sidebar on navigation (mobile only)
+  const handleNavigation = (path) => {
+    // Prefetch before navigation for instant load
+    prefetchComponent(path);
+    navigate(path);
+    // Close sidebar on mobile after navigation
+    if (window.innerWidth < 768) {
+      close();
+    }
+  };
+
+  // Close sidebar when clicking outside on mobile
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (e) => {
+      if (window.innerWidth < 768 && !e.target.closest('.sidebar') && !e.target.closest('.sidebar-toggle')) {
+        close();
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [isOpen, close]);
+
+  // Prevent body scroll when sidebar is open on mobile
+  useEffect(() => {
+    if (isOpen && window.innerWidth < 768) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
   return (
-    <aside className="sidebar" role="navigation" aria-label="Main navigation">
-      <div className="sidebar__header">
-        <div className="sidebar__logo">
-          <Logo size={24} className="sidebar__logoIcon" />
-          <span className="sidebar__logoText">BodAI</span>
+    <>
+      {/* Mobile hamburger button - shows when sidebar is closed */}
+      {!isOpen && (
+        <button
+          className="sidebar__mobileToggle sidebar-toggle"
+          onClick={toggle}
+          aria-label="Open menu"
+        >
+          <Menu size={24} />
+        </button>
+      )}
+
+      {/* Overlay backdrop for mobile */}
+      {isOpen && (
+        <div 
+          className="sidebar__overlay" 
+          onClick={close}
+          aria-hidden="true"
+        />
+      )}
+      
+      <aside 
+        className={`sidebar ${isOpen ? 'sidebar--open' : ''}`} 
+        role="navigation" 
+        aria-label="Main navigation"
+      >
+        <div className="sidebar__header">
+          <div className="sidebar__logo">
+            <Logo size={24} className="sidebar__logoIcon" />
+            <span className="sidebar__logoText">BodAI</span>
+          </div>
+          <button 
+            className="sidebar__close"
+            onClick={close}
+            aria-label="Close menu"
+          >
+            <X size={20} />
+          </button>
         </div>
-      </div>
 
       <nav className="sidebar__nav">
         <ul className="sidebar__list">
@@ -102,7 +202,8 @@ const SIDEBAR_ITEMS = [
               <li key={item.id} className="sidebar__item">
                 <button
                   className={`sidebar__link ${isActive ? 'sidebar__link--active' : ''}`}
-                  onClick={() => navigate(path)}
+                  onClick={() => handleNavigation(path)}
+                  onMouseEnter={() => handleMouseEnter(path)}
                   aria-current={isActive ? 'page' : undefined}
                 >
                   <IconComponent className="sidebar__icon" size={20} />
@@ -134,6 +235,7 @@ const SIDEBAR_ITEMS = [
         </div>
       </div>
     </aside>
+    </>
   );
 }
 

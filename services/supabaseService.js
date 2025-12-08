@@ -507,15 +507,102 @@ export const getUserWithSubscription = async (clerkUserId) => {
  */
 const getSubscriptionLimits = (subscriptionType) => {
   const limits = {
-    free: { analyses: 1 },
+    free: { analyses: 1, maxDurationSeconds: 600 }, // 10 minutes
     // Starter / Basic: light practice
-    basic: { analyses: 8 },
+    basic: { analyses: 5, maxDurationSeconds: 600 }, // 10 minutes
+    starter: { analyses: 5, maxDurationSeconds: 600 }, // 10 minutes (alias for basic)
     // Pro: serious practice
-    premium: { analyses: 20 },
+    pro: { analyses: 12, maxDurationSeconds: 1800 }, // 30 minutes
+    premium: { analyses: 12, maxDurationSeconds: 1800 }, // 30 minutes (alias for pro)
+    // Pro Plus: advanced users
+    proPlus: { analyses: 25, maxDurationSeconds: 2700 }, // 45 minutes
+    'pro-plus': { analyses: 25, maxDurationSeconds: 2700 }, // 45 minutes (alias for proPlus)
+    pro_plus: { analyses: 25, maxDurationSeconds: 2700 }, // 45 minutes (alias for proPlus)
     // Unlimited: heavy users / teams
-    pro: { analyses: -1 } // unlimited
+    executive: { analyses: -1, maxDurationSeconds: 2700 } // unlimited analyses, 45 minutes
   };
   return limits[subscriptionType] || limits.free;
+};
+
+/**
+ * Check if user can upload video with specific duration
+ */
+export const canUserUploadVideoWithDuration = async (clerkUserId, durationSeconds) => {
+  if (!supabase) {
+    return { allowed: true, reason: null };
+  }
+
+  const user = await getUserWithSubscription(clerkUserId);
+  if (!user) {
+    return { allowed: false, reason: 'User not found' };
+  }
+
+  // Check if subscription is still active
+  if (user.subscription_status !== 'active') {
+    return { allowed: false, reason: 'Subscription not active' };
+  }
+
+  if (user.subscription_expires_at && new Date(user.subscription_expires_at) < new Date()) {
+    return { allowed: false, reason: 'Subscription expired' };
+  }
+
+  // Get subscription limits
+  const limits = getSubscriptionLimits(user.subscription_type);
+  
+  // Check video duration limit
+  if (durationSeconds && limits.maxDurationSeconds && durationSeconds > limits.maxDurationSeconds) {
+    const maxMinutes = Math.floor(limits.maxDurationSeconds / 60);
+    return {
+      allowed: false,
+      reason: 'video_duration_exceeded',
+      message: `Your ${user.subscription_type} plan allows videos up to ${maxMinutes} minutes. This video is ${Math.ceil(durationSeconds / 60)} minutes. Please upgrade your plan to upload longer videos.`,
+      maxDurationSeconds: limits.maxDurationSeconds
+    };
+  }
+
+  // Executive users can always upload (unlimited analyses)
+  if (user.subscription_type === 'executive') {
+    return { allowed: true, reason: null };
+  }
+
+  // If unlimited analyses, allow
+  if (limits.analyses === -1) {
+    return { allowed: true, reason: null };
+  }
+
+  // Count analyses from current month
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+  const { count, error } = await supabase
+    .from('analyses')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .gte('created_at', startOfMonth.toISOString())
+    .lte('created_at', endOfMonth.toISOString());
+
+  if (error) {
+    console.error('Error counting analyses:', error);
+    return { allowed: true, reason: null }; // Allow on error
+  }
+
+  // Check if user has reached their limit
+  if (count >= limits.analyses) {
+    const subscriptionName = user.subscription_type.charAt(0).toUpperCase() + user.subscription_type.slice(1);
+    return { 
+      allowed: false, 
+      reason: 'monthly_limit_reached',
+      message: `You've used all ${limits.analyses} analyses for this month. Upgrade to get more analyses or wait until next month.`
+    };
+  }
+
+  // For free users, mark as used after first analysis
+  if (user.subscription_type === 'free' && count === 0) {
+    // Will be marked as used after the analysis is saved
+  }
+
+  return { allowed: true, reason: null };
 };
 
 /**
@@ -646,6 +733,7 @@ export const saveOnboardingAnswers = async (clerkUserId, answers) => {
     primary_goal: answers.primaryGoal || 'general',
     confidence_level: answers.confidenceLevel || 'medium',
     include_environment_feedback: answers.includeEnvironmentFeedback !== undefined ? answers.includeEnvironmentFeedback : true,
+    practice_commitment: answers.practiceCommitment || answers.commitmentLevel || 'regular', // Save practice commitment
     onboarding_completed_at: new Date().toISOString()
   };
 
@@ -697,33 +785,114 @@ export const getUserWithOnboarding = async (clerkUserId) => {
     return null;
   }
 
-  // Try to fetch with goal_specific_context first
-let { data, error } = await supabase
-  .from('users')
-  .select('id, email, first_name, last_name, full_name, phone, profile_image_url, primary_goal, confidence_level, goal_specific_context, include_environment_feedback, onboarding_completed_at, subscription_type, subscription_status, free_analysis_used, consent_version, consent_accepted_at')
-  .eq('clerk_user_id', clerkUserId)
-  .single();
+  // Try to fetch with goal_specific_context and practice_commitment first
+  let { data, error } = await supabase
+    .from('users')
+    .select('id, email, first_name, last_name, full_name, phone, profile_image_url, primary_goal, confidence_level, goal_specific_context, include_environment_feedback, practice_commitment, onboarding_completed_at, subscription_type, subscription_status, free_analysis_used, consent_version, consent_accepted_at')
+    .eq('clerk_user_id', clerkUserId)
+    .single();
 
   // If column doesn't exist, retry without it
-  if (error && error.code === '42703' && error.message?.includes('goal_specific_context')) {
-    console.warn('goal_specific_context column does not exist, fetching without it. Please run migration.');
-    const retryResult = await supabase
-      .from('users')
-      .select('id, email, first_name, last_name, full_name, phone, profile_image_url, primary_goal, confidence_level, include_environment_feedback, onboarding_completed_at, subscription_type, subscription_status, free_analysis_used, consent_version, consent_accepted_at')
-      .eq('clerk_user_id', clerkUserId)
-      .single();
+  if (error && error.code === '42703') {
+    // Check which column is missing
+    const missingColumn = error.message?.includes('goal_specific_context') ? 'goal_specific_context' :
+                         error.message?.includes('include_environment_feedback') ? 'include_environment_feedback' :
+                         error.message?.includes('practice_commitment') ? 'practice_commitment' :
+                         null;
     
-    if (retryResult.error) {
-      console.error('Error fetching user:', retryResult.error);
-      return null;
+    if (missingColumn === 'goal_specific_context') {
+      console.warn('goal_specific_context column does not exist, fetching without it. Please run migration.');
+      const retryResult = await supabase
+        .from('users')
+        .select('id, email, first_name, last_name, full_name, phone, profile_image_url, primary_goal, confidence_level, include_environment_feedback, practice_commitment, onboarding_completed_at, subscription_type, subscription_status, free_analysis_used, consent_version, consent_accepted_at')
+        .eq('clerk_user_id', clerkUserId)
+        .single();
+      
+      if (retryResult.error) {
+        // If still error, might be include_environment_feedback missing too
+        if (retryResult.error.code === '42703' && retryResult.error.message?.includes('include_environment_feedback')) {
+          console.warn('include_environment_feedback column also does not exist, fetching without it.');
+          const retryResult2 = await supabase
+            .from('users')
+            .select('id, email, first_name, last_name, full_name, phone, profile_image_url, primary_goal, confidence_level, onboarding_completed_at, subscription_type, subscription_status, free_analysis_used, consent_version, consent_accepted_at')
+            .eq('clerk_user_id', clerkUserId)
+            .single();
+          
+          if (retryResult2.error) {
+            console.error('Error fetching user:', retryResult2.error);
+            return null;
+          }
+          
+          return {
+            ...retryResult2.data,
+            goal_specific_context: null,
+            include_environment_feedback: true // Default value
+          };
+        }
+        
+        console.error('Error fetching user:', retryResult.error);
+        return null;
+      }
+      
+      // Add goal_specific_context as null for backward compatibility
+      return {
+        ...retryResult.data,
+        goal_specific_context: null,
+        include_environment_feedback: retryResult.data.include_environment_feedback !== undefined ? retryResult.data.include_environment_feedback : true
+      };
+    } else if (missingColumn === 'include_environment_feedback') {
+      console.warn('include_environment_feedback column does not exist, fetching without it. Please run migration.');
+      const retryResult = await supabase
+        .from('users')
+        .select('id, email, first_name, last_name, full_name, phone, profile_image_url, primary_goal, confidence_level, goal_specific_context, practice_commitment, onboarding_completed_at, subscription_type, subscription_status, free_analysis_used, consent_version, consent_accepted_at')
+        .eq('clerk_user_id', clerkUserId)
+        .single();
+      
+      if (retryResult.error) {
+        // Check if practice_commitment is missing too
+        if (retryResult.error.code === '42703' && retryResult.error.message?.includes('practice_commitment')) {
+           console.warn('practice_commitment column also does not exist.');
+           const retryResult2 = await supabase
+            .from('users')
+            .select('id, email, first_name, last_name, full_name, phone, profile_image_url, primary_goal, confidence_level, goal_specific_context, onboarding_completed_at, subscription_type, subscription_status, free_analysis_used, consent_version, consent_accepted_at')
+            .eq('clerk_user_id', clerkUserId)
+            .single();
+            
+           if (!retryResult2.error) {
+             return {
+               ...retryResult2.data,
+               include_environment_feedback: true,
+               practice_commitment: 'regular'
+             };
+           }
+        }
+        console.error('Error fetching user:', retryResult.error);
+        return null;
+      }
+      
+      // Add include_environment_feedback with default value
+      return {
+        ...retryResult.data,
+        include_environment_feedback: true // Default value
+      };
+    } else if (missingColumn === 'practice_commitment') {
+      console.warn('practice_commitment column does not exist, fetching without it.');
+      const retryResult = await supabase
+        .from('users')
+        .select('id, email, first_name, last_name, full_name, phone, profile_image_url, primary_goal, confidence_level, goal_specific_context, include_environment_feedback, onboarding_completed_at, subscription_type, subscription_status, free_analysis_used, consent_version, consent_accepted_at')
+        .eq('clerk_user_id', clerkUserId)
+        .single();
+      
+      if (retryResult.error) {
+        console.error('Error fetching user:', retryResult.error);
+        return null;
+      }
+      
+      return {
+        ...retryResult.data,
+        practice_commitment: 'regular' // Default value
+      };
     }
-    
-    // Add goal_specific_context as null for backward compatibility
-    return {
-      ...retryResult.data,
-      goal_specific_context: null,
-      include_environment_feedback: retryResult.data.include_environment_feedback !== undefined ? retryResult.data.include_environment_feedback : true
-    };
   }
 
   if (error) {
@@ -1429,6 +1598,7 @@ export const saveActionItems = async (userId, analysisId, actionItems, options =
   const savedItems = [];
   const itemsNeedingPrompts = [];
   const shouldGeneratePrompts = options.generatePracticePrompts !== false;
+  const isBackgroundGeneration = options.backgroundGeneration === true; // OPTIMIZATION 1.4: Flag for background work
   const maxItems = options.maxActionItems ?? 1;
   const itemsToProcess = actionItems.slice(0, maxItems);
 
@@ -1445,30 +1615,32 @@ export const saveActionItems = async (userId, analysisId, actionItems, options =
 
     const normalizedTitle = title.trim().toLowerCase();
 
-    // Check if a similar action item already exists (pending/in-progress) for this user
-    const { data: existingItems } = await supabase
-      .from('action_items')
-      .select('id, status, title, analysis_id')
-      .eq('user_id', userId);
-
-    const existingActive = existingItems?.find(item => 
-      item.title.trim().toLowerCase() === normalizedTitle &&
-      ['pending', 'in_progress'].includes(item.status)
-    );
-
-    if (existingActive) {
-      console.log(`Skipping duplicate active action item: ${title} (existing status: ${existingActive.status})`);
-      continue;
-    }
-
-    // Prepare details object
     // Prepare details object - preserve all details
+    // For tips, extract whatToPractice and whyItMatters if available
     const details = {
       what_to_do: null,
       why_it_matters: null,
       example: null,
       all_details: Array.isArray(action.details) ? action.details : (action.details ? [action.details] : [])
     };
+    
+    // If action has whatToPractice/whyItMatters directly (from parser), use those
+    if (action.whatToPractice) {
+      details.what_to_do = action.whatToPractice;
+      // Add to all_details if not already there
+      const practiceDetail = `What to practice: ${action.whatToPractice}`;
+      if (!details.all_details.some(d => d.includes(action.whatToPractice))) {
+        details.all_details.unshift(practiceDetail);
+      }
+    }
+    if (action.whyItMatters) {
+      details.why_it_matters = action.whyItMatters;
+      // Add to all_details if not already there
+      const whyDetail = `Why it matters: ${action.whyItMatters}`;
+      if (!details.all_details.some(d => d.includes(action.whyItMatters))) {
+        details.all_details.push(whyDetail);
+      }
+    }
 
     // Try to parse details if they exist
     if (action.details && Array.isArray(action.details) && action.details.length > 0) {
@@ -1504,6 +1676,36 @@ export const saveActionItems = async (userId, analysisId, actionItems, options =
       details.what_to_do = action.details.trim();
       details.all_details = [action.details.trim()];
     }
+
+    // Check if a similar action item already exists (pending/in-progress) for this user
+    const { data: existingItems } = await supabase
+      .from('action_items')
+      .select('id, status, title, analysis_id, practice_prompt_title')
+      .eq('user_id', userId);
+
+    const existingActive = existingItems?.find(item => 
+      item.title.trim().toLowerCase() === normalizedTitle &&
+      ['pending', 'in_progress'].includes(item.status)
+    );
+
+    if (existingActive) {
+      // If we are in background mode and prompt generation is requested,
+      // check if this existing item needs a prompt
+      if (shouldGeneratePrompts && !existingActive.practice_prompt_title) {
+        console.log(`Queueing existing item for practice prompt generation: ${title}`);
+        // Attach userContext from options since it's not in DB item
+        existingActive.userContext = options.userContext;
+        // Attach targetMetric if available from options
+        existingActive.targetMetric = options.focusMetricKey;
+        // Attach parsed details to use for prompt generation
+        existingActive.details = details;
+        
+        itemsNeedingPrompts.push(existingActive);
+      } else {
+        console.log(`Skipping duplicate active action item: ${title} (existing status: ${existingActive.status})`);
+      }
+      continue;
+    }
     
     console.log('[saveActionItems] Saving action item with details:', {
       title: title,
@@ -1516,6 +1718,16 @@ export const saveActionItems = async (userId, analysisId, actionItems, options =
 
     const inferredMetric = inferTargetMetricFromTitle(title);
     const targetMetric = options.focusMetricKey || inferredMetric;
+    
+    // Get item_type from action item, default to 'tip' for backward compatibility
+    const itemType = action.item_type || 'tip';
+    
+    // Get tip_section from action item (communication or bodyLanguage)
+    // Support both 'section' (from parser) and 'tip_section' (normalized)
+    const tipSection = action.tip_section || 
+                       (action.section === 'body-language' ? 'bodyLanguage' : 
+                        action.section === 'communication' ? 'communication' : 
+                        null);
 
     const insertPayload = {
       user_id: userId,
@@ -1523,6 +1735,8 @@ export const saveActionItems = async (userId, analysisId, actionItems, options =
       title: title,
       details: details,
       status: 'pending',
+      item_type: itemType, // Save item type to distinguish tips from quick wins/recording notes
+      tip_section: tipSection, // Save tip section to separate communication and bodyLanguage tips
       practice_prompt_title: null,
       practice_prompt_description: null,
       practice_prompt_setup: null,
@@ -1540,6 +1754,8 @@ export const saveActionItems = async (userId, analysisId, actionItems, options =
     let data = null;
     let error = null;
     const removableColumns = [
+      'item_type', // Allow graceful fallback if column doesn't exist yet
+      'tip_section', // Allow graceful fallback if column doesn't exist yet
       'practice_prompt_title',
       'practice_prompt_description',
       'practice_prompt_setup',
@@ -1603,9 +1819,10 @@ export const saveActionItems = async (userId, analysisId, actionItems, options =
     }
 
     if (data) {
-      console.log(`Successfully saved action item: "${title}" (ID: ${data.id})`);
+      console.log(`Successfully saved action item: "${title}" (ID: ${data.id}, type: ${itemType})`);
       savedItems.push(data);
-      if (shouldGeneratePrompts) {
+      // Only generate practice prompts for tips (not quick wins or recording notes)
+      if (shouldGeneratePrompts && (itemType === 'tip' || itemType === null || itemType === undefined)) {
         itemsNeedingPrompts.push({
           id: data.id,
           title,
@@ -1613,16 +1830,28 @@ export const saveActionItems = async (userId, analysisId, actionItems, options =
           userContext: options.userContext || null,
           targetMetric
         });
+      } else if (shouldGeneratePrompts && itemType !== 'tip') {
+        console.log(`Skipping practice prompt generation for ${itemType} item: "${title}"`);
       }
     } else {
       console.warn(`Action item "${title}" was not saved - no data returned`);
     }
   }
 
+  // OPTIMIZATION 1.4: Generate practice prompts in background if flag is set
   if (shouldGeneratePrompts && itemsNeedingPrompts.length > 0) {
-    console.log(`Generating practice prompts for ${itemsNeedingPrompts.length} action item(s)`);
-    await generatePracticePromptsForItems(itemsNeedingPrompts);
-  } else if (shouldGeneratePrompts) {
+    if (isBackgroundGeneration) {
+      // Generate in background without blocking
+      console.log(`[Background] Generating practice prompts for ${itemsNeedingPrompts.length} action item(s)`);
+      generatePracticePromptsForItems(itemsNeedingPrompts).catch(err => {
+        console.error('[Background] Failed to generate practice prompts:', err);
+      });
+    } else {
+      // Generate synchronously (for backward compatibility or when explicitly requested)
+      console.log(`Generating practice prompts for ${itemsNeedingPrompts.length} action item(s)`);
+      await generatePracticePromptsForItems(itemsNeedingPrompts);
+    }
+  } else if (shouldGeneratePrompts && !isBackgroundGeneration) {
     console.log('No action items need practice prompts (shouldGeneratePrompts=true but itemsNeedingPrompts is empty)');
   }
 

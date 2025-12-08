@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+// BodAI Dojo Practice Page
 import { useUser } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -12,13 +13,21 @@ import {
   MessageSquare,
   Eye,
   Video,
-  Play
+  Play,
+  X,
+  Clock,
+  Zap,
+  Heart,
+  Shield
 } from 'lucide-react';
 import './PracticePage.css';
 import JourneySwitcher from '../components/JourneySwitcher';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { SkeletonCard } from '../components/SkeletonLoader';
 import EmptyState from '../components/EmptyState';
+import { getSmartDrills } from '../data/drillBank';
+
+// --- Components ---
 
 // Helper function to get parameter categories with translations
 const getParameterCategories = (t) => ({
@@ -92,6 +101,251 @@ const getParameterCategories = (t) => ({
   }
 });
 
+const MissionModal = ({ mission, onClose, onStart, onCompleteManual, t }) => {
+  if (!mission) return null;
+
+  return (
+    <div className="missionModal__overlay" onClick={onClose}>
+      <div className="missionModal__content" onClick={e => e.stopPropagation()}>
+        <div className="missionModal__header">
+          {mission.icon && <span className="missionModal__headerIcon">{mission.icon}</span>}
+          <h2 className="missionModal__title">{mission.title}</h2>
+          <button className="missionModal__closeBtn" onClick={onClose}>
+            <X size={24} />
+          </button>
+        </div>
+        
+        <div className="missionModal__body">
+          <div className="missionModal__description">
+            {typeof mission.description === 'string' ? mission.description : ''}
+          </div>
+          
+          {/* Rich Practice Prompt Sections */}
+          {mission.isPracticePrompt && (
+            <div className="missionModal__richContent">
+              {mission.setup && (
+                <div className="missionModal__section">
+                  <h3>{t('practice.setup')}</h3>
+                  <p>{mission.setup}</p>
+                </div>
+              )}
+              
+              {mission.whatToNotice && (
+                <div className="missionModal__section">
+                  <h3>{t('practice.whatToNotice')}</h3>
+                  <p>{mission.whatToNotice}</p>
+                </div>
+              )}
+              
+              {mission.recordingTip && (
+                <div className="missionModal__section">
+                  <h3>{t('practice.recordingTip')}</h3>
+                  <p>{mission.recordingTip}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Meta Info (Time/Difficulty) - Show for all mission types if available */}
+          {(mission.estimatedTime || mission.difficulty) && (
+            <div className="missionModal__meta">
+              {mission.estimatedTime && (
+                <span className="missionModal__metaItem">
+                  <Clock size={16} />
+                  <span>{t('practice.estimatedTime')}: {mission.estimatedTime}</span>
+                </span>
+              )}
+              {mission.difficulty && (
+                <span className="missionModal__metaItem">
+                  <Zap size={16} />
+                  <span>{t('common.labels.difficulty')}: {t(`common.difficulty.${mission.difficulty}`)}</span>
+                </span>
+              )}
+            </div>
+          )}
+
+          {mission.context && (
+            <div className="missionModal__context">
+              <strong>{t('practice.whyItMattersLabel')}</strong> {mission.context}
+            </div>
+          )}
+
+          {mission.goal && (
+            <div className="missionModal__context" style={{ marginTop: '16px' }}>
+              <strong>{mission.goal}</strong>
+            </div>
+          )}
+        </div>
+
+        <div className="missionModal__footer">
+          {mission.type !== 'drill' && (
+            <button 
+              className="btn btn--primary missionModal__startBtn" 
+              onClick={() => onStart(mission)}
+            >
+              <Video size={20} />
+              <span>{t('practice.readyForAnalysis') || "Ready for new analysis? Let's check improvement!"}</span>
+            </button>
+          )}
+          
+          <button 
+            className="btn btn--ghost missionModal__completeBtn" 
+            onClick={() => {
+              if (mission.type === 'drill') {
+                onClose();
+              } else {
+                onCompleteManual(mission);
+              }
+            }}
+          >
+            <CheckCircle size={20} />
+            <span>{t('practice.didItThankYou') || "Did it, thank you!"}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const FocusHeroCard = ({ mission, onOpenModal, t }) => {
+  if (!mission) return (
+    <div className="practiceHero practiceHero--empty">
+      <div className="practiceHero__content">
+        <div className="practiceHero__iconBox">
+          <CheckCircle size={32} color="#10b981" />
+        </div>
+        <h2 className="practiceHero__title">{t('practice.allCaughtUp')}</h2>
+        <p className="practiceHero__description">{t('practice.greatJob')}</p>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="practiceHero practiceHero--focus">
+      <div className="practiceHero__badge">
+        <Target size={14} />
+        <span>{t('practice.todaysFocus')}</span>
+      </div>
+      <h2 className="practiceHero__title">{mission.title}</h2>
+      <p className="practiceHero__description">
+        {typeof mission.description === 'string' ? mission.description : ''}
+      </p>
+      <div className="practiceHero__actions">
+        <button className="btn btn--primary practiceHero__startBtn" onClick={() => onOpenModal(mission)}>
+          <Play size={20} />
+          <span>{t('practice.startSession')}</span>
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const SkillStationCard = ({ station, onOpenModal, t }) => {
+  const [expanded, setExpanded] = useState(false);
+  const Icon = station.icon;
+  const itemCount = station.items.length;
+
+  return (
+    <div className={`skillStation ${expanded ? 'skillStation--expanded' : ''}`}>
+      <div className="skillStation__header" onClick={() => setExpanded(!expanded)}>
+        <div className="skillStation__left">
+          <div className="skillStation__icon" style={{ color: station.color, backgroundColor: `${station.color}15` }}>
+            <Icon size={24} />
+          </div>
+          <div className="skillStation__info">
+            <h3 className="skillStation__title">{station.label}</h3>
+            <span className="skillStation__count">
+              {itemCount} {itemCount === 1 ? t('practice.mission') : t('practice.missions')}
+            </span>
+          </div>
+        </div>
+        <div className={`skillStation__chevron ${expanded ? 'skillStation__chevron--expanded' : ''}`}>
+          <ArrowRight size={20} />
+        </div>
+      </div>
+      
+      {expanded && (
+        <div className="skillStation__content">
+          {station.items.length > 0 ? (
+            <ul className="skillStation__list">
+              {station.items.map((item, idx) => (
+                <li key={item.id || idx} className="skillStation__item" onClick={() => onOpenModal(item)}>
+                  <div className="skillStation__itemContent">
+                    <h4>{item.title}</h4>
+                  </div>
+                  <button className="skillStation__playBtn">
+                    <Play size={16} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="skillStation__empty">
+              <p>{t('practice.noMissions')}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const WarmUpRow = ({ weaknesses, onOpenModal, t }) => {
+  const drills = useMemo(() => getSmartDrills(weaknesses), [weaknesses]);
+
+  const handleDrillClick = (drill) => {
+    // Construct a "mission" object for the modal
+    const instructionKey = drill.translationKey.replace('drills.', 'drillInstructions.');
+    const goalKey = 'practice.drillInstructions.' + drill.id + '_goal';
+    const mission = {
+      type: 'drill',
+      title: t(drill.translationKey),
+      description: t('practice.drillInstructions.' + drill.id) || t(instructionKey), // Try both potential keys
+      goal: t(goalKey) || null, // Goal and how it helps
+      icon: drill.icon,
+      estimatedTime: drill.duration.replace(/sec|min/g, (match) => {
+        if (match === 'sec') return t('common.units.seconds') || 'sec';
+        if (match === 'min') return t('common.units.minutes') || 'min';
+        return match;
+      }),
+      setup: null, // Drills are simple
+      isPracticePrompt: false, // Use simple display
+      id: drill.id
+    };
+    onOpenModal(mission);
+  };
+
+  return (
+    <div className="warmUpRow">
+          <h3 className="warmUpRow__title">
+            {t('practice.quickWarmups')}
+          </h3>
+      <div className="warmUpRow__list">
+        {drills.map((drill, idx) => (
+          <button 
+            key={drill.id || idx} 
+            className="warmUpCard" 
+            onClick={() => handleDrillClick(drill)}
+          >
+            <span className="warmUpCard__icon">{drill.icon}</span>
+            <div className="warmUpCard__info">
+              <span className="warmUpCard__label">{t(drill.translationKey) || drill.id.replace(/_/g, ' ')}</span>
+              <span className="warmUpCard__duration">
+                <Clock size={12} style={{ display: 'inline', marginRight: 4 }} />
+                {drill.duration.replace(/sec|min/g, (match) => {
+                  if (match === 'sec') return t('common.units.seconds') || 'sec';
+                  if (match === 'min') return t('common.units.minutes') || 'min';
+                  return match;
+                })}
+              </span>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 export default function PracticePage({
   journeys = [],
   journeysLoading = false,
@@ -101,7 +355,7 @@ export default function PracticePage({
   const { user } = useUser();
   const navigate = useNavigate();
   const location = useLocation();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [loading, setLoading] = useState(true);
 
   // Memoize translated parameter categories
@@ -116,6 +370,7 @@ export default function PracticePage({
   const [completionStats, setCompletionStats] = useState(null);
   const [completingMission, setCompletingMission] = useState({});
   const [celebratingMission, setCelebratingMission] = useState(null);
+  const [selectedMission, setSelectedMission] = useState(null);
 
   const activeJourney = useMemo(
     () => journeys.find(journey => journey.id === activeJourneyId) || null,
@@ -187,6 +442,220 @@ export default function PracticePage({
     }
   }, [apiBase, user?.id, activeJourneyId]);
 
+  const formatActionDescription = (item) => {
+    if (!item) return '';
+    const details = item.details || {};
+
+    if (typeof details === 'string') {
+      return details;
+    }
+
+    const text =
+      details.why_it_matters ||
+      details.what_to_do ||
+      (Array.isArray(details.all_details) ? details.all_details[0] : null) ||
+      '';
+
+    if (!text) {
+      return t('dashboard.noActionDescription', 'Keep this focus in mind for your next recording.');
+    }
+
+    return text;
+  };
+
+  // --- Dojo Logic Start ---
+
+  // 1. Priority Mission Logic
+  const priorityMission = useMemo(() => {
+    // A. Check pending action items (most recent first)
+    const pendingActions = actionItems.filter(item => item.status !== 'completed');
+    if (pendingActions.length > 0) {
+      // Sort by date descending (newest first)
+      const topAction = pendingActions.sort((a, b) => 
+        new Date(b.created_at || 0) - new Date(a.created_at || 0)
+      )[0];
+
+      // Check for Practice Prompt data
+      const hasPracticePrompt = !!topAction.practice_prompt_title;
+
+      return {
+        type: 'action_item',
+        title: hasPracticePrompt ? topAction.practice_prompt_title : topAction.title,
+        description: hasPracticePrompt ? topAction.practice_prompt_description : formatActionDescription(topAction),
+        // Rich prompt data
+        setup: hasPracticePrompt ? topAction.practice_prompt_setup : null,
+        whatToNotice: hasPracticePrompt ? topAction.practice_prompt_notice : null,
+        recordingTip: hasPracticePrompt ? topAction.practice_prompt_tip : null,
+        estimatedTime: hasPracticePrompt ? topAction.practice_prompt_time : null,
+        difficulty: hasPracticePrompt ? topAction.practice_prompt_difficulty : null,
+        isPracticePrompt: hasPracticePrompt,
+        // Base item data
+        item: topAction,
+        id: topAction.id
+      };
+    }
+    
+    // B. Fallback to top weakness mission
+    if (weaknesses.length > 0) {
+      const topWeakness = weaknesses[0];
+      const missionData = practiceMissions[topWeakness.key];
+      const missionsArray = missionData ? (Array.isArray(missionData) ? missionData : missionData.missions) : [];
+      
+      if (missionData && missionsArray && missionsArray.length > 0) {
+        // Find first uncompleted mission
+        const practiceMissionId = missionData.practiceMissionId || missionData.id;
+        if (practiceMissionId) {
+          const uncompletedIndex = missionsArray.findIndex((_, idx) => 
+            !missionCompletions[practiceMissionId]?.[idx]
+          );
+          
+          if (uncompletedIndex !== -1) {
+            return {
+              type: 'weakness_mission',
+              title: `${t('practice.improve')} ${topWeakness.label}`,
+              description: missionsArray[uncompletedIndex],
+              weakness: topWeakness,
+              missionIndex: uncompletedIndex,
+              practiceMissionId,
+              id: `${practiceMissionId}-${uncompletedIndex}`
+            };
+          }
+        }
+      }
+    }
+    return null;
+  }, [actionItems, weaknesses, practiceMissions, missionCompletions, t]);
+
+  // 2. Station Grouping Logic
+  const stations = useMemo(() => {
+    // Define Stations
+    const stationsMap = {
+      voice: { 
+        id: 'voice', 
+        label: t('practice.stations.voice') || t('parameters.categories.voice'), 
+        icon: MessageSquare, 
+        color: '#3b82f6', 
+        items: [] 
+      },
+      presence: { 
+        id: 'presence', 
+        label: t('practice.stations.presence') || t('parameters.categories.presence'), 
+        icon: Eye, 
+        color: '#10b981', 
+        items: [] 
+      },
+      clarity: { 
+        id: 'clarity', 
+        label: t('practice.stations.clarity') || t('parameters.categories.clarity'), 
+        icon: Sparkles, 
+        color: '#f59e0b', 
+        items: [] 
+      },
+      impact: { 
+        id: 'impact', 
+        label: t('practice.stations.impact') || t('parameters.categories.impact'), 
+        icon: Target, 
+        color: '#ef4444', 
+        items: [] 
+      },
+      authenticity: {
+        id: 'authenticity',
+        label: t('practice.stations.authenticity') || t('parameters.categories.authenticity'),
+        icon: Heart,
+        color: '#8b5cf6',
+        items: []
+      },
+      confidence: {
+        id: 'confidence',
+        label: t('practice.stations.confidence') || t('parameters.categories.confidence'),
+        icon: Shield,
+        color: '#06b6d4',
+        items: []
+      }
+    };
+
+    // Helper: Map metric to station
+    const getStationId = (metric) => {
+      if (!metric) return 'impact';
+      const m = metric.toLowerCase();
+      if (m.includes('voice') || m.includes('vocal') || m.includes('volume') || m.includes('pace') || m.includes('tone') || m.includes('articulation')) return 'voice';
+      if (m.includes('presence') || m.includes('eye') || m.includes('posture') || m.includes('hand') || m.includes('physical')) return 'presence';
+      if (m.includes('clarity') || m.includes('structure') || m.includes('focus') || m.includes('example') || m.includes('transition') || m.includes('repetition')) return 'clarity';
+      if (m.includes('authenticity') || m.includes('naturalness') || m.includes('emotional') || m.includes('forced')) return 'authenticity';
+      if (m.includes('confidence') || m.includes('filler') || m.includes('pause') || m.includes('tension') || m.includes('comfort') || m.includes('stability')) return 'confidence';
+      if (m.includes('impact') || m.includes('energy') || m.includes('engagement') || m.includes('persuasiveness')) return 'impact';
+      return 'impact';
+    };
+
+    // Populate with Action Items (Pending)
+    actionItems.forEach(item => {
+      if (item.status !== 'completed' && item.id !== priorityMission?.item?.id) {
+        const stationId = getStationId(item.practice_prompt_target_metric);
+        
+        // Check for Practice Prompt data
+        const hasPracticePrompt = !!item.practice_prompt_title;
+        
+        if (stationsMap[stationId]) {
+          stationsMap[stationId].items.push({ 
+            ...item,
+            // Override or set derived fields
+            title: hasPracticePrompt ? item.practice_prompt_title : item.title,
+            description: hasPracticePrompt ? item.practice_prompt_description : formatActionDescription(item),
+            // Rich prompt data
+            setup: hasPracticePrompt ? item.practice_prompt_setup : null,
+            whatToNotice: hasPracticePrompt ? item.practice_prompt_notice : null,
+            recordingTip: hasPracticePrompt ? item.practice_prompt_tip : null,
+            estimatedTime: hasPracticePrompt ? item.practice_prompt_time : null,
+            difficulty: hasPracticePrompt ? item.practice_prompt_difficulty : null,
+            isPracticePrompt: hasPracticePrompt,
+            
+            type: 'action_item',
+            stationId 
+          });
+        }
+      }
+    });
+
+    // Populate with Weakness Missions
+    weaknesses.forEach(w => {
+      const stationId = getStationId(w.key);
+      if (stationsMap[stationId]) {
+        const missionData = practiceMissions[w.key];
+        const missionsArray = missionData ? (Array.isArray(missionData) ? missionData : missionData.missions) : [];
+        if (missionData && missionsArray) {
+           const pId = missionData.practiceMissionId || missionData.id;
+           if (pId) {
+             missionsArray.forEach((m, idx) => {
+               // Skip completed
+               if (!missionCompletions[pId]?.[idx]) {
+                  // Skip if it's the priority mission
+                  if (priorityMission?.type === 'weakness_mission' && 
+                      priorityMission.practiceMissionId === pId && 
+                      priorityMission.missionIndex === idx) {
+                    return;
+                  }
+
+                  stationsMap[stationId].items.push({
+                    type: 'weakness_mission',
+                    title: m,
+                    weakness: w,
+                    missionIndex: idx,
+                    practiceMissionId: pId,
+                    stationId,
+                    id: `${pId}-${idx}`
+                  });
+               }
+             });
+           }
+        }
+      }
+    });
+
+    return Object.values(stationsMap);
+  }, [actionItems, weaknesses, practiceMissions, missionCompletions, priorityMission, t]);
+
+  // --- Dojo Logic End ---
+
   const fetchPracticeMissions = useCallback(async (weakness, forceRefresh = false) => {
     const { key, label, current, trend, description } = weakness;
 
@@ -253,7 +722,8 @@ export default function PracticePage({
           forceRegenerate: forceRefresh, // Regenerate if user clicks refresh
           userContext: {
             primaryGoal: focusSlug || 'confidence',
-            confidenceLevel: activeJourney?.confidence_level || 'medium'
+            confidenceLevel: activeJourney?.confidence_level || 'medium',
+            language: i18n.language || 'en' // Pass current language from i18n
           },
           trend: trend ? {
             direction: trend.direction,
@@ -328,7 +798,11 @@ export default function PracticePage({
       const actionRes = await fetch(`${apiBase}/api/action-items?${actionParams.toString()}`, { headers });
       if (actionRes.ok) {
         const actionData = await actionRes.json();
-        setActionItems(actionData.actionItems || []);
+        // Filter to include only real action items (exclude quick wins and recording notes)
+        const filteredItems = (actionData.actionItems || []).filter(item => 
+          !item.item_type || item.item_type === 'tip' || item.item_type === 'action_item'
+        );
+        setActionItems(filteredItems);
       }
 
       // Fetch metrics to calculate weaknesses
@@ -385,13 +859,15 @@ export default function PracticePage({
             return a.current - b.current;
           });
 
-          // Filter by focus if specified, otherwise show top 2 by default (progressive disclosure)
+          // IMPORTANT: Only generate missions for the top 2 weakest parameters
+          // Filter by focus if specified, otherwise limit to top 2 weakest
           let filtered = focusFilter
             ? weaknessesList.filter(w => w.key === focusFilter)
-            : weaknessesList;
+            : weaknessesList.slice(0, 2); // Only take the top 2 weakest parameters
 
           // IMPORTANT: Only show missions for parameters that are CURRENTLY weaknesses
           // This ensures missions are relevant to the user's current state
+          // Missions will only be generated for these filtered weaknesses (max 2)
           setWeaknesses(filtered);
 
           // Note: Mission fetching is handled separately in a useEffect to avoid circular dependencies
@@ -415,32 +891,39 @@ export default function PracticePage({
   }, [user, activeJourneyId, fetchData, fetchCompletionData]);
 
   // Separate useEffect to fetch missions for weaknesses that don't have them
-  // This runs when weaknesses change, but only fetches if missions don't exist
+  // Optimized to fetch in parallel instead of sequential waterfalls
   useEffect(() => {
     if (!user?.id || weaknesses.length === 0) return;
 
-    // Use a ref-like pattern: check current state and fetch only if needed
-    weaknesses.forEach(weakness => {
-      // Check if we already have valid missions for this weakness
-      setPracticeMissions(prev => {
-        const existing = prev[weakness.key];
+    const fetchMissing = async () => {
+      // Identify which weaknesses need fetching
+      const toFetch = weaknesses.filter(weakness => {
+        const existing = practiceMissions[weakness.key];
         const hasValidMissions = existing && 
           Array.isArray(existing.missions) && 
           existing.missions.length > 0 && 
           !existing.isStale;
         
-        // Only fetch if we don't have valid missions and we're not already loading
-        if (!hasValidMissions && !loadingMissions[weakness.key]) {
-          // Use setTimeout to avoid state updates during render
-          setTimeout(() => {
-            fetchPracticeMissions(weakness);
-          }, 0);
-        }
-        return prev; // Don't modify state in this setter
+        // Only fetch if we don't have valid missions and not currently loading
+        return !hasValidMissions && !loadingMissions[weakness.key];
       });
-    });
+
+      if (toFetch.length === 0) return;
+
+      // Mark all as loading immediately to prevent duplicate calls
+      setLoadingMissions(prev => {
+        const next = { ...prev };
+        toFetch.forEach(w => next[w.key] = true);
+        return next;
+      });
+
+      // Execute all fetches in parallel
+      await Promise.all(toFetch.map(weakness => fetchPracticeMissions(weakness)));
+    };
+
+    fetchMissing();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weaknesses, user?.id]); // Only depend on weaknesses, not practiceMissions or fetchPracticeMissions
+  }, [weaknesses, user?.id]);
 
   const handleMissionToggle = async (practiceMissionId, missionIndex, parameterKey, shouldComplete) => {
     if (!practiceMissionId || !user?.id) return;
@@ -518,39 +1001,39 @@ export default function PracticePage({
     }
   };
 
-  const formatActionDescription = (item) => {
-    if (!item) return '';
-    const details = item.details || {};
-
-    if (typeof details === 'string') {
-      return details;
+  const handleManualCompletion = async (mission) => {
+    // If it's an action item
+    if (mission.type === 'action_item' && mission.item) {
+      try {
+        // Optimistic UI update
+        setSelectedMission(null);
+        // Don't delete or complete the action item, just acknowledge it
+        alert(t('practice.completedToast', 'Great job! Keep practicing.'));
+      } catch (err) {
+        console.error("Failed to complete action item", err);
+      }
+    } 
+    // If it's a weakness mission
+    else if (mission.type === 'weakness_mission') {
+      try {
+        const { practiceMissionId, missionIndex, weakness } = mission;
+        await handleMissionToggle(practiceMissionId, missionIndex, weakness.key, true);
+        setSelectedMission(null);
+      } catch (err) {
+        console.error("Failed to complete mission", err);
+      }
     }
-
-    const text =
-      details.why_it_matters ||
-      details.what_to_do ||
-      (Array.isArray(details.all_details) ? details.all_details[0] : null) ||
-      '';
-
-    if (!text) {
-      return t('dashboard.noActionDescription', 'Keep this focus in mind for your next recording.');
-    }
-
-    return text;
   };
 
-  const formatMetricLabel = (metric) => {
-    if (!metric) return t('parameters.metrics.overall');
-    const labels = {
-      presence: t('parameters.metrics.presence'),
-      voice_expression: t('parameters.metrics.voice'),
-      clarity: t('parameters.metrics.clarity'),
-      authenticity: t('parameters.metrics.authenticity'),
-      impact: t('parameters.metrics.impact'),
-      confidence: t('parameters.metrics.confidence'),
-      overall: t('parameters.metrics.overall')
-    };
-    return labels[metric] || t('parameters.metrics.overall');
+  const handleStartMission = (mission) => {
+    navigate('/new-analysis', { 
+      state: { 
+        practiceMode: true,
+        missionTitle: mission.title,
+        missionDescription: typeof mission.description === 'string' ? mission.description : '',
+        missionId: mission.id 
+      } 
+    });
   };
 
   if (loading) {
@@ -585,321 +1068,63 @@ export default function PracticePage({
             ? t('practice.subtitleWithFocus', { focusLabel })
             : t('practice.subtitle')}
         </p>
-        {focusLabel && (
-          <p className="practicePage__subtitleSecondary">
-            {t('practice.subtitleSecondary', {
-              goal: focusLabel.toLowerCase()
-            })}
-          </p>
-        )}
       </div>
 
-      {/* Hero Section */}
-      <div className="practicePage__hero">
-        <div className="practiceHero">
-          <h2 className="practiceHero__title">{t('practice.heroTitle')}</h2>
-          <p className="practiceHero__description">
-            {t('practice.heroDescription')}
-          </p>
-          {/* Completion Stats */}
-          {completionStats && completionStats.totalMissions > 0 && (
-            <div className="practiceHero__stats">
-              <div className="practiceHero__stat">
-                <div className="practiceHero__statValue">{completionStats.totalCompleted}</div>
-                <div className="practiceHero__statLabel">{t('practice.heroCompletedLabel')}</div>
-              </div>
-              <div className="practiceHero__stat">
-                <div className="practiceHero__statValue">{completionStats.totalMissions}</div>
-                <div className="practiceHero__statLabel">{t('practice.heroTotalMissionsLabel')}</div>
-              </div>
-              {completionStats.streakDays > 0 && (
-                <div className="practiceHero__stat practiceHero__stat--streak">
-                  <div className="practiceHero__statValue">🔥 {completionStats.streakDays}</div>
-                  <div className="practiceHero__statLabel">{t('practice.heroDayStreakLabel')}</div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+      <div className="practicePage__content">
+        {/* 1. Dojo Hero: Daily Focus */}
+        <section className="practicePage__heroSection">
+          <FocusHeroCard 
+            mission={priorityMission} 
+            onOpenModal={setSelectedMission} 
+            t={t} 
+          />
+        </section>
 
-      {/* Action Items Section */}
-      {actionItems.length > 0 && (
-        <div className="practicePage__section">
-          <div className="practiceSection__header">
-            <MessageSquare size={24} className="practiceSection__icon" />
-            <div>
-              <h2 className="practiceSection__title">{t('practice.tipsSectionTitle')}</h2>
-              <p className="practiceSection__subtitle" dangerouslySetInnerHTML={{ __html: t('practice.tipsSectionSubtitle') }} />
-            </div>
-          </div>
-          <div className="actionItemsList">
-            {actionItems.map((item, idx) => (
-              <div key={item.id || idx} className="actionItemCard">
-              <div className="actionItemCard__icon">
-                  <Sparkles size={18} />
-                </div>  
-                <div className="actionItemCard__body">
-                  <div className="actionItemCard__meta">
-                    <span className="actionItemCard__chip">
-                      {formatMetricLabel(item.practice_prompt_target_metric)}
-                    </span>
-                    <span className="actionItemCard__chip actionItemCard__chip--accent">
-                      {t('practice.tipsActiveFocusChip')}
-                    </span>
-                  </div>
-                  <h3 className="actionItemCard__title">{item.title}</h3>
-                  <p className="actionItemCard__description">
-                    {formatActionDescription(item)}
-                  </p>
-                  {item.analyses && (
-                    <div className="actionItemCard__meta">
-                      {t('practice.tipsAddedMeta', {
-                        date: new Date(item.analyses.created_at).toLocaleDateString(undefined, { locale: useTranslation.language }),
-                        filename: item.analyses.video_filename
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
+        {/* 2. Warm Up Zone */}
+        <section className="practicePage__warmUpSection">
+          <WarmUpRow 
+            weaknesses={weaknesses} 
+            onOpenModal={setSelectedMission} 
+            t={t} 
+          />
+        </section>
+
+        {/* 3. Skill Stations */}
+        <section className="practicePage__stationsSection">
+          <h2 className="practicePage__sectionTitle">
+            {t('practice.skillStations')}
+          </h2>
+          <div className="stationsGrid">
+            {stations.map(station => (
+              <SkillStationCard 
+                key={station.id} 
+                station={station} 
+                onOpenModal={setSelectedMission} 
+                t={t} 
+              />
             ))}
           </div>
-        </div>
-      )}
-
-      {/* Practice Missions Section */}
-      {weaknesses.length > 0 && (
-        <div className="practicePage__section">
-          <div className="practiceSection__header">
-            <Target size={24} className="practiceSection__icon" />
-            <div>
-              <h2 className="practiceSection__title">{t('practice.practiceSectionTitle')}</h2>
-              <p className="practiceSection__subtitle" dangerouslySetInnerHTML={{ __html: t('practice.practiceSectionSubtitle') }} />
-            </div>
-          </div>
-          <div className="practiceMissionsList">
-            {weaknesses.map((weakness, idx) => {
-              const isPriority = idx === 0 && !focusFilter;
-              const isExpanded = expandedWeaknesses.has(weakness.key);
-              const shouldShow = focusFilter || idx < 2 || isExpanded;
-              const category = Object.values(PARAMETER_CATEGORIES).find(cat =>
-                cat.parameters.some(p => p.key === weakness.key)
-              );
-
-              if (!shouldShow) return null;
-
-              return (
-                <div 
-                  key={idx} 
-                  className={`practiceMissionCard ${isPriority ? 'practiceMissionCard--priority' : ''}`}
-                >
-                  {isPriority && (
-                    <div className="practiceMissionCard__priorityBadge">
-                      <Target size={14} />
-                      <span>{t('practice.priorityBadge')}</span>
-                    </div>
-                  )}
-                  <div className="practiceMissionCard__header">
-                    <div className="practiceMissionCard__icon" style={{ backgroundColor: `${weakness.categoryColor}15`, color: weakness.categoryColor }}>
-                      {React.createElement(category?.icon || AlertCircle, { size: 24 })}
-                    </div>
-                    <div className="practiceMissionCard__meta">
-                      <div className="practiceMissionCard__metaTop">
-                        <span className="practiceMissionCard__category">{weakness.category}</span>
-                        {isPriority && (
-                          <span className="practiceMissionCard__priorityTag">{t('practice.priorityTag')}</span>
-                        )}
-                      </div>
-                      <h3 className="practiceMissionCard__label">{weakness.label}</h3>
-                      <div className="practiceMissionCard__score">
-                        <span className="practiceMissionCard__scoreValue">{weakness.current.toFixed(1)}</span>
-                        <span className="practiceMissionCard__scoreLabel">{t('practice.scoreLabel')}</span>
-                        {weakness.isDeclining && (
-                          <span className="practiceMissionCard__declining">
-                            <TrendingDown size={14} />
-                            {t('practice.decliningLabel')}
-                          </span>
-                        )}
-                      </div>
-                      {/* Why This Matters */}
-                      <div className="practiceMissionCard__whyMatters">
-                        <strong>{t('practice.whyThisMattersLabel')}</strong>{' '}
-                        {weakness.isDeclining 
-                          ? t('practice.whyThisMattersDeclining', { label: weakness.label.toLowerCase() })
-                          : t('practice.whyThisMattersImproving', { label: weakness.label.toLowerCase() })}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className="practiceMissionCard__refresh"
-                      onClick={() => fetchPracticeMissions(weakness, true)}
-                      disabled={loadingMissions[weakness.key]}
-                      title={t('practice.refreshTitle')}
-                    >
-                      {loadingMissions[weakness.key] ? (
-                        <>
-                          <span className="practiceMissionCard__refreshSpinner">⟳</span>
-                          <span className="practiceMissionCard__refreshLabel">{t('practice.refreshGenerating')}</span>
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles size={16} />
-                          <span className="practiceMissionCard__refreshLabel">{t('practice.refreshNewMissions')}</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                  {(() => {
-                    const missionData = practiceMissions[weakness.key];
-                    const missionsArray = missionData 
-                      ? (Array.isArray(missionData) ? missionData : missionData.missions)
-                      : null;
-                    const isStale = missionData && !Array.isArray(missionData) ? missionData.isStale : false;
-
-                    if (loadingMissions[weakness.key] && (!missionsArray || missionsArray.length === 0)) {
-                      return (
-                        <div className="practiceMissionCard__loading">
-                          <div className="practiceMissionCard__loadingSpinner"></div>
-                          <p>{t('practice.generatingMissions')}</p>
-                        </div>
-                      );
-                    } else if (missionsArray && missionsArray.length > 0) {
-                      return (
-                        <>
-                          {isStale && (
-                            <div className="practiceMissionCard__staleBadge">
-                              <AlertCircle size={14} />
-                              <span>{t('practice.staleBadge')}</span>
-                            </div>
-                          )}
-                          <ol className="practiceMissionCard__missions">
-                            {missionsArray.map((mission, missionIdx) => {
-                              const practiceMissionId = missionData.practiceMissionId || missionData.id;
-                              const isCompleted = practiceMissionId && missionCompletions[practiceMissionId]?.[missionIdx];
-                              const isCompleting = completingMission[`${practiceMissionId}-${missionIdx}`];
-                              const isCelebrating = celebratingMission === `${practiceMissionId}-${missionIdx}`;
-                              
-                              return (
-                                <li 
-                                  key={missionIdx} 
-                                  className={`practiceMissionCard__mission ${isCompleted ? 'practiceMissionCard__mission--completed' : ''} ${isCelebrating ? 'practiceMissionCard__mission--celebrating' : ''}`}
-                                >
-                                  <button
-                                    type="button"
-                                    className="practiceMissionCard__missionCheckbox"
-                                    onClick={() => handleMissionToggle(practiceMissionId, missionIdx, weakness.key, !isCompleted)}
-                                    disabled={isCompleting || !practiceMissionId}
-                                    aria-label={isCompleted ? 'Mark as incomplete' : 'Mark as complete'}
-                                  >
-                                    {isCompleting ? (
-                                      <div className="practiceMissionCard__missionSpinner"></div>
-                                    ) : isCompleted ? (
-                                      <CheckCircle size={18} className="practiceMissionCard__missionIcon practiceMissionCard__missionIcon--completed" />
-                                    ) : (
-                                      <div className="practiceMissionCard__missionIcon practiceMissionCard__missionIcon--uncompleted" />
-                                    )}
-                                  </button>
-                                  <span className={isCompleted ? 'practiceMissionCard__missionText--completed' : ''}>{mission}</span>
-                                </li>
-                              );
-                            })}
-                          </ol>
-                          {/* Progress Bar */}
-                          {(() => {
-                            const practiceMissionId = missionData.practiceMissionId || missionData.id;
-                            if (!practiceMissionId || !missionsArray) return null;
-                            const completedCount = missionCompletions[practiceMissionId] 
-                              ? Object.keys(missionCompletions[practiceMissionId]).length 
-                              : 0;
-                            const totalCount = missionsArray.length;
-                            const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
-                            
-                            return (
-                              <div className="practiceMissionCard__progress">
-                                <div className="practiceMissionCard__progressBar">
-                                  <div 
-                                    className="practiceMissionCard__progressFill"
-                                    style={{ width: `${progress}%` }}
-                                  />
-                                </div>
-                                <span className="practiceMissionCard__progressText">
-                                  {t('practice.progressText', { completed: completedCount, total: totalCount })}
-                                </span>
-                              </div>
-                            );
-                          })()}
-                          <div className="practiceMissionCard__actions">
-                            <button
-                              className="btn btn--primary practiceMissionCard__practiceBtn"
-                              onClick={() => navigate('/new-analysis')}
-                            >
-                              <Video size={16} />
-                              {t('practice.practiceNowCta')}
-                            </button>
-                          </div>
-                        </>
-                      );
-                    } else {
-                      return (
-                        <div className="practiceMissionCard__empty">
-                          <p>{t('practice.emptyMissions')}</p>
-                        </div>
-                      );
-                    }
-                  })()}
-                </div>
-              );
-            })}
-            {/* Show More Button */}
-            {!focusFilter && weaknesses.length > 2 && (
-              <button
-                className="practicePage__showMore"
-                onClick={() => {
-                  const newExpanded = new Set(expandedWeaknesses);
-                  if (expandedWeaknesses.size === 0) {
-                    // Expand all remaining
-                    weaknesses.slice(2).forEach(w => newExpanded.add(w.key));
-                  } else {
-                    // Collapse all
-                    newExpanded.clear();
-                  }
-                  setExpandedWeaknesses(newExpanded);
-                }}
-              >
-                {expandedWeaknesses.size === 0 
-                  ? t('practice.showMoreAreas', { count: weaknesses.length - 2 })
-                  : t('practice.showLessAreas')}
-                <ArrowRight 
-                  size={16} 
-                  className={`practicePage__showMoreIcon ${expandedWeaknesses.size > 0 ? 'practicePage__showMoreIcon--expanded' : ''}`}
-                />
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Empty State */}
-      {actionItems.length === 0 && weaknesses.length === 0 && (
-        <EmptyState
-          variant="practice"
-          title={t('practice.emptyStateTitle')}
-          description={t('practice.emptyStateDescription')}
-          actionLabel={t('practice.emptyStateAction')}
-          onAction={() => navigate('/new-analysis')}
-        />
-      )}
+        </section>
+      </div>
 
       {/* Floating Action Button */}
-      {(actionItems.length > 0 || weaknesses.length > 0) && (
-        <button
-          className="practicePage__fab"
-          onClick={() => navigate('/new-analysis')}
-          title={t('practice.fabTitle')}
-        >
-          <Video size={24} />
-          <span className="practicePage__fabLabel">{t('practice.fabLabel')}</span>
-        </button>
+      <button
+        className="practicePage__fab"
+        onClick={() => navigate('/new-analysis')}
+        title={t('practice.fabTitle')}
+      >
+        <Video size={24} />
+      </button>
+
+      {/* Mission Modal */}
+      {selectedMission && (
+        <MissionModal 
+          mission={selectedMission} 
+          onClose={() => setSelectedMission(null)} 
+          onStart={handleStartMission} 
+          onCompleteManual={handleManualCompletion} 
+          t={t} 
+        />
       )}
     </div>
   );

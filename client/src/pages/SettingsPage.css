@@ -292,7 +292,7 @@
   border: 1px solid rgba(220, 38, 38, 0.2);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .settingsPage {
     padding: 24px 16px;
   }
@@ -321,4 +321,31 @@
   .settingsPage__toggle {
     align-self: flex-start;
   }
+
+  .settingsPage__radioGroup {
+    min-width: auto;
+    width: 100%;
+  }
+}
+
+/* Language Switcher styling in Settings Page */
+.settingsPage .languageSwitcher__options {
+  background: rgba(15, 23, 42, 0.06);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.settingsPage .languageSwitcher__option {
+  color: rgba(15, 23, 42, 0.7);
+}
+
+.settingsPage .languageSwitcher__option:hover:not(:disabled) {
+  background: rgba(15, 23, 42, 0.08);
+  color: rgba(15, 23, 42, 0.9);
+}
+
+.settingsPage .languageSwitcher__option.is-active {
+  background: rgba(15, 23, 42, 0.12);
+  color: #0f172a;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.1);
 }

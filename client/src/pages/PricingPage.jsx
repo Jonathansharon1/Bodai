@@ -51,7 +51,8 @@ const getFAQs = (t) => [
 export default function PricingPage() {
   const { isSignedIn } = useUser();
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isHebrew = i18n.language === 'he';
   const [billingPeriod, setBillingPeriod] = useState('monthly');
   const [openFaqIndex, setOpenFaqIndex] = useState(0);
 
@@ -77,70 +78,109 @@ export default function PricingPage() {
   ], [t]);
 
   // Self-serve plans: pricing is based on analyses per month and max video length
-  const plans = useMemo(() => [
-    {
-      id: 'free',
-      name: t('pricing.plans.free.name'),
-      price: 0,
-      priceYearly: 0,
-      period: 'forever',
-      analysesText: `${t('pricing.plans.free.analysesPerMonth')} · ${t('pricing.plans.free.durationText')}`,
-      analysesPerMonth: t('pricing.plans.free.analysesPerMonth'),
-      durationText: t('pricing.plans.free.durationText'),
-      theme: 'slate',
-      cta: t('pricing.plans.free.cta'),
-      ctaVariant: 'secondary',
-      recommended: false
-    },
-    {
-      id: 'starter',
-      name: t('pricing.plans.starter.name'),
-      price: 12,
-      priceYearly: 120,
-      period: 'per month',
-      analysesText: `${t('pricing.plans.starter.analysesPerMonth')} · ${t('pricing.plans.starter.durationText')}`,
-      analysesPerMonth: t('pricing.plans.starter.analysesPerMonth'),
-      durationText: t('pricing.plans.starter.durationText'),
-      theme: 'teal',
-      cta: t('pricing.plans.starter.cta'),
-      ctaVariant: 'primary',
-      recommended: false,
-      valueText: t('pricing.plans.starter.valueText'),
-      badgeText: t('pricing.plans.starter.badgeText')
-    },
-    {
-      id: 'pro',
-      name: t('pricing.plans.pro.name'),
-      price: 24,
-      priceYearly: 240,
-      period: 'per month',
-      analysesText: `${t('pricing.plans.pro.analysesPerMonth')} · ${t('pricing.plans.pro.durationText')}`,
-      analysesPerMonth: t('pricing.plans.pro.analysesPerMonth'),
-      durationText: t('pricing.plans.pro.durationText'),
-      theme: 'indigo',
-      cta: t('pricing.plans.pro.cta'),
-      ctaVariant: 'primary',
-      recommended: true,
-      valueText: t('pricing.plans.pro.valueText'),
-      badgeText: t('pricing.plans.pro.badgeText')
-    },
-    {
-      id: 'executive',
-      name: t('pricing.plans.executive.name'),
-      price: 49,
-      priceYearly: 490,
-      period: 'per month',
-      analysesText: `${t('pricing.plans.executive.analysesPerMonth')} · ${t('pricing.plans.executive.durationText')}`,
-      analysesPerMonth: t('pricing.plans.executive.analysesPerMonth'),
-      durationText: t('pricing.plans.executive.durationText'),
-      theme: 'graphite',
-      cta: t('pricing.plans.executive.cta'),
-      ctaVariant: 'primary',
-      recommended: false,
-      valueText: t('pricing.plans.executive.valueText'),
-      badgeText: t('pricing.plans.executive.badgeText')
-    }
-  ], [t]);
+  // Prices differ by language: ILS for Hebrew, USD for English
+  const plans = useMemo(() => {
+    // Hebrew prices (ILS)
+    const hebrewPrices = {
+      starter: { monthly: 19.90, yearly: 199 },
+      pro: { monthly: 31.90, yearly: 319 },
+      proPlus: { monthly: 49.90, yearly: 499 },
+      executive: { monthly: 99.90, yearly: 999 }
+    };
+    
+    // English prices (USD)
+    const englishPrices = {
+      starter: { monthly: 9.99, yearly: 99.90 },
+      pro: { monthly: 19.99, yearly: 199.90 },
+      proPlus: { monthly: 29.99, yearly: 299.90 },
+      executive: { monthly: 49.99, yearly: 499.90 }
+    };
+    
+    const prices = isHebrew ? hebrewPrices : englishPrices;
+    
+    return [
+      {
+        id: 'free',
+        name: t('pricing.plans.free.name'),
+        price: 0,
+        priceYearly: 0,
+        period: 'forever',
+        analysesText: `${t('pricing.plans.free.analysesPerMonth')} · ${t('pricing.plans.free.durationText')}`,
+        analysesPerMonth: t('pricing.plans.free.analysesPerMonth'),
+        durationText: t('pricing.plans.free.durationText'),
+        theme: 'slate',
+        cta: t('pricing.plans.free.cta'),
+        ctaVariant: 'secondary',
+        recommended: false,
+        valueText: t('pricing.plans.free.valueText'),
+        badgeText: t('pricing.plans.free.badgeText')
+      },
+      {
+        id: 'starter',
+        name: t('pricing.plans.starter.name'),
+        price: prices.starter.monthly,
+        priceYearly: prices.starter.yearly,
+        period: 'per month',
+        analysesText: `${t('pricing.plans.starter.analysesPerMonth')} · ${t('pricing.plans.starter.durationText')}`,
+        analysesPerMonth: t('pricing.plans.starter.analysesPerMonth'),
+        durationText: t('pricing.plans.starter.durationText'),
+        theme: 'teal',
+        cta: t('pricing.plans.starter.cta'),
+        ctaVariant: 'primary',
+        recommended: false,
+        valueText: t('pricing.plans.starter.valueText'),
+        badgeText: t('pricing.plans.starter.badgeText')
+      },
+      {
+        id: 'pro',
+        name: t('pricing.plans.pro.name'),
+        price: prices.pro.monthly,
+        priceYearly: prices.pro.yearly,
+        period: 'per month',
+        analysesText: `${t('pricing.plans.pro.analysesPerMonth')} · ${t('pricing.plans.pro.durationText')}`,
+        analysesPerMonth: t('pricing.plans.pro.analysesPerMonth'),
+        durationText: t('pricing.plans.pro.durationText'),
+        theme: 'indigo',
+        cta: t('pricing.plans.pro.cta'),
+        ctaVariant: 'primary',
+        recommended: true,
+        valueText: t('pricing.plans.pro.valueText'),
+        badgeText: t('pricing.plans.pro.badgeText')
+      },
+      {
+        id: 'proPlus',
+        name: t('pricing.plans.proPlus.name'),
+        price: prices.proPlus.monthly,
+        priceYearly: prices.proPlus.yearly,
+        period: 'per month',
+        analysesText: `${t('pricing.plans.proPlus.analysesPerMonth')} · ${t('pricing.plans.proPlus.durationText')}`,
+        analysesPerMonth: t('pricing.plans.proPlus.analysesPerMonth'),
+        durationText: t('pricing.plans.proPlus.durationText'),
+        theme: 'purple',
+        cta: t('pricing.plans.proPlus.cta'),
+        ctaVariant: 'primary',
+        recommended: false,
+        valueText: t('pricing.plans.proPlus.valueText'),
+        badgeText: t('pricing.plans.proPlus.badgeText')
+      },
+      {
+        id: 'executive',
+        name: t('pricing.plans.executive.name'),
+        price: prices.executive.monthly,
+        priceYearly: prices.executive.yearly,
+        period: 'per month',
+        analysesText: `${t('pricing.plans.executive.analysesPerMonth')} · ${t('pricing.plans.executive.durationText')}`,
+        analysesPerMonth: t('pricing.plans.executive.analysesPerMonth'),
+        durationText: t('pricing.plans.executive.durationText'),
+        theme: 'graphite',
+        cta: t('pricing.plans.executive.cta'),
+        ctaVariant: 'primary',
+        recommended: false,
+        valueText: t('pricing.plans.executive.valueText'),
+        badgeText: t('pricing.plans.executive.badgeText')
+      }
+    ];
+  }, [t, isHebrew]);
 
   const handleSelectPlan = (planId) => {
     // Simple analytics hook – replace with real tracking later
@@ -173,6 +213,34 @@ export default function PricingPage() {
           <h1 className="pricingPage__title">{t('pricing.title')}</h1>
           <p className="pricingPage__subtitle">
             {t('pricing.subtitle')}
+          </p>
+        </section>
+
+        <section className="pricingPage__personalCoach" style={{
+          background: 'linear-gradient(135deg, rgba(0, 78, 100, 0.05) 0%, rgba(70, 181, 209, 0.05) 100%)',
+          borderRadius: '24px',
+          padding: '48px 32px',
+          marginBottom: '64px',
+          textAlign: 'center',
+          border: '2px solid rgba(0, 78, 100, 0.1)'
+        }}>
+          <h2 style={{
+            fontSize: 'clamp(24px, 3vw, 32px)',
+            fontWeight: '700',
+            marginBottom: '16px',
+            color: 'var(--text-dark)',
+            fontFamily: 'var(--font-display)'
+          }}>
+            {t('pricing.personalCoachIntro')}
+          </h2>
+          <p style={{
+            fontSize: 'clamp(16px, 2vw, 18px)',
+            lineHeight: '1.7',
+            color: 'var(--text-muted)',
+            maxWidth: '800px',
+            margin: '0 auto'
+          }}>
+            {t('pricing.personalCoachDescription')}
           </p>
         </section>
 
@@ -223,7 +291,6 @@ export default function PricingPage() {
         <section className="pricingPage__teams">
           <div className="teamsCard">
             <div className="teamsCard__content">
-              <p className="teamsCard__eyebrow">{t('pricing.teamsEyebrow')}</p>
               <h3 className="teamsCard__title">{t('pricing.teamsTitle')}</h3>
               <p className="teamsCard__subtitle">{t('pricing.teamsSubtitle')}</p>
               <ul className="teamsCard__list">

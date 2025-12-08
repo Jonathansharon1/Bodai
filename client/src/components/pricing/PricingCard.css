@@ -215,7 +215,7 @@
 
 /* We keep card theme modifiers for potential future use, but the stats bubble is neutral */
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .pricingCard {
     border-radius: 28px;
   }

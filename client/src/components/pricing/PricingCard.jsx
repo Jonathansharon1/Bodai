@@ -5,7 +5,10 @@ import { ArrowRight, Sparkles } from 'lucide-react';
 import './PricingCard.css';
 
 export default function PricingCard({ plan, billingPeriod, onSelect, isSignedIn }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isHebrew = i18n.language === 'he';
+  const currencySymbol = isHebrew ? '₪' : '$';
+  
   const displayPrice =
     plan.price === 0 ? 0 : billingPeriod === 'yearly' ? plan.priceYearly : plan.price;
   
@@ -13,7 +16,10 @@ export default function PricingCard({ plan, billingPeriod, onSelect, isSignedIn 
     if (plan.price === 0) {
       return t('pricing.plans.free.billingText');
     }
-    const planKey = plan.id === 'starter' ? 'starter' : plan.id === 'executive' ? 'executive' : 'pro';
+    const planKey = plan.id === 'starter' ? 'starter' 
+      : plan.id === 'executive' ? 'executive' 
+      : plan.id === 'proPlus' ? 'proPlus'
+      : 'pro';
     return billingPeriod === 'yearly' 
       ? t(`pricing.plans.${planKey}.billingYearly`)
       : t(`pricing.plans.${planKey}.billingMonthly`);
@@ -59,9 +65,16 @@ export default function PricingCard({ plan, billingPeriod, onSelect, isSignedIn 
         <div className="pricingCard__pricePanel">
           <div className="price__amount">
             <span className="price__number">
-              {`$${displayPrice}`}
+              {plan.price === 0 ? `${currencySymbol}0` : `${currencySymbol}${displayPrice.toFixed(2)}`}
             </span>
-            <span className="price__period">/mo</span>
+            {plan.price > 0 && (
+              <span className="price__period">
+                {billingPeriod === 'yearly' 
+                  ? (isHebrew ? '/שנה' : '/year')
+                  : (isHebrew ? '/חודש' : '/mo')
+                }
+              </span>
+            )}
           </div>
           <p className="price__note">{billingText}</p>
           <div className="pricingCard__stats">

@@ -952,28 +952,76 @@
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 767px) {
   .hero {
-    padding: 90px 16px 50px;
+    padding: 100px 16px 60px;
+    min-height: auto;
+  }
+
+  .hero__container {
+    gap: 32px;
+  }
+
+  .hero__content {
+    gap: 24px;
+  }
+
+  .hero__title {
+    font-size: clamp(32px, 8vw, 48px);
+  }
+
+  .hero__subtitle {
+    font-size: clamp(16px, 4vw, 18px);
   }
 
   .hero__cta {
     padding: 16px 28px;
     font-size: 16px;
     border-radius: 14px;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .hero__actions {
+    width: 100%;
+    flex-direction: column;
   }
 
   .hero__visual {
-    height: 320px;
+    height: 300px;
   }
 
   .hero__figure {
-    max-width: 260px;
+    max-width: 240px;
+  }
+
+  .hero__visualGlow {
+    width: 260px;
+    height: 260px;
+  }
+
+  .hero__visualRing {
+    width: 300px;
+    height: 300px;
   }
 
   .hero__scanLine,
   .hero__posePoint {
     display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero {
+    padding: 80px 12px 40px;
+  }
+
+  .hero__visual {
+    height: 280px;
+  }
+
+  .hero__figure {
+    max-width: 220px;
   }
 }
 

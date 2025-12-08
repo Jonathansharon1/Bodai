@@ -1,8 +1,10 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Sparkles, TrendingUp, Award, Target } from 'lucide-react';
 import './ScoreCardHero.css';
 
 export default function ScoreCardHero({ score, stageTitle, isFirstAnalysis, comparison }) {
+  const { t } = useTranslation();
   const getScoreMessage = (score) => {
     if (score >= 85) return { text: "Outstanding!", emoji: "🌟", color: "#10b981" };
     if (score >= 70) return { text: "Great Job!", emoji: "🎉", color: "#3b82f6" };
@@ -72,9 +74,9 @@ export default function ScoreCardHero({ score, stageTitle, isFirstAnalysis, comp
           <div className={`scoreCardHero__comparison scoreCardHero__comparison--${comparison.type}`}>
             {React.createElement(comparison.icon, { size: 18 })}
             <span>
-              {comparison.type === 'improved' && `+${comparison.diff} points from last session`}
-              {comparison.type === 'declined' && `${comparison.diff} points lower than last session`}
-              {comparison.type === 'stable' && 'Similar to last session'}
+              {comparison.type === 'improved' && `+${comparison.diff} ${t('dashboard.pointsFromLastSession')}`}
+              {comparison.type === 'declined' && `${comparison.diff} ${t('dashboard.pointsLowerThanLastSession')}`}
+              {comparison.type === 'stable' && t('analysisResult.sameAsLastTime')}
             </span>
           </div>
         )}

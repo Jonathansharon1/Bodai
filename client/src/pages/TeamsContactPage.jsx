@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Users, CheckCircle, AlertCircle, ArrowRight, ArrowLeft, Send, Briefcase, Building2, Mail, User } from 'lucide-react';
 import './TeamsContactPage.css';
 
 const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 export default function TeamsContactPage() {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.dir() === 'rtl';
+
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -50,7 +53,6 @@ export default function TeamsContactPage() {
 
       setSubmitted(true);
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.error('Failed to submit teams contact form:', err);
       setError(err.message || t('teams.errorFallback'));
     } finally {
@@ -62,17 +64,25 @@ export default function TeamsContactPage() {
     return (
       <div className="teamsPage">
         <div className="teamsPage__container">
-          <h1 className="teamsPage__title">{t('teams.successTitle')}</h1>
-          <p className="teamsPage__subtitle">
-            {t('teams.successSubtitle')}
-          </p>
-          <button
-            type="button"
-            className="teamsPage__button"
-            onClick={() => navigate('/dashboard')}
-          >
-            {t('teams.backToDashboard')}
-          </button>
+          <div className="teamsPage__success">
+            <div className="teamsPage__successIcon">
+              <CheckCircle size={48} strokeWidth={2.5} />
+            </div>
+            <h1 className="teamsPage__title">{t('teams.successTitle')}</h1>
+            <p className="teamsPage__subtitle">
+              {t('teams.successSubtitle')}
+            </p>
+            <div className="teamsPage__actions" style={{ justifyContent: 'center', marginTop: 32 }}>
+              <button
+                type="button"
+                className="teamsPage__button"
+                onClick={() => navigate('/dashboard')}
+              >
+                <span>{t('teams.backToDashboard')}</span>
+                <ArrowRight size={18} className="teamsPage__buttonIcon" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -81,36 +91,54 @@ export default function TeamsContactPage() {
   return (
     <div className="teamsPage">
       <div className="teamsPage__container">
-        <h1 className="teamsPage__title">{t('teams.title')}</h1>
-        <p className="teamsPage__subtitle">
-          {t('teams.subtitle')}
-        </p>
+        <button
+          type="button"
+          className="teamsPage__backButton"
+          onClick={() => navigate(-1)}
+        >
+          <ArrowLeft size={18} className="teamsPage__backIcon" />
+          <span>{t('teams.back')}</span>
+        </button>
+        
+        <div className="teamsPage__header">
+          <div className="teamsPage__icon">
+            <Users size={32} strokeWidth={2.5} />
+          </div>
+          <h1 className="teamsPage__title">{t('teams.title')}</h1>
+          <p className="teamsPage__subtitle">
+            {t('teams.subtitle')}
+          </p>
+        </div>
 
         <form className="teamsPage__form" onSubmit={handleSubmit}>
           <div className="teamsPage__fieldRow">
             <div className="teamsPage__field">
               <label htmlFor="name">{t('teams.nameLabel')}</label>
-              <input
-                id="name"
-                name="name"
-                type="text"
-                value={form.name}
-                onChange={handleChange}
-                placeholder={t('teams.namePlaceholder')}
-                required
-              />
+              <div style={{ position: 'relative' }}>
+                <input
+                  id="name"
+                  name="name"
+                  type="text"
+                  value={form.name}
+                  onChange={handleChange}
+                  placeholder={t('teams.namePlaceholder')}
+                  required
+                />
+              </div>
             </div>
             <div className="teamsPage__field">
               <label htmlFor="email">{t('teams.emailLabel')}</label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                value={form.email}
-                onChange={handleChange}
-                placeholder={t('teams.emailPlaceholder')}
-                required
-              />
+              <div style={{ position: 'relative' }}>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  placeholder={t('teams.emailPlaceholder')}
+                  required
+                />
+              </div>
             </div>
           </div>
 
@@ -166,7 +194,12 @@ export default function TeamsContactPage() {
             />
           </div>
 
-          {error && <p className="teamsPage__error">{error}</p>}
+          {error && (
+            <div className="teamsPage__error">
+              <AlertCircle size={18} />
+              <span>{error}</span>
+            </div>
+          )}
 
           <div className="teamsPage__actions">
             <button
@@ -174,7 +207,8 @@ export default function TeamsContactPage() {
               className="teamsPage__button"
               disabled={submitting}
             >
-              {submitting ? t('teams.submitting') : t('teams.submit')}
+              <span>{submitting ? t('teams.submitting') : t('teams.submit')}</span>
+              {!submitting && <Send size={18} className="teamsPage__buttonIcon" />}
             </button>
           </div>
         </form>
@@ -182,5 +216,3 @@ export default function TeamsContactPage() {
     </div>
   );
 }
-
-

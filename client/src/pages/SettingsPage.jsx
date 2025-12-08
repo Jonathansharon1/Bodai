@@ -120,6 +120,23 @@ export default function SettingsPage() {
       if (res.ok) {
         setAnalysisPrefsStatus('success');
         setTimeout(() => setAnalysisPrefsStatus(null), 3000);
+        
+        // Update localStorage to keep client-side context in sync
+        try {
+          const saved = localStorage.getItem('bodai_user_context');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            parsed.includeEnvironmentFeedback = includeEnvironmentFeedback;
+            localStorage.setItem('bodai_user_context', JSON.stringify(parsed));
+          } else {
+            // If no context exists, create a minimal one
+            localStorage.setItem('bodai_user_context', JSON.stringify({
+              includeEnvironmentFeedback: includeEnvironmentFeedback
+            }));
+          }
+        } catch (e) {
+          console.warn('Failed to update local user context:', e);
+        }
       } else {
         throw new Error('Failed to save analysis preferences');
       }

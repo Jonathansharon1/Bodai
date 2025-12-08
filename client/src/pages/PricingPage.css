@@ -425,23 +425,56 @@
   margin-top: 6px;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .pricingPage {
-    padding: 120px 16px 60px;
+    padding: 100px 16px 60px;
+  }
+
+  .pricingPage__header {
+    margin-bottom: 32px;
+  }
+
+  .pricingPage__title {
+    font-size: clamp(28px, 8vw, 40px);
+  }
+
+  .pricingPage__subtitle {
+    font-size: clamp(16px, 4vw, 18px);
+  }
+
+  .pricingPage__billingToggle {
+    margin-bottom: 32px;
+  }
+
+  .pricingPage__cards {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    margin-bottom: 48px;
   }
 
   .pricingPage__payAsYouGo {
     flex-direction: column;
     text-align: left;
+    gap: 16px;
   }
 
   .pricingPage__heroStats {
     flex-direction: column;
+    gap: 16px;
   }
 
   .pricingPage__included,
   .pricingPage__faq {
-    padding: 28px;
+    padding: 24px 20px;
+  }
+
+  .faq__questionRow {
+    padding: 16px 20px;
+  }
+
+  .faq__answer,
+  .faq__answerList {
+    padding: 0 20px 16px;
   }
 }
 

@@ -1,20 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
 import OnboardingPage from './pages/OnboardingPage';
 import AnalysisPage from './pages/AnalysisPage';
-import Dashboard from './components/Dashboard';
-import MyAnalysesPage from './pages/MyAnalysesPage';
-import MyProgressPage from './pages/MyProgressPage';
-import PracticePage from './pages/PracticePage';
-import PricingPage from './pages/PricingPage';
-import SubscriptionPage from './pages/SubscriptionPage';
-import CoursesPage from './pages/CoursesPage';
-import SettingsPage from './pages/SettingsPage';
-import SignInPage from './pages/SignInPage';
-import SignUpPage from './pages/SignUpPage';
 import Sidebar from './components/layout/Sidebar';
+import { SidebarProvider } from './components/layout/SidebarContext';
 import Header from './components/layout/Header';
 import Hero from './components/hero/Hero';
 import UpgradeModal from './components/UpgradeModal';
@@ -27,10 +18,24 @@ import CTASection from './components/homepage/CTASection';
 import WelcomeScreen from './components/WelcomeScreen';
 import { SignedOut } from '@clerk/clerk-react';
 import TeamsContactPage from './pages/TeamsContactPage';
+import LoadingSpinner from './components/LoadingSpinner';
+
+// Lazy load dashboard pages for code splitting and faster initial load
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const MyAnalysesPage = lazy(() => import('./pages/MyAnalysesPage'));
+const MyProgressPage = lazy(() => import('./pages/MyProgressPage'));
+const PracticePage = lazy(() => import('./pages/PracticePage'));
+const PricingPage = lazy(() => import('./pages/PricingPage'));
+const SubscriptionPage = lazy(() => import('./pages/SubscriptionPage'));
+const CoursesPage = lazy(() => import('./pages/CoursesPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const SignInPage = lazy(() => import('./pages/SignInPage'));
+const SignUpPage = lazy(() => import('./pages/SignUpPage'));
 
 // Protected Route Component
 function ProtectedRoute({ children, requireOnboarding = false }) {
   const { user, isLoaded: userLoaded } = useUser();
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
@@ -148,7 +153,8 @@ function ProtectedRoute({ children, requireOnboarding = false }) {
             const context = {
               primaryGoal: userProfile.primary_goal,
               confidenceLevel: userProfile.confidence_level || 'medium',
-              includeEnvironmentFeedback: userProfile.include_environment_feedback !== undefined ? userProfile.include_environment_feedback : true
+              includeEnvironmentFeedback: userProfile.include_environment_feedback !== undefined ? userProfile.include_environment_feedback : true,
+              practiceCommitment: userProfile.practice_commitment || userProfile.commitment_level || 'regular'
             };
             if (userProfile.goal_specific_context) {
               context.goalSpecificContext = userProfile.goal_specific_context;
@@ -252,7 +258,7 @@ function ProtectedRoute({ children, requireOnboarding = false }) {
           borderRadius: '50%',
           animation: 'spin 1s linear infinite'
         }}></div>
-        <p style={{ color: '#666', fontSize: '14px' }}>Loading...</p>
+        <p style={{ color: '#666', fontSize: '14px' }}>{t('common.buttons.loading')}</p>
         <style>{`
           @keyframes spin {
             0% { transform: rotate(0deg); }
@@ -421,7 +427,7 @@ function HomepageRoute({ user, isLoaded, navigate, onNewAnalysis }) {
 
 export default function AppRouter() {
   const { user, isLoaded: userLoaded } = useUser();
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const [file, setFile] = useState(null);
@@ -461,10 +467,29 @@ export default function AppRouter() {
 
   const syncUserContextFromJourney = useCallback((journey) => {
     if (!journey) return;
+    
+    // Preserve existing environment feedback preference
+    // Try state first, then localStorage, then default to true
+    let feedbackPref = true;
+    if (userContext?.includeEnvironmentFeedback !== undefined) {
+      feedbackPref = userContext.includeEnvironmentFeedback;
+    } else {
+      const saved = localStorage.getItem('bodai_user_context');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed.includeEnvironmentFeedback !== undefined) {
+            feedbackPref = parsed.includeEnvironmentFeedback;
+          }
+        } catch (e) {}
+      }
+    }
+
     const context = {
       primaryGoal: journey.focus_slug || 'general',
       confidenceLevel: journey.confidence_level || 'medium',
-      language: i18n.language || 'en'
+      language: i18n.language || 'en',
+      includeEnvironmentFeedback: feedbackPref
     };
     if (journey.goal_context) {
       context.goalSpecificContext = journey.goal_context;
@@ -824,7 +849,7 @@ export default function AppRouter() {
       
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        if (errorData.requiresUpgrade) {
+        if (errorData.requiresUpgrade || errorData.reason === 'video_duration_exceeded') {
           setUpgradeMessage(errorData.error || 'You have reached your analysis limit. Upgrade to continue.');
           setShowUpgradeModal(true);
           setResult('');
@@ -897,7 +922,7 @@ export default function AppRouter() {
   };
 
   return (
-    <>
+    <SidebarProvider>
       <UpgradeModal 
         isOpen={showUpgradeModal} 
         onClose={() => setShowUpgradeModal(false)}
@@ -927,10 +952,18 @@ export default function AppRouter() {
       {/* Auth Routes - Redirect to dashboard if already signed in */}
       {/* Use key prop to prevent re-mounting when user state changes */}
       <Route path="/sign-in/*" element={
-        user ? <Navigate to="/dashboard" replace /> : <SignInPage key="sign-in-page" />
+        user ? <Navigate to="/dashboard" replace /> : (
+          <Suspense fallback={<LoadingSpinner message="Loading sign in..." size="large" />}>
+            <SignInPage key="sign-in-page" />
+          </Suspense>
+        )
       } />
       <Route path="/sign-up/*" element={
-        user ? <Navigate to="/dashboard" replace /> : <SignUpPage key="sign-up-page" />
+        user ? <Navigate to="/dashboard" replace /> : (
+          <Suspense fallback={<LoadingSpinner message="Loading sign up..." size="large" />}>
+            <SignUpPage key="sign-up-page" />
+          </Suspense>
+        )
       } />
 
       {/* Teams & Enterprise contact (public) */}
@@ -1008,16 +1041,18 @@ export default function AppRouter() {
           <>
             <Sidebar />
             <div className="dashboardLayout">
-              <Dashboard 
-                onNewAnalysis={handleNewAnalysis}
-                onViewAnalysis={handleViewAnalysis}
-                refreshTrigger={dashboardRefreshTrigger}
-                journeys={journeys}
-                journeysLoading={journeysLoading}
-                activeJourneyId={activeJourneyId}
-                onSelectJourney={handleJourneySelect}
-                onStartJourney={handleJourneyCreate}
-              />
+              <Suspense fallback={<LoadingSpinner message="Loading dashboard..." size="large" />}>
+                <Dashboard 
+                  onNewAnalysis={handleNewAnalysis}
+                  onViewAnalysis={handleViewAnalysis}
+                  refreshTrigger={dashboardRefreshTrigger}
+                  journeys={journeys}
+                  journeysLoading={journeysLoading}
+                  activeJourneyId={activeJourneyId}
+                  onSelectJourney={handleJourneySelect}
+                  onStartJourney={handleJourneyCreate}
+                />
+              </Suspense>
             </div>
           </>
         </ProtectedRoute>
@@ -1028,13 +1063,15 @@ export default function AppRouter() {
           <>
             <Sidebar />
             <div className="dashboardLayout">
-              <MyAnalysesPage 
-                onViewAnalysis={handleViewAnalysis}
-                journeys={journeys}
-                journeysLoading={journeysLoading}
-                activeJourneyId={activeJourneyId}
-                onSelectJourney={handleJourneySelect}
-              />
+              <Suspense fallback={<LoadingSpinner message="Loading analyses..." size="large" />}>
+                <MyAnalysesPage 
+                  onViewAnalysis={handleViewAnalysis}
+                  journeys={journeys}
+                  journeysLoading={journeysLoading}
+                  activeJourneyId={activeJourneyId}
+                  onSelectJourney={handleJourneySelect}
+                />
+              </Suspense>
             </div>
           </>
         </ProtectedRoute>
@@ -1045,13 +1082,15 @@ export default function AppRouter() {
           <>
             <Sidebar />
             <div className="dashboardLayout">
-              <MyProgressPage 
-                journeys={journeys}
-                journeysLoading={journeysLoading}
-                activeJourneyId={activeJourneyId}
-                onSelectJourney={handleJourneySelect}
-                refreshTrigger={dashboardRefreshTrigger}
-              />
+              <Suspense fallback={<LoadingSpinner message="Loading progress..." size="large" />}>
+                <MyProgressPage 
+                  journeys={journeys}
+                  journeysLoading={journeysLoading}
+                  activeJourneyId={activeJourneyId}
+                  onSelectJourney={handleJourneySelect}
+                  refreshTrigger={dashboardRefreshTrigger}
+                />
+              </Suspense>
             </div>
           </>
         </ProtectedRoute>
@@ -1062,12 +1101,14 @@ export default function AppRouter() {
           <>
             <Sidebar />
             <div className="dashboardLayout">
-              <PracticePage 
-                journeys={journeys}
-                journeysLoading={journeysLoading}
-                activeJourneyId={activeJourneyId}
-                onSelectJourney={handleJourneySelect}
-              />
+              <Suspense fallback={<LoadingSpinner message="Loading practice..." size="large" />}>
+                <PracticePage 
+                  journeys={journeys}
+                  journeysLoading={journeysLoading}
+                  activeJourneyId={activeJourneyId}
+                  onSelectJourney={handleJourneySelect}
+                />
+              </Suspense>
             </div>
           </>
         </ProtectedRoute>
@@ -1076,7 +1117,9 @@ export default function AppRouter() {
       <Route path="/pricing" element={
         <>
           <Header />
-          <PricingPage />
+          <Suspense fallback={<LoadingSpinner message="Loading pricing..." size="large" />}>
+            <PricingPage />
+          </Suspense>
         </>
       } />
 
@@ -1085,7 +1128,9 @@ export default function AppRouter() {
           <>
             <Sidebar />
             <div className="dashboardLayout">
-              <SubscriptionPage />
+              <Suspense fallback={<LoadingSpinner message="Loading subscription..." size="large" />}>
+                <SubscriptionPage />
+              </Suspense>
             </div>
           </>
         </ProtectedRoute>
@@ -1096,7 +1141,9 @@ export default function AppRouter() {
           <>
             <Sidebar />
             <div className="dashboardLayout">
-              <CoursesPage />
+              <Suspense fallback={<LoadingSpinner message="Loading courses..." size="large" />}>
+                <CoursesPage />
+              </Suspense>
             </div>
           </>
         </ProtectedRoute>
@@ -1108,7 +1155,9 @@ export default function AppRouter() {
           <>
             <Sidebar />
             <div className="dashboardLayout">
-              <SettingsPage />
+              <Suspense fallback={<LoadingSpinner message="Loading settings..." size="large" />}>
+                <SettingsPage />
+              </Suspense>
             </div>
           </>
         </ProtectedRoute>
@@ -1117,7 +1166,7 @@ export default function AppRouter() {
       {/* Redirect unknown routes */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
-    </>
+    </SidebarProvider>
   );
 }
 

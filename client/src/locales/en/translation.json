@@ -9,14 +9,139 @@
       "back": "Back",
       "next": "Next",
       "submit": "Submit",
-      "loading": "Loading...",
+      "loading": "Loading... ",
       "saving": "Saving...",
       "dismiss": "Dismiss"
     },
     "labels": {
       "language": "Language",
       "english": "English",
-      "hebrew": "Hebrew"
+      "hebrew": "Hebrew",
+      "difficulty": "Difficulty"
+    },
+    "difficulty": {
+      "easy": "Easy",
+      "medium": "Medium",
+      "hard": "Hard",
+      "advanced": "Advanced"
+    },
+    "units": {
+      "seconds": "sec",
+      "minutes": "min",
+      "points": "points"
+    }
+  },
+  "marketing": {
+    "hero": {
+      "titleLine1": "Every Gesture Tells a Story.",
+      "titleLine2": "Make Yours Unforgettable.",
+      "subtitleSignedIn": "Continue your journey to confident communication. Upload a new video to track your progress.",
+      "subtitleNotSignedIn": "Master the art of confident communication with AI-guided video feedback. Transform how you present yourself in every interaction.",
+      "ctaSignedIn": "Start New Analysis",
+      "ctaNotSignedIn": "Get Started Free",
+      "micro": "No credit card required · Start improving today",
+      "markerPosture": "Posture {{score}}%",
+      "markerConfidence": "Confidence {{score}}%",
+      "markerEyeContact": "Eye Contact {{score}}%",
+      "markerGestures": "Gestures {{score}}%",
+      "markerEnergy": "Energy {{score}}%"
+    },
+    "features": {
+      "title": "Why People Practice with BodAI?",
+      "subtitle": "Advanced AI analysis, personalized coaching by goal, and progress you can actually see - so you show up more confident in real‑world moments.",
+      "personalCoach": {
+        "title": "A Real Personal Coach Who Remembers Everything",
+        "description": "BodAI isn't just a tool - it's a real personal coach that remembers all your traits, goals, and progress. It knows your strengths and weaknesses, and tailors feedback and exercises exactly for you. Unlike a human coach, it's available 24/7, never forgets details, and has access to all relevant knowledge in the world of communication and presentation."
+      },
+      "aiAnalysis": {
+        "title": "AI-Powered Analysis",
+        "description": "BodAI doesn't just watch your videos.\n It reads your body language. From posture and gestures to eye contact, energy, and delivery, you get a clear picture of how you truly come across in interviews, presentations, sales calls, and everyday meetings."
+      },
+      "personalized": {
+        "title": "Personalized Coaching for Your Scenario",
+        "description": "Whether you're a founder, team lead, content creator, student, or just want to feel more confident, BodAI adapts to you with personalized guidance on what to change in your body language and delivery."
+      },
+      "progress": {
+        "title": "Progress Tracking",
+        "description": "Track clear scores and trends over time so you can see your communication improving from session to session.Not just hope it is improving."
+      }
+    },
+    "howItWorks": {
+      "title": "How It Works",
+      "subtitle": "Get professional body language analysis in three simple steps",
+      "step1": {
+        "title": "Upload Your Video",
+        "description": "Record or upload a video of yourself speaking. Our AI works with videos from 30 seconds to 45 minutes."
+      },
+      "step2": {
+        "title": "AI Analysis",
+        "description": "Our advanced AI analyzes over 25 key signals in your body language and communication - things research shows actually move the needle on how confident, clear, and trustworthy you appear."
+      },
+      "step3": {
+        "title": "Get Feedback & Improve",
+        "description": "BodAI gives you clear, actionable guidance on what to adjust next."
+      }
+    },
+    "socialProof": {
+      "testimonialsTitle": "Real Results from Real People",
+      "highlightsTitle": "Built for people Who Demand Excellence",
+      "highlightsSubtitle": "Experience the future of communication coaching. BodAI is powered by advanced AI, designed for real results.",
+      "aiPrecision": {
+        "title": "AI-Powered Precision",
+        "description": "Cutting-edge AI analyzes 25+ communication parameters in real-time, giving you insights that would take hours with a human coach."
+      },
+      "instantFeedback": {
+        "title": "Instant Feedback",
+        "description": "Get detailed analysis within seconds. No waiting, no scheduling. Just upload and improve immediately."
+      },
+      "privacy": {
+        "title": "Privacy First",
+        "description": "Your videos are analyzed securely. We use enterprise-grade encryption and never share your data."
+      },
+      "improvement": {
+        "title": "Continuous Improvement",
+        "description": "Track your progress across every session. See exactly how you're improving with detailed metrics and trends."
+      },
+      "stats": {
+        "activeUsers": "Active Users",
+        "videosAnalyzed": "Videos Analyzed",
+        "avgImprovement": "Avg. Improvement"
+      },
+      "testimonials": {
+        "sarah": {
+          "text": "I was nervous about my first big presentation. After just 3 sessions with BodAI, I felt so much more confident. My team noticed the difference immediately!",
+          "role": "Marketing Manager",
+          "improvement": "+21.3 score"
+        },
+        "david": {
+          "text": "The instant feedback on my body language was eye-opening. I had no idea I was touching my face so much. Small changes, big impact.",
+          "role": "Software Engineer",
+          "improvement": "+47% confidence"
+        },
+        "emily": {
+          "text": "I use BodAI before every important client call. The practice prompts are perfect for quick warm-ups.",
+          "role": "Sales Executive",
+          "improvement": "+4.1 presence"
+        },
+        "jonathan": {
+          "name": "Yonatan Sharon",
+          "text": "Using BodAI helped me deliver a high-level presentation, overcome stage fright, and really pay attention to my body language, even in daily life. Excellent platform.",
+          "role": "Student at Tel Aviv-Yafo Academic College",
+          "improvement": "Overall improvement of 35 points"
+        }
+      }
+    },
+    "cta": {
+      "titleSignedIn": "Ready for Your Next Practice Session?",
+      "titleNotSignedIn": "Ready to Transform Your Communication?",
+      "subtitleSignedIn": "Keep improving your communication skills. Upload a new video analysis or check your progress.",
+      "subtitleNotSignedIn": "Join hundreds of users who are already improving their body language and communication skills with BodAI.",
+      "personalCoachNote": "A real personal coach who remembers all your traits, available 24/7, with all relevant knowledge - and all for less than $1.50 per session. It's truly amazing.",
+      "ctaSignedIn": "Start New Analysis",
+      "ctaNotSignedIn": "Get Started Free",
+      "secondarySignedIn": "Go to Dashboard",
+      "secondaryNotSignedIn": "View Pricing",
+      "micro": "No credit card required • Cancel anytime"
     }
   },
   "header": {
@@ -65,6 +190,68 @@
     "environmentFeedbackEnabled": "Include environment feedback (background, camera angle, lighting)",
     "environmentFeedbackDisabled": "Focus only on skills (body language and speech)"
   },
+  "subscription": {
+    "loading": "Loading your subscription...",
+    "title": "My Subscription",
+    "subtitle": "Manage your subscription, track your usage, and upgrade when you're ready",
+    "statusActive": "Active",
+    "statusInactive": "Inactive",
+    "activeUntil": "Active until: {{date}}",
+    "analysesThisMonth": "Analyses This Month",
+    "usedAllAnalyses": "You've used all your analyses this month",
+    "analysesRemaining": "{{count}} analyses remaining",
+    "upgradeCta": "Upgrade to a Better Plan",
+    "featuresTitle": "What's Included in Your Plan",
+    "billingTitle": "Billing History",
+    "billingComingSoon": "Coming soon - you'll be able to see all your payments and invoices here",
+    "planNames": {
+      "free": "Free",
+      "basic": "Basic",
+      "premium": "Premium",
+      "pro": "Pro"
+    },
+    "features": {
+      "free": [
+        "1 full analysis",
+        "Personalized feedback",
+        "Professional insights"
+      ],
+      "basic": [
+        "12 analyses per month",
+        "Full progress tracking with charts",
+        "Personalized Action Items",
+        "Advanced Insights",
+        "Achievements & Gamification",
+        "Comparisons with your baseline"
+      ],
+      "premium": [
+        "20 analyses per month",
+        "Full progress tracking with charts",
+        "Personalized Action Items",
+        "Advanced Insights",
+        "Achievements & Gamification",
+        "Comparisons with your baseline",
+        "Option to purchase additional analyses"
+      ],
+      "pro": [
+        "Unlimited analyses",
+        "Everything in Premium, plus:",
+        "Advanced personalized analyses",
+        "Access to advanced global statistics",
+        "Comparisons with other users",
+        "Priority Support",
+        "Export data to PDF/Excel",
+        "Custom Goals & Metrics",
+        "Longer analyses (up to 10 minutes)"
+      ]
+    },
+    "limitModal": {
+      "title": "You've reached your limit",
+      "message": "You've used all analyses included in your plan for this month. Upgrade to keep analyzing new videos and tracking your progress, or wait until next month.",
+      "viewPlans": "View Pricing Plans",
+      "maybeLater": "Maybe Later"
+    }
+  },
   "analysisPage": {
     "title": "Upload your practice video",
     "subtitle": "Each recording helps us give you better, more personalized feedback.",
@@ -81,6 +268,7 @@
     "dashboard": "Dashboard",
     "analyzeVideo": "Analyze Video",
     "viewInDashboard": "View in Dashboard",
+    "goToPractice": "Go to Practice",
     "newAnalysis": "New Analysis",
     "nextSteps": "Next Steps for Your Next Video",
     "basedOnSession": "Based on your {{date}} session",
@@ -98,8 +286,14 @@
     "noTipsAvailable": "No tips available right now. Upload another video to get personalized next steps.",
     "completeFirstAnalysis": "Complete your first analysis to unlock personalized next steps.",
     "greatWork": "Great work! This focus is now completed. You'll get new tips after your next analysis.",
-    "score": "score {{score}}/10",
+    "topFocus": "Top Focus",
+    "practiceThis": "Practice This",
+    "secondaryFocus": "Secondary Focus",
+    "preFlightCheck": "Tips for recording",
+    "basedOnHistory": "Based on your history",
     "instantTipLabel": "Instant Tip",
+    "tip": "Tip",
+    "score": "score {{score}}/10",
     "focusBadge": "Focus {{index}}",
     "optionalPracticeDrill": "Optional practice drill",
     "optionalPracticeDefault": "Ready to rehearse this focus?",
@@ -284,7 +478,10 @@
       "Confident Communicator": "Confident Communicator",
       "Impactful Communicator": "Impactful Communicator",
       "Master Communicator": "Master Communicator"
-    }
+    },
+    "pointsFromLastSession": "points from last session",
+    "pointsLowerThanLastSession": "points lower than last session",
+    "pointsSinceLastSession": "points since last session"
   },
   "myProgress": {
     "loading": "Loading your progress...",
@@ -311,7 +508,8 @@
       "energized": "Energized",
       "engaging": "Engaging",
       "confident": "Confident",
-      "calm": "Calm"
+      "calm": "Calm",
+      "assertive": "Assertive"
     },
     "postureLabels": {
       "goodposture": "Good Posture",
@@ -337,6 +535,7 @@
     "momentumStreakLabel": "Weekly streak",
     "momentumStreakKeepAlive": "Record within {{days}} days to keep it alive",
     "momentumStreakExtend": "Upload weekly to extend your streak",
+    "momentumStreakUnit": "week streak",
     "momentumStreakUnit_one": "week streak",
     "momentumStreakUnit_other": "week streak",
     "voiceCategoryDescription": "Vocal variety, pace, and clarity",
@@ -348,8 +547,12 @@
     "momentumCohortLabel": "Cohort percentile",
     "momentumCohortWithFocus": "Ahead of {{percent}}% of {{focusLabel}} cohort",
     "momentumCohortGeneric": "Great momentum vs other communicators",
+    "showMoreTrends": "Show more sessions",
+    "showLessTrends": "Show less",
     "recentSessionsTitle": "Recent Sessions",
     "recentSessionsSubtitle": "Overall score, speaking rate, and filler control",
+    "showMoreSessions": "Show more sessions",
+    "showLessSessions": "Show less",
     "overallLabel": "Overall",
     "speakingRateLabel": "Speaking Rate",
     "fillerWordsLabel": "Filler Words",
@@ -577,7 +780,78 @@
     "emptyStateDescription": "Complete your first analysis to get personalized tips and practice exercises tailored to your communication goals.",
     "emptyStateAction": "Start Your First Analysis",
     "fabTitle": "Record a new practice video",
-    "fabLabel": "Practice Now"
+    "fabLabel": "Practice Now",
+    "allCaughtUp": "All caught up!",
+    "greatJob": "Great job keeping up with your training. Select a station below to practice specific skills.",
+    "todaysFocus": "Today's Focus",
+    "startSession": "Start Session",
+    "mission": "Mission",
+    "missions": "Missions",
+    "noMissions": "No active missions in this lab.",
+    "skillStations": "Skill Stations",
+    "quickWarmups": "Quick Warm-Ups",
+    "warmup": {
+      "breathing": "Breathing Reset",
+      "articulation": "Tongue Twisters",
+      "posture": "Power Pose"
+    },
+    "drills": {
+      "voiceHumming": "Humming Scale",
+      "tongueTwister": "Tongue Twister",
+      "vocalSiren": "Vocal Siren",
+      "paceCount": "Pace Counting",
+      "supermanPose": "Superman Pose",
+      "eyeCorners": "Eye Corners",
+      "shakeItOut": "Shake It Out",
+      "mirrorSmile": "Mirror Smile",
+      "jumpingJacks": "Jumping Jacks",
+      "volumeSpike": "Volume Spike",
+      "oneBreath": "One Breath Challenge",
+      "boxBreathing": "Box Breathing"
+    },
+    "drillInstructions": {
+      "voice_humming": "Hum a scale from low to high and back to warm up your vocal cords safely. Example: Start with a low growl and slide up to a high squeak like a siren.",
+      "voice_humming_goal": "Goal: Warm up vocal cords and improve vocal flexibility. How it helps: Proper vocal warm-up improves sound quality, increases tonal variation, and helps you sound warmer and more professional.",
+      "voice_tongue_twister": "Repeat a difficult phrase 5 times as fast as you can without stumbling. Example: 'Red leather, yellow leather' or 'Unique New York'.",
+      "voice_tongue_twister_goal": "Goal: Improve clarity and articulation. How it helps: Practicing complex phrases improves speech clarity, reduces word confusion, and helps you sound clearer and more professional.",
+      "voice_siren": "Make a siren sound 'Oooo-Eeee' sliding your pitch from very low to very high and back. Example: Imagine you are a police car siren.",
+      "voice_siren_goal": "Goal: Improve vocal flexibility and energy. How it helps: Practicing a wide vocal range improves tonal variation, adds energy to speech, and helps you sound more dynamic and engaging.",
+      "voice_pace_count": "Count to 10 taking exactly 1 second per number to internalize a steady rhythm. Example: 'One... [pause]... Two... [pause]... Three...'",
+      "voice_pace_count_goal": "Goal: Develop a steady speaking pace. How it helps: Practicing precise pacing reduces filler words, improves clarity, and helps you sound more confident and professional.",
+      "presence_superman": "Stand with hands on hips, chest out, and feet apart for 2 minutes to boost confidence hormones. Example: Take up space like a superhero.",
+      "presence_superman_goal": "Goal: Improve posture and self-confidence. How it helps: Proper posture projects confidence, reduces physical tension, and helps you look and feel more confident.",
+      "presence_eye_corners": "Stretch your eye muscles by looking far left, then far right without moving your head. Example: Look at your left ear, hold 2s, then right ear.",
+      "presence_eye_corners_goal": "Goal: Improve eye contact and facial relaxation. How it helps: Practicing eye movements improves eye contact, reduces facial tension, and helps you appear more relaxed and engaged.",
+      "presence_hand_shake": "Shake your hands and arms vigorously to release built-up physical tension. Example: Shake your hands as if drying them off.",
+      "presence_hand_shake_goal": "Goal: Release physical tension and improve hand comfort. How it helps: Releasing tension improves the naturalness of hand movements, reduces stiffness, and helps you appear more relaxed and open.",
+      "presence_mirror_smile": "Smile at yourself in the mirror, holding a genuine expression for 10 seconds to boost mood. Example: Try to smile with your eyes too.",
+      "presence_mirror_smile_goal": "Goal: Improve natural and authentic facial expressions. How it helps: A genuine smile improves connection with the audience, projects openness, and helps you appear warmer and more trustworthy.",
+      "impact_jumping_jacks": "Do 10 jumping jacks to get your blood flowing and raise your energy level immediately. Example: Jump and clap hands overhead.",
+      "impact_jumping_jacks_goal": "Goal: Boost energy and presence. How it helps: Light physical activity increases energy levels, improves presence, and helps you appear more vibrant and engaged.",
+      "impact_volume_spike": "Say 'HEY!' loudly, then whisper 'hey', then say 'hey' normally to practice dynamic range. Example: Shout 'Good morning!', then whisper it.",
+      "impact_volume_spike_goal": "Goal: Improve dynamic vocal range and persuasiveness. How it helps: Practicing volume range improves the ability to emphasize important points, adds dynamism, and helps you sound more persuasive.",
+      "clarity_one_breath": "Inhale deeply and try to read a long sentence or paragraph in one single breath. Example: Count aloud as high as you can go on one breath.",
+      "clarity_one_breath_goal": "Goal: Improve breath management and speech structure. How it helps: Breath practice improves the ability to speak clearly, reduces filler words, and helps you sound more professional and organized.",
+      "confidence_box_breathing": "Inhale for 4s, hold for 4s, exhale for 4s, hold for 4s. Repeat 3 times to calm nerves. Example: Visualize a box, each side is one breath phase.",
+      "confidence_box_breathing_goal": "Goal: Calm nerves and improve self-confidence. How it helps: Controlled breathing reduces anxiety, improves vocal stability, and helps you look and feel more confident."
+    },
+    "startRecording": "Go to Studio / Start Recording",
+    "readyForAnalysis": "Ready for new analysis? Let's check improvement!",
+    "didItThankYou": "Did it, thank you!",
+    "whyItMattersLabel": "Why it matters:",
+    "setup": "Setup",
+    "whatToNotice": "What to Notice",
+    "recordingTip": "Pro Tip",
+    "estimatedTime": "Estimated Time",
+    "stations": {
+      "voice": "Voice Lab",
+      "presence": "Presence Studio",
+      "clarity": "Clarity Corner",
+      "impact": "Impact Zone",
+      "authenticity": "Authenticity Lab",
+      "confidence": "Confidence Dojo"
+    },
+    "completedToast": "Great job! Keep practicing."
   },
   "courses": {
     "badge": "Coming Soon",
@@ -751,303 +1025,35 @@
       }
     }
   },
-  "parameters": {
-    "categories": {
-      "voice": "Voice Expression",
-      "presence": "Presence",
-      "clarity": "Clarity",
-      "authenticity": "Authenticity",
-      "impact": "Impact",
-      "confidence": "Confidence",
-      "overall": "Overall"
-    },
-    "metrics": {
-      "overallScore": "Overall Score",
-      "presence": "Presence",
-      "voice": "Voice",
-      "voiceExpression": "Voice",
-      "clarity": "Clarity",
-      "authenticity": "Authenticity",
-      "impact": "Impact",
-      "confidence": "Confidence",
-      "overall": "Overall"
-    },
-    "descriptions": {
-      "overallScore": "Composite communication score",
-      "presence": "Body language & eye contact",
-      "voice": "Tone range & pace",
-      "clarity": "Structure & flow"
-    },
-    "voice": {
-      "volumeStability": "Volume Stability",
-      "volumeStabilityDesc": "Consistent volume without sudden drops or spikes",
-      "toneVariation": "Tone Variation",
-      "toneVariationDesc": "Vocal variety and expressiveness",
-      "paceControl": "Pace Control",
-      "paceControlDesc": "Appropriate speaking speed, not too fast or slow",
-      "articulation": "Articulation",
-      "articulationDesc": "Clear pronunciation, words are distinct",
-      "vocalWarmth": "Vocal Warmth",
-      "vocalWarmthDesc": "Friendly, approachable vocal quality"
-    },
-    "presence": {
-      "eyeContact": "Eye Contact",
-      "eyeContactDesc": "Consistent, natural eye contact with camera/audience",
-      "facialRelaxation": "Facial Relaxation",
-      "facialRelaxationDesc": "Relaxed, natural facial expressions",
-      "bodyPosture": "Body Posture",
-      "bodyPostureDesc": "Upright, confident posture",
-      "handNaturalness": "Hand Naturalness",
-      "handNaturalnessDesc": "Natural, purposeful gestures",
-      "openness": "Openness",
-      "opennessDesc": "Open body language, approachable"
-    },
-    "clarity": {
-      "structure": "Structure",
-      "structureDesc": "Clear organization, logical flow",
-      "focus": "Focus",
-      "focusDesc": "Stays on topic, clear main points",
-      "exampleUsage": "Example Usage",
-      "exampleUsageDesc": "Effective use of examples/stories",
-      "transitionQuality": "Transition Quality",
-      "transitionQualityDesc": "Smooth transitions between ideas",
-      "repetitionControl": "Repetition Control",
-      "repetitionControlDesc": "Avoids unnecessary repetition"
-    },
-    "authenticity": {
-      "naturalness": "Naturalness",
-      "naturalnessDesc": "Appears genuine, not forced",
-      "emotionalTransparency": "Emotional Transparency",
-      "emotionalTransparencyDesc": "Shows appropriate emotions",
-      "forcedExpressionReduction": "Forced Expression Reduction",
-      "forcedExpressionReductionDesc": "Minimal forced or fake expressions"
-    },
-    "impact": {
-      "energy": "Energy",
-      "energyDesc": "Appropriate energy level, engaging",
-      "engagement": "Engagement",
-      "engagementDesc": "Keeps audience engaged",
-      "persuasiveness": "Persuasiveness",
-      "persuasivenessDesc": "Convincing, compelling delivery"
-    },
-    "confidence": {
-      "fillerWordControl": "Filler Word Control",
-      "fillerWordControlDesc": "Minimal \"um\", \"uh\", \"like\"",
-      "pauseControl": "Pause Control",
-      "pauseControlDesc": "Effective use of pauses",
-      "physicalTension": "Physical Tension",
-      "physicalTensionDesc": "Low physical tension, relaxed",
-      "vocalStability": "Vocal Stability",
-      "vocalStabilityDesc": "Stable voice, no shaking/quivering",
-      "comfortLevel": "Comfort Level",
-      "comfortLevelDesc": "Appears comfortable on camera"
-    }
-  },
-  "subscription": {
-    "loading": "Loading your subscription...",
-    "title": "My Subscription",
-    "subtitle": "Manage your subscription, track your usage, and upgrade when you're ready",
-    "statusActive": "Active",
-    "statusInactive": "Inactive",
-    "activeUntil": "Active until: {{date}}",
-    "analysesThisMonth": "Analyses This Month",
-    "usedAllAnalyses": "You've used all your analyses this month",
-    "analysesRemaining": "{{count}} analyses remaining",
-    "upgradeCta": "Upgrade to a Better Plan",
-    "featuresTitle": "What's Included in Your Plan",
-    "billingTitle": "Billing History",
-    "billingComingSoon": "Coming soon - you'll be able to see all your payments and invoices here",
-    "planNames": {
-      "free": "Free",
-      "basic": "Basic",
-      "premium": "Premium",
-      "pro": "Pro"
-    },
-    "features": {
-      "free": [
-        "1 full analysis",
-        "Personalized feedback",
-        "Professional insights"
-      ],
-      "basic": [
-        "12 analyses per month",
-        "Full progress tracking with charts",
-        "Personalized Action Items",
-        "Advanced Insights",
-        "Achievements & Gamification",
-        "Comparisons with your baseline"
-      ],
-      "premium": [
-        "20 analyses per month",
-        "Full progress tracking with charts",
-        "Personalized Action Items",
-        "Advanced Insights",
-        "Achievements & Gamification",
-        "Comparisons with your baseline",
-        "Option to purchase additional analyses"
-      ],
-      "pro": [
-        "Unlimited analyses",
-        "Everything in Premium, plus:",
-        "Advanced personalized analyses",
-        "Access to advanced global statistics",
-        "Comparisons with other users",
-        "Priority Support",
-        "Export data to PDF/Excel",
-        "Custom Goals & Metrics",
-        "Longer analyses (up to 10 minutes)"
-      ]
-    },
-    "limitModal": {
-      "title": "You've reached your limit",
-      "message": "You've used all analyses included in your plan for this month. Upgrade to keep analyzing new videos and tracking your progress, or wait until next month.",
-      "viewPlans": "View Pricing Plans",
-      "maybeLater": "Maybe Later"
-    }
-  },
-  "auth": {
-    "signIn": {
-      "headerNoAccount": "Don't have an account?",
-      "headerCta": "Sign up",
-      "title": "Welcome back",
-      "subtitle": "Continue your journey to confident communication"
-    },
-    "signUp": {
-      "headerHaveAccount": "Already have an account?",
-      "headerCta": "Sign in",
-      "titleLine1": "Become",
-      "titleAccent": "Unforgettable",
-      "subtitle": "Master your communication skills"
-    },
-    "footerCopyright": "© {{year}} BodAI. All rights reserved."
-  },
-  "marketing": {
-    "hero": {
-      "titleLine1": "Every Gesture Tells a Story.",
-      "titleLine2": "Make Yours Unforgettable.",
-      "subtitleSignedIn": "Continue your journey to confident communication. Upload a new video to track your progress.",
-      "subtitleNotSignedIn": "Master the art of confident communication with AI-guided video feedback. Transform how you present yourself in every interaction.",
-      "ctaSignedIn": "Start New Analysis",
-      "ctaNotSignedIn": "Get Started Free",
-      "micro": "No credit card required · Start improving today",
-      "markerPosture": "Posture {{score}}%",
-      "markerConfidence": "Confidence {{score}}%",
-      "markerEyeContact": "Eye Contact {{score}}%",
-      "markerGestures": "Gestures {{score}}%",
-      "markerEnergy": "Energy {{score}}%"
-    },
-    "features": {
-      "title": "Why People Practice with BodAI?",
-      "subtitle": "Advanced AI analysis, personalized coaching by goal, and progress you can actually see - so you show up more confident in real‑world moments.",
-      "aiAnalysis": {
-        "title": "AI-Powered Analysis",
-        "description": "BodAI doesn't just watch your videos.\n It reads your body language. From posture and gestures to eye contact, energy, and delivery, you get a clear picture of how you truly come across in interviews, presentations, sales calls, and everyday meetings."
-      },
-      "personalized": {
-        "title": "Personalized Coaching for Your Scenario",
-        "description": "Whether you're a founder, team lead, content creator, student, or just want to feel more confident, BodAI adapts to you with personalized guidance on what to change in your body language and delivery."
-      },
-      "progress": {
-        "title": "Progress Tracking",
-        "description": "Track clear scores and trends over time so you can see your communication improving from session to session.Not just hope it is improving."
-      }
-    },
-    "howItWorks": {
-      "title": "How It Works",
-      "subtitle": "Get professional body language analysis in three simple steps",
-      "step1": {
-        "title": "Upload Your Video",
-        "description": "Record or upload a video of yourself speaking. Our AI works with videos from 30 seconds to 45 minutes."
-      },
-      "step2": {
-        "title": "AI Analysis",
-        "description": "Our advanced AI analyzes over 25 key signals in your body language and communication - things research shows actually move the needle on how confident, clear, and trustworthy you appear."
-      },
-      "step3": {
-        "title": "Get Feedback & Improve",
-        "description": "BodAI gives you clear, actionable guidance on what to adjust next."
-      }
-    },
-    "socialProof": {
-      "testimonialsTitle": "Real Results from Real People",
-      "highlightsTitle": "Built for people Who Demand Excellence",
-      "highlightsSubtitle": "Experience the future of communication coaching. BodAI is powered by advanced AI, designed for real results.",
-      "aiPrecision": {
-        "title": "AI-Powered Precision",
-        "description": "Cutting-edge AI analyzes 25+ communication parameters in real-time, giving you insights that would take hours with a human coach."
-      },
-      "instantFeedback": {
-        "title": "Instant Feedback",
-        "description": "Get detailed analysis within seconds. No waiting, no scheduling. Just upload and improve immediately."
-      },
-      "privacy": {
-        "title": "Privacy First",
-        "description": "Your videos are analyzed securely. We use enterprise-grade encryption and never share your data."
-      },
-      "improvement": {
-        "title": "Continuous Improvement",
-        "description": "Track your progress across every session. See exactly how you're improving with detailed metrics and trends."
-      },
-      "stats": {
-        "activeUsers": "Active Users",
-        "videosAnalyzed": "Videos Analyzed",
-        "avgImprovement": "Avg. Improvement"
-      },
-      "testimonials": {
-        "sarah": {
-          "text": "I was nervous about my first big presentation. After just 3 sessions with BodAI, I felt so much more confident. My team noticed the difference immediately!",
-          "role": "Marketing Manager",
-          "improvement": "+21.3 score"
-        },
-        "david": {
-          "text": "The instant feedback on my body language was eye-opening. I had no idea I was touching my face so much. Small changes, big impact.",
-          "role": "Software Engineer",
-          "improvement": "+47% confidence"
-        },
-        "emily": {
-          "text": "I use BodAI before every important client call. The practice prompts are perfect for quick warm-ups.",
-          "role": "Sales Executive",
-          "improvement": "+4.1 presence"
-        }
-      }
-    },
-    "cta": {
-      "titleSignedIn": "Ready for Your Next Practice Session?",
-      "titleNotSignedIn": "Ready to Transform Your Communication?",
-      "subtitleSignedIn": "Keep improving your communication skills. Upload a new video analysis or check your progress.",
-      "subtitleNotSignedIn": "Join hundreds of users who are already improving their body language and communication skills with BodAI.",
-      "ctaSignedIn": "Start New Analysis",
-      "ctaNotSignedIn": "Get Started Free",
-      "secondarySignedIn": "Go to Dashboard",
-      "secondaryNotSignedIn": "View Pricing",
-      "micro": "No credit card required • Cancel anytime"
-    },
-    "welcome": {
-      "title": "Welcome to",
-      "titleAccent": "BodAI",
-      "subtitle": "Your AI-powered coach for better communication and presence",
-      "whatIsTitle": "What is BodAI?",
-      "whatIsText": "BodAI analyzes your video recordings to give you instant feedback on your body language, voice, and communication style. Get personalized tips to improve your presence and confidence in any situation.",
-      "howItWorksTitle": "How it works",
-      "step1": {
-        "title": "Record",
-        "description": "Record 30 seconds to 2 minutes of you speaking"
-      },
-      "step2": {
-        "title": "Analyze",
-        "description": "Get instant AI-powered feedback on your communication"
-      },
-      "step3": {
-        "title": "Improve",
-        "description": "Practice with personalized tips and track your progress"
-      },
-      "cta": "Let's personalize your experience",
-      "skip": "I'll explore first"
-    }
+  "teams": {
+    "title": "BodAI for Teams",
+    "subtitle": "Empower your team with AI-driven communication coaching. Get in touch to discuss a custom plan.",
+    "successTitle": "Thank you!",
+    "successSubtitle": "We received your inquiry and will be in touch shortly.",
+    "back": "Back",
+    "backToDashboard": "Back to Dashboard",
+    "nameLabel": "Full Name",
+    "namePlaceholder": "John Doe",
+    "emailLabel": "Work Email",
+    "emailPlaceholder": "john@company.com",
+    "companyLabel": "Company Name",
+    "companyPlaceholder": "Acme Inc.",
+    "teamSizeLabel": "Team Size",
+    "useCaseLabel": "Primary Use Case",
+    "useCasePlaceholder": "e.g., Sales Training, Leadership Development",
+    "messageLabel": "Message (Optional)",
+    "messagePlaceholder": "Tell us more about your needs...",
+    "submit": "Get in Touch",
+    "submitting": "Sending...",
+    "errorRequired": "Please fill in all required fields",
+    "errorGeneric": "Something went wrong. Please try again.",
+    "errorFallback": "An unexpected error occurred"
   },
   "pricing": {
     "title": "Pick a plan that fits how often you practice",
     "subtitle": "All plans include the same powerful AI analysis. The difference is how often you can practice and how long each video can be.",
+    "personalCoachIntro": "A Real Personal Coach Who Remembers Everything",
+    "personalCoachDescription": "BodAI isn't just a tool - it's a real personal coach that remembers all your traits, goals, and progress. Unlike a human coach, it's available 24/7, never forgets details, and has access to all relevant knowledge in the world of communication. And the price? A personal session for less than $1.50 - it's truly amazing.",
     "includedEyebrow": "Every plan includes",
     "includedTitle": "Everything you need to improve",
     "includedSubtitle": "Get the full AI analysis experience regardless of which plan you choose.",
@@ -1083,13 +1089,15 @@
         "analysesPerMonth": "1 analysis / month",
         "durationText": "Up to 10 min per video",
         "cta": "Start Free",
+        "valueText": "Try BodAI at no cost",
+        "badgeText": "Get Started",
         "billingText": "No credit card required",
         "billingMonthly": "No credit card required",
         "billingYearly": "No credit card required"
       },
       "starter": {
         "name": "Basic",
-        "analysesPerMonth": "8 analyses / month",
+        "analysesPerMonth": "5 analyses / month",
         "durationText": "Up to 10 min per video",
         "cta": "Get Basic",
         "valueText": "Great for 1–2 sessions per week",
@@ -1099,11 +1107,21 @@
       },
       "pro": {
         "name": "Pro",
-        "analysesPerMonth": "20 analyses / month",
+        "analysesPerMonth": "12 analyses / month",
         "durationText": "Up to 30 min per video",
         "cta": "Get Pro",
         "valueText": "Best for instant improvement and regular practice",
         "badgeText": "Most popular",
+        "billingMonthly": "Billed monthly",
+        "billingYearly": "Billed yearly"
+      },
+      "proPlus": {
+        "name": "Pro +",
+        "analysesPerMonth": "Up to 25 analyses / month",
+        "durationText": "Up to 45 min per video",
+        "cta": "Get Pro +",
+        "valueText": "Perfect for advanced users who need more analyses and longer videos",
+        "badgeText": "",
         "billingMonthly": "Billed monthly",
         "billingYearly": "Billed yearly"
       },
@@ -1112,7 +1130,7 @@
         "analysesPerMonth": "Unlimited analyses",
         "durationText": "Up to 45 min per video",
         "cta": "Get Unlimited",
-        "valueText": "Best for daily practice and coaching with unlimited videos",
+        "valueText": "Perfect for coaches, teachers, lecturers, and anyone needing intensive practice",
         "badgeText": "Best value",
         "billingMonthly": "Billed monthly",
         "billingYearly": "Billed yearly"
@@ -1145,27 +1163,132 @@
       "a9": "We accept all major credit cards (Visa, Mastercard, American Express) and debit cards. Payments are processed securely through Stripe. You can update your payment method or billing information anytime in your account settings."
     }
   },
-  "teams": {
-    "title": "Talk to us about Teams & Enterprise",
-    "subtitle": "Tell us a bit about your team and how you'd like to use BodAI. We'll follow up with pricing and next steps.",
-    "nameLabel": "Name",
-    "namePlaceholder": "Your full name",
-    "emailLabel": "Work email",
-    "emailPlaceholder": "you@company.com",
-    "companyLabel": "Company / organization",
-    "companyPlaceholder": "Company name",
-    "teamSizeLabel": "Team size",
-    "useCaseLabel": "Primary use case",
-    "useCasePlaceholder": "e.g., interview training, content review, internal workshops",
-    "messageLabel": "Anything else we should know?",
-    "messagePlaceholder": "Share a bit more about your goals, timeline, and success criteria.",
-    "submit": "Send message",
-    "submitting": "Sending…",
-    "errorRequired": "Please add your name and work email so we can contact you.",
-    "errorGeneric": "Failed to send your request. Please try again.",
-    "errorFallback": "Something went wrong. Please try again.",
-    "successTitle": "Thanks for reaching out",
-    "successSubtitle": "We received your message and will get back to you within one business day.",
-    "backToDashboard": "Back to dashboard"
+  "streak": {
+    "dayStreak": "Day Streak",
+    "weekStreak": "Week Streak",
+    "keepItUp": "Keep it up!",
+    "videosThisPeriod": "videos this period"
+  },
+  "checklist": {
+    "default1": "Ensure face is evenly lit",
+    "default2": "Show head and shoulders",
+    "default3": "Minimize background noise",
+    "presence": "Stand tall and fill the frame",
+    "voice": "Vary your tone and pace",
+    "clarity": "Structure your opening clearly",
+    "authenticity": "Be yourself, relax shoulders",
+    "impact": "Focus on your key message",
+    "confidence": "Maintain steady eye contact"
+  },
+  "parameters": {
+    "categories": {
+      "voice": "Voice",
+      "presence": "Presence",
+      "clarity": "Clarity",
+      "authenticity": "Authenticity",
+      "impact": "Impact",
+      "confidence": "Confidence"
+    },
+    "metrics": {
+      "overallScore": "Overall Score",
+      "presence": "Presence",
+      "voice": "Voice",
+      "clarity": "Clarity",
+      "authenticity": "Authenticity",
+      "impact": "Impact",
+      "confidence": "Confidence",
+      "overall": "Overall"
+    },
+    "descriptions": {
+      "overallScore": "Your combined communication score",
+      "presence": "How you present yourself visually",
+      "voice": "How you use your voice",
+      "clarity": "How clear your message is"
+    },
+    "voice": {
+      "volumeStability": "Volume Stability",
+      "volumeStabilityDesc": "Consistent volume levels throughout",
+      "toneVariation": "Tone Variation",
+      "toneVariationDesc": "Using pitch to emphasize points",
+      "paceControl": "Pace Control",
+      "paceControlDesc": "Speaking at an appropriate speed",
+      "articulation": "Articulation",
+      "articulationDesc": "Pronouncing words clearly",
+      "vocalWarmth": "Vocal Warmth",
+      "vocalWarmthDesc": "Sounding approachable and friendly"
+    },
+    "presence": {
+      "eyeContact": "Eye Contact",
+      "eyeContactDesc": "Maintaining gaze with the audience",
+      "facialRelaxation": "Facial Relaxation",
+      "facialRelaxationDesc": "Freedom from tension in the face",
+      "bodyPosture": "Body Posture",
+      "bodyPostureDesc": "Standing or sitting tall and open",
+      "handNaturalness": "Hand Naturalness",
+      "handNaturalnessDesc": "Using gestures naturally",
+      "openness": "Openness",
+      "opennessDesc": "Appearing welcoming and receptive"
+    },
+    "clarity": {
+      "structure": "Structure",
+      "structureDesc": "Logical flow of ideas",
+      "focus": "Focus",
+      "focusDesc": "Staying on topic",
+      "exampleUsage": "Example Usage",
+      "exampleUsageDesc": "Using examples to clarify points",
+      "transitionQuality": "Transition Quality",
+      "transitionQualityDesc": "Smooth movement between topics",
+      "repetitionControl": "Repetition Control",
+      "repetitionControlDesc": "Avoiding unnecessary repetition"
+    },
+    "authenticity": {
+      "naturalness": "Naturalness",
+      "naturalnessDesc": "Sounding like yourself",
+      "emotionalTransparency": "Emotional Transparency",
+      "emotionalTransparencyDesc": "Showing genuine emotion",
+      "forcedExpressionReduction": "Forced Expression Reduction",
+      "forcedExpressionReductionDesc": "Minimizing fake or forced smiles"
+    },
+    "impact": {
+      "energy": "Energy",
+      "energyDesc": "Enthusiasm and vitality",
+      "engagement": "Engagement",
+      "engagementDesc": "Holding audience attention",
+      "persuasiveness": "Persuasiveness",
+      "persuasivenessDesc": "Convincing delivery"
+    },
+    "confidence": {
+      "fillerWordControl": "Filler Word Control",
+      "fillerWordControlDesc": "Minimizing um, ah, like",
+      "pauseControl": "Pause Control",
+      "pauseControlDesc": "Using silence effectively",
+      "physicalTension": "Physical Tension",
+      "physicalTensionDesc": "Relaxed body language",
+      "vocalStability": "Vocal Stability",
+      "vocalStabilityDesc": "Steady, unwavering voice",
+      "comfortLevel": "Comfort Level",
+      "comfortLevelDesc": "Appearing at ease"
+    }
+  },
+  "beforeAfter": {
+    "title": "Your Progress Journey",
+    "viewDetails": "View Details",
+    "hideDetails": "Hide Details",
+    "expandAria": "Expand progress details",
+    "collapseAria": "Collapse progress details",
+    "overallImprovement": "Overall Improvement",
+    "sessions": "{{count}} sessions",
+    "sessions_one": "1 session",
+    "sessions_other": "{{count}} sessions",
+    "first": "First",
+    "latest": "Latest",
+    "before": "Before",
+    "now": "Now",
+    "encouragement": {
+      "amazing": "Amazing work! You're making significant progress. Keep it up!",
+      "steady": "Steady progress! You're on the right track. Keep working on areas that need improvement.",
+      "maintaining": "You're maintaining a good level. Keep practicing to see further improvements.",
+      "dips": "There are ups and downs - that's normal! Focus on weaker areas and keep practicing."
+    }
   }
 }

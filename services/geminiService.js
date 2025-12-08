@@ -205,11 +205,12 @@ const buildPrompt = (userContext = {}) => {
   // Language instruction
   const languageInstruction = isHebrew 
     ? `\n\n**IMPORTANT LANGUAGE RULES:**
-1. Respond in Hebrew (עברית) for ALL content text including tips, explanations, descriptions, "Recording Note" content, "Quick Wins" content, and JSON values for "sentiment" and "posture_flag".
+1. Respond in Hebrew (עברית) for ALL content text including tips, explanations, descriptions, "Recording Note" content, "Quick Wins" content, JSON values for "sentiment" and "posture_flag", and the "insights" array.
 2. Translate "The Game Changer", "Physical Tweak", and "Environment" sub-headers to Hebrew.
 3. However, ALWAYS use these exact English section headers for the main sections: "**Key Strengths**", "**Focus Areas**", "**Communication Tips**", "**Body Language Tips**", "**Recording Note**", "**Quick Wins**".
 4. For tips format, use Hebrew labels: "מה לתרגל:" and "למה זה חשוב:" instead of "What to practice:" and "Why it matters:".
-5. Only technical terms like JSON field names should remain in English.`
+5. The "insights" array should contain 3 brief summary sentences in Hebrew that describe the overall performance, key strengths, and main areas for improvement.
+6. Only technical terms like JSON field names should remain in English.`
     : '';
 
   return `<role>
@@ -257,13 +258,71 @@ SCALE (0-10):
 - **4.0 - 5.9:** Average. Mechanics are there, but delivery is flat, inconsistent, or lacks intention. **Most average videos fall here.**
 - **0.0 - 3.9:** Weak. Fundamental gaps in confidence, structure, or congruence. **Needs significant work.**
 
+**Parameter Scoring Benchmarks (Key Metrics):**
+
+**VOICE - pace_control:**
+- 10: Perfect rhythm, strategic pauses, never rushed or dragging. Master-level pacing.
+- 8: Good pace with minor inconsistencies. Occasional rushed moments or awkward pauses.
+- 6: Adequate pace but noticeable speed variations. Some rushed or slow sections.
+- 4: Poor pacing - consistently too fast/slow, or erratic rhythm that distracts.
+
+**PRESENCE - eye_contact:**
+- 10: Sustained, natural direct gaze throughout. Connects deeply with audience/camera.
+- 8: Good eye contact with occasional natural breaks. Mostly engaging.
+- 6: Intermittent eye contact. Looks away frequently or stares too fixedly.
+- 4: Minimal eye contact, mostly looking down/away. Avoids direct connection.
+
+**PRESENCE - openness:**
+- 10: Fully open posture, welcoming gestures, approachable energy. No barriers.
+- 8: Generally open with minor closed-off moments (crossed arms, turned away).
+- 6: Mixed signals - some openness but also defensive or closed body language.
+- 4: Closed posture, defensive gestures, appears guarded or uncomfortable.
+
+**CLARITY - structure:**
+- 10: Crystal-clear organization, logical flow, easy to follow. Professional structure.
+- 8: Well-structured with minor organizational gaps. Mostly clear progression.
+- 6: Basic structure present but jumps around or lacks clear transitions.
+- 4: Disorganized, hard to follow, lacks clear beginning/middle/end.
+
+**CLARITY - focus:**
+- 10: Laser-focused, stays on topic, no tangents. Every word serves the message.
+- 8: Focused with occasional minor digressions that don't derail the message.
+- 6: Some focus but wanders off-topic or includes unnecessary details.
+- 4: Unfocused, rambling, unclear main point. Loses thread frequently.
+
+**AUTHENTICITY - naturalness:**
+- 10: Completely natural, genuine, no forced elements. Authentic self-expression.
+- 8: Mostly natural with minor forced moments or slight artificiality.
+- 6: Somewhat natural but noticeable forced expressions or rehearsed feel.
+- 4: Clearly forced, artificial, or overly rehearsed. Lacks genuine expression.
+
+**IMPACT - energy:**
+- 10: Exceptional enthusiasm that's authentic and contagious. Energizes the audience.
+- 8: Strong energy that's engaging but not overwhelming. Good enthusiasm.
+- 6: Moderate energy - adequate but not particularly engaging or inspiring.
+- 4: Low energy, flat delivery, or forced enthusiasm that feels fake.
+
+**IMPACT - engagement:**
+- 10: Captivating throughout, holds attention completely. Creates strong connection.
+- 8: Engaging with good connection, but some moments lose momentum.
+- 6: Adequately engaging but lacks consistent connection or attention-holding power.
+- 4: Low engagement, fails to hold attention, disconnects from audience.
+
+**CONFIDENCE - comfort_level:**
+- 10: Completely at ease, no visible anxiety, natural confidence. Owns the space.
+- 8: Comfortable with minor nervous tells (brief fidgets, slight tension).
+- 6: Somewhat comfortable but noticeable anxiety or self-consciousness.
+- 4: Clearly uncomfortable, high anxiety, appears nervous or insecure.
+
 **Strict Scoring Rules:**
-- **Default to 5.0-6.5 range** unless the video is clearly exceptional or clearly weak.
+- **Default range: 5.0-6.5** for average videos. Only deviate if clearly exceptional or clearly weak.
 - If the user fails the "${currentLens.critical_question}", the overall score cannot exceed 7.5.
-- **Be conservative:** If unsure, score lower rather than higher.
-- **Avoid score inflation:** A "good" video should score 6-7, not 8-9.
-- Be precise with decimals (e.g., 5.8, 6.3, 7.1) based on the weighted sub-metrics.
-- **Sub-metrics must align:** If presence is 8.0 but voice is 4.0, the overall cannot be 8.0.
+- **Be conservative:** If unsure between two scores, always choose the lower one.
+- **Avoid score inflation:** A "good" video should score 6-7, not 8-9. Reserve 8+ for exceptional.
+- **Use benchmarks above:** Compare each parameter to the benchmarks. Don't give 8+ unless it truly matches the 8+ description.
+- Be precise with decimals (e.g., 5.8, 6.3, 7.1) based on weighted sub-metrics.
+- **Sub-metrics must align:** If presence is 8.0 but voice is 4.0, the overall cannot be 8.0. Scores should be internally consistent.
+- **Cross-validate:** If energy is 9.0, engagement should also be high (7.5+). If eye_contact is 4.0, presence cannot be 8.0.
 
 **Delivery Metrics (Categorical Only):**
 - For speaking_rate_label: Choose "slow", "optimal", or "fast" based on your assessment of pace impact (not exact WPM count).
@@ -283,36 +342,50 @@ Identify 2 specific elements that are blocking success. Focus on the "Low hangin
 
 **Communication Tips**
 Analyze the content structure, clarity, and word choice. Provide exactly 2 distinct tips.
+Use numbered list format (1., 2.) for the tips.
 
 For EACH tip, use this EXACT format (do not deviate):
-- [Tip Title/Name]
+1. [Tip Title/Name]
   - ${isHebrew ? 'מה לתרגל:' : 'What to practice:'} [Specific actionable instruction]
   - ${isHebrew ? 'למה זה חשוב:' : 'Why it matters:'} [Explanation of impact]
 
 ${isHebrew ? `דוגמה:
-- הפחתת מילות מילוי
+1. פתיחה חזקה (The Hook)
+  - מה לתרגל: התחל ישר מהכאב או מהפתרון, ללא הקדמות ארוכות
+  - למה זה חשוב: זה תופס את תשומת הלב של הצופה בשניות הראשונות
+2. הפחתת מילות מילוי
   - מה לתרגל: עצור ל-2 שניות לפני שאתה מתחיל לדבר כדי לאסוף את המחשבות שלך
   - למה זה חשוב: ביטול "אמ" ו"אה" גורם לך להישמע יותר בטוח ומקצועי` : `Example:
-- Reduce filler words
+1. Strong Opening (The Hook)
+  - What to practice: Start directly with the pain point or solution, skip long intros
+  - Why it matters: This grabs viewer attention in the first few seconds
+2. Reduce filler words
   - What to practice: Pause for 2 seconds before speaking to gather your thoughts
   - Why it matters: Eliminating "um" and "uh" makes you sound more confident and professional`}
 
 **Body Language Tips**
 Analyze the visual delivery (Micro-signals, Posture, Eye Contact). Provide exactly 2 distinct tips.
+Use numbered list format (1., 2.) for the tips.
 *Pro Tip: Cite specific timestamps if possible.*
 
 For EACH tip, use this EXACT format (do not deviate):
-- [Tip Title/Name]
+1. [Tip Title/Name]
   - ${isHebrew ? 'מה לתרגל:' : 'What to practice:'} [Specific actionable instruction]
   - ${isHebrew ? 'למה זה חשוב:' : 'Why it matters:'} [Explanation of impact]
 
 ${isHebrew ? `דוגמה:
-- שמירה על קשר עין
+1. שמירה על קשר עין
   - מה לתרגל: הסתכל ישירות על עדשת המצלמה למשך 3-5 שניות, ואז הסתכל הצידה באופן טבעי
-  - למה זה חשוב: קשר עין ישיר בונה אמון ומעורבות עם הקהל שלך` : `Example:
-- Maintain eye contact
+  - למה זה חשוב: קשר עין ישיר בונה אמון ומעורבות עם הקהל שלך
+2. שליטה בידיים
+  - מה לתרגל: החזק את הידיים באזור "תיבת הכוח" (בין הבטן לחזה) והשתמש בהן להדגשה
+  - למה זה חשוב: זה משדר ביטחון ומסייע להעביר את המסר בצורה ברורה יותר` : `Example:
+1. Maintain eye contact
   - What to practice: Look directly at the camera lens for 3-5 seconds, then briefly look away naturally
-  - Why it matters: Direct eye contact builds trust and engagement with your audience`}
+  - Why it matters: Direct eye contact builds trust and engagement with your audience
+2. Hand Control
+  - What to practice: Keep hands in the "power box" zone (stomach to chest) and use for emphasis
+  - Why it matters: This projects confidence and helps articulate your message clearly`}
 
 **Recording Note**
 A 2-sentence executive summary answering the "Golden Question": "${currentLens.critical_question}".
@@ -323,6 +396,14 @@ ${isHebrew ? 'Translate sub-headers to Hebrew:' : ''}
 - **The Game Changer:** One major psychological or strategic shift.
 - **Physical Tweak:** One immediate body adjustment (e.g., "Chin up", "Slow down").
 ${userContext.includeEnvironmentFeedback !== false ? '- **Environment:** Lighting/Audio/Background fix.' : ''}
+
+**JSON Output:**
+The JSON must include an "insights" array with exactly 3 brief summary sentences${isHebrew ? ' in Hebrew' : ''}:
+- First insight: Overall performance summary (what stands out most)
+- Second insight: Key strength or positive aspect
+- Third insight: Main area for improvement or opportunity
+
+${isHebrew ? 'כל שלושת ה-insights חייבים להיות בעברית.' : 'All three insights should be concise and actionable.'}
 
 \`\`\`json
 ${jsonSchema}
@@ -862,10 +943,24 @@ export const generatePracticeMissions = async ({
     ? '\n\n**IMPORTANT: Respond entirely in Hebrew (עברית). All mission text must be in Hebrew. Only JSON field names should remain in English.**'
     : '';
 
+  // Get goal-specific context for better personalization
+  const goalContextMap = {
+    'content': 'content creation and talking to camera (creating videos, vlogs, social media content)',
+    'leadership': 'leadership presence and executive communication (leading teams, presenting to stakeholders)',
+    'confidence': 'self-confidence and presence (general communication confidence)',
+    'presentation': 'presentations and public speaking (formal presentations, speeches)',
+    'interview': 'job and promotion interviews (interview skills, professional communication)',
+    'sales': 'face-to-face sales conversations (sales pitches, client meetings)',
+    'dating': 'dating and romantic communication',
+    'social': 'social situations and networking',
+    'general': 'general communication improvement'
+  };
+  const goalContext = goalContextMap[goal] || goalContextMap['general'];
+
   const prompt = `You are an expert communication coach creating personalized practice missions (actionable steps) for users to improve a specific communication skill.${languageInstruction}
 
 USER CONTEXT:
-- Goal: ${goalLabel} (${goal})
+- Goal: ${goalLabel} (${goal}) - ${goalContext}
 - Confidence Level: ${confidence}
 - Current Score: ${currentScore.toFixed(1)}/10
 - Target Score: ${targetScore}/10
@@ -878,11 +973,20 @@ PARAMETER TO IMPROVE:
 - Key: ${parameterKey}
 - Description: ${parameterDescription}
 
+CRITICAL REQUIREMENTS:
+1. **Contextualize for ${goalLabel}**: All missions MUST be relevant to ${goalContext}. 
+   - If goal is "content creation", missions should involve video recording, talking to camera, creating content
+   - If goal is "sales", missions should involve sales scenarios, client interactions
+   - If goal is "interview", missions should involve interview practice, professional communication
+   - DO NOT use generic examples that don't match the user's goal (e.g., don't mention "sales opening" if goal is "content creation")
+
+2. **Language**: ${isHebrew ? 'ALL mission text MUST be in Hebrew (עברית). Write naturally in Hebrew.' : 'Write in English.'}
+
 Generate exactly 2 PRACTICE MISSIONS (numbered steps) that are:
 1. Specific and actionable (user can do them alone, no partner needed)
 2. Progressive (start easier, build up)
 3. Diverse (different types of exercises - recording, mirror practice, daily habits, etc.)
-4. Personalized to their ${goalLabel} goal
+4. **Highly personalized to their ${goalLabel} goal** - missions must be relevant to ${goalContext}
 5. Appropriate for their current score of ${currentScore.toFixed(1)}/10
 6. Different from previous missions if provided
 
@@ -890,12 +994,13 @@ Each mission should be:
 - 1-2 sentences max
 - Clear what to do and how long (e.g., "Record a 1-minute video...", "Practice for 5 minutes daily...")
 - Focused on improving ${parameterLabel} specifically
+- **Contextualized for ${goalContext}** - use scenarios relevant to their goal
 
 Respond ONLY with valid JSON (no markdown) in this format:
 {
   "missions": [
-    "First specific actionable step the user can do",
-    "Second specific actionable step"
+    "First specific actionable step the user can do (contextualized for ${goalContext})",
+    "Second specific actionable step (contextualized for ${goalContext})"
   ]
 }`;
 

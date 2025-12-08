@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -21,6 +21,130 @@ import JourneySwitcher from '../components/JourneySwitcher';
 import LoadingSpinner from '../components/LoadingSpinner';
 import EmptyState from '../components/EmptyState';
 
+// Video URL cache with expiration (1 hour)
+const VIDEO_URL_CACHE = new Map();
+const CACHE_EXPIRY = 60 * 60 * 1000; // 1 hour
+
+// Lazy video component with Intersection Observer and self-managed fetching
+const LazyVideo = React.memo(({ analysisId, user, t }) => {
+  const containerRef = useRef(null);
+  const [videoUrl, setVideoUrl] = useState(null);
+  const [isVisible, setIsVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const observerRef = useRef(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    // Use Intersection Observer to load video only when visible
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setIsVisible(true);
+            // Once visible, we can disconnect the observer
+            if (observerRef.current && containerRef.current) {
+              observerRef.current.unobserve(containerRef.current);
+            }
+          }
+        });
+      },
+      {
+        rootMargin: '100px', // Start loading 100px before entering viewport
+        threshold: 0.01
+      }
+    );
+
+    observerRef.current.observe(containerRef.current);
+
+    return () => {
+      if (observerRef.current && containerRef.current) {
+        observerRef.current.unobserve(containerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    // Only fetch if visible, user exists, and we don't have the URL yet
+    if (!isVisible || !user || videoUrl) return;
+
+    let isMounted = true;
+
+    const fetchUrl = async () => {
+      // Check cache first
+      const cacheKey = `${user.id}_${analysisId}`;
+      const cached = VIDEO_URL_CACHE.get(cacheKey);
+      
+      if (cached && Date.now() - cached.timestamp < CACHE_EXPIRY) {
+        if (isMounted) setVideoUrl(cached.url);
+        return;
+      }
+
+      if (isMounted) setLoading(true);
+      
+      try {
+        const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+        const res = await fetch(
+          `${apiBase}/api/analyses/${analysisId}/video-url`,
+          {
+            headers: {
+              'X-Clerk-User-Id': user.id,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        
+        if (!res.ok) throw new Error('Failed to fetch video URL');
+        
+        const data = await res.json();
+        if (data?.video_url && isMounted) {
+          // Cache the URL
+          VIDEO_URL_CACHE.set(cacheKey, {
+            url: data.video_url,
+            timestamp: Date.now()
+          });
+          setVideoUrl(data.video_url);
+        }
+      } catch (err) {
+        console.warn(`Preview unavailable for ${analysisId}:`, err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    fetchUrl();
+    
+    return () => { isMounted = false; };
+  }, [isVisible, user, analysisId, videoUrl]);
+
+  return (
+    <div ref={containerRef} className="analysisCard__media analysisCard__media--static">
+      {videoUrl ? (
+        <video 
+          src={videoUrl}
+          preload="metadata"
+          muted
+          playsInline
+          controls={false}
+          onLoadedMetadata={(e) => {
+            try { e.currentTarget.currentTime = 0.1; } catch (_) {}
+            e.currentTarget.pause();
+          }}
+        />
+      ) : (
+        <div className="analysisCard__mediaPlaceholder">
+          <div className="analysisCard__mediaIcon">
+            {loading ? <LoadingSpinner size="small" /> : '🎞️'}
+          </div>
+          {!loading && <p>{t('myAnalyses.previewUnavailable')}</p>}
+        </div>
+      )}
+    </div>
+  );
+});
+
+LazyVideo.displayName = 'LazyVideo';
+
 export default function MyAnalysesPage({
   onViewAnalysis,
   journeys = [],
@@ -30,10 +154,9 @@ export default function MyAnalysesPage({
 }) {
   const navigate = useNavigate();
   const { user } = useUser();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [analyses, setAnalyses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [previewUrls, setPreviewUrls] = useState({});
 
   useEffect(() => {
     if (user) {
@@ -43,42 +166,6 @@ export default function MyAnalysesPage({
       setLoading(false);
     }
   }, [user, activeJourneyId]);
-
-  useEffect(() => {
-    if (!user?.id || analyses.length === 0) return;
-    let isMounted = true;
-
-    const loadPreviews = async () => {
-      const urls = {};
-      for (const analysis of analyses) {
-        if (!analysis?.s3_key || previewUrls[analysis.id]) continue;
-        try {
-          const res = await fetch(
-            `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/analyses/${analysis.id}/video-url`,
-            {
-              headers: {
-                'X-Clerk-User-Id': user.id,
-                'Content-Type': 'application/json'
-              }
-            }
-          );
-          if (!res.ok) continue;
-          const data = await res.json();
-          if (data?.video_url) {
-            urls[analysis.id] = data.video_url;
-          }
-        } catch (err) {
-          console.warn(`Preview unavailable for ${analysis.id}:`, err);
-        }
-      }
-      if (isMounted && Object.keys(urls).length > 0) {
-        setPreviewUrls(prev => ({ ...prev, ...urls }));
-      }
-    };
-
-    loadPreviews();
-    return () => { isMounted = false; };
-  }, [analyses, user?.id]);
 
   const fetchAnalyses = async () => {
     if (!user) return;
@@ -110,7 +197,8 @@ export default function MyAnalysesPage({
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
+    const locale = i18n.language === 'he' ? 'he-IL' : 'en-US';
+    return date.toLocaleDateString(locale, { 
       year: 'numeric', 
       month: 'short', 
       day: 'numeric',
@@ -247,33 +335,17 @@ export default function MyAnalysesPage({
         {analyses.map((analysis) => {
           const goal = analysis.user_context?.primaryGoal || 'general';
           const IconComponent = getGoalIcon(goal);
-          const previewUrl = previewUrls[analysis.id];
           const promptDefinition = analysis.recording_prompt_title
             ? { title: analysis.recording_prompt_title, description: analysis.recording_prompt_description }
             : getPromptById(analysis.recording_prompt_id);
           
           return (
             <div key={analysis.id} className="analysisCard analysisCard--preview">
-              <div className="analysisCard__media analysisCard__media--static">
-                {previewUrl ? (
-                  <video 
-                    src={previewUrl}
-                    preload="metadata"
-                    muted
-                    playsInline
-                    controls={false}
-                    onLoadedMetadata={(e) => {
-                      try { e.currentTarget.currentTime = 0.1; } catch (_) {}
-                      e.currentTarget.pause();
-                    }}
-                  />
-                ) : (
-                  <div className="analysisCard__mediaPlaceholder">
-                    <div className="analysisCard__mediaIcon">🎞️</div>
-                    <p>{t('myAnalyses.previewUnavailable')}</p>
-                  </div>
-                )}
-              </div>
+              <LazyVideo 
+                analysisId={analysis.id}
+                user={user}
+                t={t}
+              />
 
               <div className="analysisCard__details">
                 <div className="analysisCard__metaRow">

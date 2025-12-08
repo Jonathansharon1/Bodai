@@ -9,8 +9,9 @@
   position: fixed;
   left: 0;
   top: 0;
-  z-index: 100;
+  z-index: var(--z-sidebar);
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.04);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 [dir="rtl"] .sidebar {
@@ -25,6 +26,49 @@
   padding: 24px 20px;
   border-bottom: 1px solid #E9ECEF;
   background: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sidebar__close {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.sidebar__close:hover {
+  background: rgba(0, 78, 100, 0.06);
+  color: var(--text-dark);
+}
+
+.sidebar__overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: var(--z-overlay);
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .sidebar__logo {
@@ -217,14 +261,100 @@
   background: rgba(0, 78, 100, 0.3);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .sidebar {
-    width: 260px;
-    min-width: 260px;
+    width: 280px;
+    min-width: 280px;
+    transform: translateX(-100%);
+    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.15);
+    z-index: var(--z-sidebar);
+  }
+
+  [dir="rtl"] .sidebar {
+    transform: translateX(100%);
+  }
+
+  .sidebar--open {
+    transform: translateX(0);
+  }
+
+  [dir="rtl"] .sidebar--open {
+    transform: translateX(0);
+  }
+
+  .sidebar__close {
+    display: flex;
+  }
+
+  .sidebar__overlay {
+    display: block;
+    z-index: var(--z-overlay);
   }
 
   .sidebar__userEmail {
     display: none;
+  }
+
+  .sidebar__link:hover {
+    transform: none;
+  }
+
+  .sidebar__header {
+    padding: 16px;
+  }
+
+  .sidebar__nav {
+    padding: 12px;
+  }
+
+  .sidebar__footer {
+    padding: 16px;
+  }
+}
+
+/* Mobile hamburger toggle button - Only show when sidebar is not in dashboard layout */
+.sidebar__mobileToggle {
+  display: none;
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: calc(var(--z-sidebar) + 1);
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  color: var(--text-dark);
+  transition: all 0.2s ease;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar__mobileToggle:hover {
+  background: var(--bg-800);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.sidebar__mobileToggle:active {
+  transform: scale(0.95);
+}
+
+[dir="rtl"] .sidebar__mobileToggle {
+  left: auto;
+  right: 16px;
+}
+
+@media (max-width: 767px) {
+  .sidebar__mobileToggle {
+    display: flex;
+  }
+  
+  /* Hide sidebar mobile toggle when dashboard header is present (it has its own toggle) */
+  .dashboardHeader ~ .sidebar__mobileToggle,
+  body:has(.dashboardHeader) .sidebar__mobileToggle {
+    display: none !important;
   }
 }
 

@@ -241,7 +241,7 @@
   transform: translateY(-1px);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .topOpportunityCard {
     padding: 24px;
   }

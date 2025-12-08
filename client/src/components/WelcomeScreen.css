@@ -288,7 +288,7 @@
 }
 
 /* Responsive */
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .welcomeScreen__header {
     padding: 20px 24px;
   }

@@ -90,6 +90,10 @@ function ExpandableDashboardText({ text, collapsedLines = 2 }) {
   );
 }
 
+// Dashboard Data Cache
+const DASHBOARD_CACHE = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 export default function Dashboard({
   onNewAnalysis,
   refreshTrigger,
@@ -129,18 +133,23 @@ export default function Dashboard({
     [journeys, activeJourneyId],
   );
 
-  // Use refs to prevent duplicate API calls
-  const fetchInProgressRef = useRef(false);
-  const lastFetchParamsRef = useRef({
-    journeyId: null,
-    refreshTrigger: null,
-    pathname: null,
-  });
-
   // Memoize fetchProgressData to prevent unnecessary re-renders
   const fetchProgressData = useCallback(
-    async (journeyIdParam = activeJourneyId) => {
+    async (journeyIdParam = activeJourneyId, forceRefresh = false) => {
       if (!user) return;
+
+      const cacheKey = `${user.id}_${journeyIdParam || 'default'}`;
+
+      // Check cache first (unless forced refresh)
+      if (!forceRefresh) {
+        const cached = DASHBOARD_CACHE.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+          console.log("Using cached dashboard data");
+          setProgressData(cached.data);
+          setLoading(false);
+          return;
+        }
+      }
 
       setLoading(true);
       try {
@@ -149,12 +158,7 @@ export default function Dashboard({
           params.append("journeyId", journeyIdParam);
         }
         const endpoint = `${process.env.REACT_APP_API_URL || "http://localhost:5000/api/communication/progress"}${params.toString() ? `?${params.toString()}` : ""}`;
-        console.log(
-          "Fetching dashboard data from:",
-          endpoint,
-          "with journeyId:",
-          journeyIdParam,
-        );
+        
         const res = await fetch(endpoint, {
           headers: {
             "X-Clerk-User-Id": user.id,
@@ -164,20 +168,20 @@ export default function Dashboard({
 
         if (res.ok) {
           const data = await res.json();
-          console.log("Dashboard data fetched:", {
-            profile: !!data.profile,
-            latest_metrics: !!data.profile?.latest_metrics,
-            metrics: data.metrics?.length || 0,
-            insights: data.insights?.length || 0,
-            achievements: data.achievements?.length || 0,
-            actionItems: data.actionItems?.length || 0,
-          });
-          setProgressData({
+          const newData = {
             profile: data.profile || null,
             metrics: data.metrics || [],
             insights: data.insights || [],
             achievements: data.achievements || [],
             actionItems: data.actionItems || [],
+          };
+          
+          setProgressData(newData);
+          
+          // Update cache
+          DASHBOARD_CACHE.set(cacheKey, {
+            data: newData,
+            timestamp: Date.now()
           });
         } else {
           console.error(
@@ -185,8 +189,6 @@ export default function Dashboard({
             res.status,
             res.statusText,
           );
-          const errorData = await res.json().catch(() => ({}));
-          console.error("Error details:", errorData);
         }
       } catch (err) {
         console.error("Failed to fetch progress data:", err);
@@ -214,67 +216,19 @@ export default function Dashboard({
     }
   }, [user]);
 
-  // Consolidated effect to handle all data fetching scenarios
+  // Initial fetch when journey or user changes
   useEffect(() => {
-    if (!user) return;
-
-    // Determine if we need to fetch based on what changed
-    const shouldFetch =
-      activeJourneyId !== lastFetchParamsRef.current.journeyId ||
-      refreshTrigger !== lastFetchParamsRef.current.refreshTrigger ||
-      (location.pathname === "/dashboard" &&
-        location.pathname !== lastFetchParamsRef.current.pathname);
-
-    if (!shouldFetch || fetchInProgressRef.current) return;
-
-    // Clear data if journey changed
-    if (
-      activeJourneyId !== lastFetchParamsRef.current.journeyId &&
-      activeJourneyId !== null
-    ) {
-      setProgressData({
-        profile: null,
-        metrics: [],
-        insights: [],
-        achievements: [],
-        actionItems: [],
-      });
-      setLoading(true);
+    if (user) {
+      fetchProgressData(activeJourneyId);
     }
+  }, [user, activeJourneyId, fetchProgressData]);
 
-    // Determine delay based on trigger
-    const delay =
-      refreshTrigger !== undefined
-        ? 500
-        : location.pathname === "/dashboard"
-          ? 300
-          : 0;
-
-    fetchInProgressRef.current = true;
-    const timeoutId = setTimeout(() => {
-      fetchProgressData(activeJourneyId).finally(() => {
-        fetchInProgressRef.current = false;
-        lastFetchParamsRef.current = {
-          journeyId: activeJourneyId,
-          refreshTrigger,
-          pathname: location.pathname,
-        };
-      });
-    }, delay);
-
-    return () => {
-      clearTimeout(timeoutId);
-      if (timeoutId) {
-        fetchInProgressRef.current = false;
-      }
-    };
-  }, [
-    user,
-    activeJourneyId,
-    refreshTrigger,
-    location.pathname,
-    fetchProgressData,
-  ]);
+  // Handle refresh trigger
+  useEffect(() => {
+    if (user && refreshTrigger > 0) {
+      fetchProgressData(activeJourneyId, true);
+    }
+  }, [refreshTrigger, user, activeJourneyId, fetchProgressData]);
 
   const fetchUserProfile = async () => {
     if (!user) return;
@@ -493,7 +447,7 @@ export default function Dashboard({
       name: `${t("myProgress.charts.session", "Session")} ${index + 1}`,
       date: metric.analyses?.created_at
         ? new Date(metric.analyses.created_at).toLocaleDateString(
-            i18n.language,
+            i18n.language === 'he' ? 'he-IL' : 'en-US',
             { month: "short", day: "numeric" },
           )
         : "",
@@ -1465,7 +1419,7 @@ export default function Dashboard({
                           className={`chartCard__improvementValue ${isPositive ? "positive" : "negative"}`}
                         >
                           {isPositive ? "+" : ""}
-                          {value} points
+                          {value} {t("common.units.points")}
                         </div>
                       </div>
                     );

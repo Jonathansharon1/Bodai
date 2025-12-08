@@ -237,6 +237,7 @@ export default function MyProgressPage({
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
   const [loading, setLoading] = useState(true);
+  const [showAllTrends, setShowAllTrends] = useState(false);
   const [metrics, setMetrics] = useState([]);
   const [expandedSections, setExpandedSections] = useState({
     guide: false,
@@ -274,34 +275,54 @@ export default function MyProgressPage({
   const getStageLabel = (title) => {
     if (!title) return t('myProgress.defaultStage');
     
-    // Map stage titles (like "Confident Communicator") to translation keys
+    // Normalize title: remove extra spaces, ensure single spaces
+    const cleanTitle = title.trim().replace(/\s+/g, ' ');
+    
+    // 1. Try exact translation key
+    const exactKey = `myProgress.stages.${cleanTitle}`;
+    const exactTranslation = t(exactKey);
+    if (exactTranslation !== exactKey) return exactTranslation;
+    
+    // 2. Try mapping known titles to short keys
     const stageMap = {
-      'Emerging Communicator': t('myProgress.stages.Emerging Communicator', { defaultValue: t('myProgress.stages.emerging') }),
-      'Developing Communicator': t('myProgress.stages.Developing Communicator', { defaultValue: t('myProgress.stages.developing') }),
-      'Confident Communicator': t('myProgress.stages.Confident Communicator', { defaultValue: t('myProgress.stages.confident') }),
-      'Impactful Communicator': t('myProgress.stages.Impactful Communicator', { defaultValue: t('myProgress.stages.impactful') }),
-      'Master Communicator': t('myProgress.stages.Master Communicator', { defaultValue: t('myProgress.stages.master') })
+      'Emerging Communicator': 'emerging',
+      'Developing Communicator': 'developing',
+      'Confident Communicator': 'confident',
+      'Impactful Communicator': 'impactful',
+      'Master Communicator': 'master'
     };
     
-    if (stageMap[title]) {
-      return stageMap[title];
+    // Case-insensitive lookup
+    const mapKey = Object.keys(stageMap).find(k => k.toLowerCase() === cleanTitle.toLowerCase());
+    if (mapKey) {
+      const shortKey = stageMap[mapKey];
+      const translation = t(`myProgress.stages.${shortKey}`);
+      // Verify translation exists
+      if (translation !== `myProgress.stages.${shortKey}`) return translation;
     }
     
-    // Map known goal titles to translation keys (for backward compatibility)
-    const titleMap = {
-      'Build Confidence': t('myProgress.goals.confidence'),
-      'Content Creator': t('myProgress.goals.content'),
-      'Presentation Skills': t('myProgress.goals.presentation'),
-      'Executive Presence': t('myProgress.goals.leadership'),
-      'Job Interviews': t('myProgress.goals.interview'),
-      'Face-to-face Sales': t('myProgress.goals.sales'),
-      'Dating & Romantic': t('myProgress.goals.dating'),
-      'Social Confidence': t('myProgress.goals.social'),
-      'General Improvement': t('myProgress.goals.general'),
-      'Practice': t('myProgress.defaultStage')
+    // 3. Try legacy goal mapping
+    const goalMap = {
+      'build confidence': 'confidence',
+      'content creator': 'content',
+      'presentation skills': 'presentation',
+      'executive presence': 'leadership',
+      'job interviews': 'interview',
+      'face-to-face sales': 'sales',
+      'dating & romantic': 'dating',
+      'social confidence': 'social',
+      'general improvement': 'general',
+      'practice': 'defaultStage'
     };
 
-    return titleMap[title] || title;
+    const goalKey = Object.keys(goalMap).find(k => k.toLowerCase() === cleanTitle.toLowerCase());
+    if (goalKey) {
+      if (goalMap[goalKey] === 'defaultStage') return t('myProgress.defaultStage');
+      const translation = t(`myProgress.goals.${goalMap[goalKey]}`);
+      if (translation !== `myProgress.goals.${goalMap[goalKey]}`) return translation;
+    }
+
+    return title;
   };
   
   const focusSlug = activeJourney?.focus_slug;
@@ -653,7 +674,11 @@ export default function MyProgressPage({
     if (!timestamp) return '—';
     const date = new Date(timestamp);
     if (Number.isNaN(date.getTime())) return '—';
-    return date.toLocaleDateString(i18n.language, { month: 'short', day: 'numeric' });
+    const locale = i18n.language === 'he' ? 'he-IL' : 'en-US';
+    const options = i18n.language === 'he' 
+      ? { month: 'long', day: 'numeric' }
+      : { month: 'short', day: 'numeric' };
+    return date.toLocaleDateString(locale, options);
   };
 
   const getMetricTimestamp = (metric) => metric?.analyses?.created_at || metric?.created_at;
@@ -962,7 +987,7 @@ export default function MyProgressPage({
               <div className="momentumCard__label">{t('myProgress.momentumStreakLabel')}</div>
               <div className="momentumCard__value">
                 {streakInfo.weeks}
-                <span> {t('myProgress.momentumStreakUnit', { count: streakInfo.weeks })}</span>
+                <span> {streakInfo.weeks === 1 ? t('myProgress.momentumStreakUnit_one') : t('myProgress.momentumStreakUnit_other')}</span>
               </div>
               <p>
                 {streakInfo.daysUntilBreak !== null
@@ -1041,7 +1066,12 @@ export default function MyProgressPage({
           <div className="deliveryStats__label">{t('myProgress.delivery.sentiment')}</div>
           <div className="deliveryStats__value deliveryStats__value--pill">
             {deliverySnapshot.sentiment
-              ? t(`myProgress.moods.${deliverySnapshot.sentiment.toLowerCase()}`, deliverySnapshot.sentiment.charAt(0).toUpperCase() + deliverySnapshot.sentiment.slice(1))
+              ? (() => {
+                  const sentimentKey = `myProgress.moods.${deliverySnapshot.sentiment.toLowerCase()}`;
+                  const translation = t(sentimentKey);
+                  // If translation equals the key, it means the key doesn't exist, so return the original value
+                  return translation !== sentimentKey ? translation : deliverySnapshot.sentiment;
+                })()
               : '—'}
           </div>
           <p className="deliveryStats__hint">{t('myProgress.delivery.hints.sentiment')}</p>
@@ -1068,7 +1098,7 @@ export default function MyProgressPage({
             </div>
           </div>
           <div className="trendList">
-            {trendRows.map(({ metric, previous }, idx) => {
+            {(showAllTrends ? trendRows : trendRows.slice(0, 3)).map(({ metric, previous }, idx) => {
               const overall = parseScore(metric.overall_score);
               const prevOverall = previous ? parseScore(previous.overall_score) : null;
               const delta = overall !== null && prevOverall !== null ? overall - prevOverall : null;
@@ -1114,6 +1144,18 @@ export default function MyProgressPage({
               );
             })}
           </div>
+          
+          {trendRows.length > 3 && (
+            <div className="trendList__footer">
+              <button 
+                className="btn btn--text trendList__toggle"
+                onClick={() => setShowAllTrends(!showAllTrends)}
+              >
+                {showAllTrends ? t('myProgress.showLessSessions') : t('myProgress.showMoreSessions')}
+                {showAllTrends ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -1125,7 +1167,7 @@ export default function MyProgressPage({
               <Sparkles size={20} />
               <div>
                 <h3>{t('myProgress.selfVsAiTitle')}</h3>
-                <p>{t('myProgress.loggedDate', { date: new Date(latestReflection.created_at).toLocaleDateString(i18n.language) })}</p>
+                <p>{t('myProgress.loggedDate', { date: new Date(latestReflection.created_at).toLocaleDateString(i18n.language === 'he' ? 'he-IL' : 'en-US') })}</p>
               </div>
             </div>
             <div className="reflectionCard__scores">
@@ -1258,6 +1300,18 @@ export default function MyProgressPage({
               );
             })}
           </div>
+          
+          {trendRows.length > 3 && (
+            <div className="trendList__footer">
+              <button 
+                className="btn btn--text trendList__toggle"
+                onClick={() => setShowAllTrends(!showAllTrends)}
+              >
+                {showAllTrends ? t('myProgress.showLessSessions') : t('myProgress.showMoreSessions')}
+                {showAllTrends ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+            </div>
+          )}
         </div>
       )}
 

@@ -10,8 +10,9 @@ export default function BeforeAfterComparison({
   latestAnalysis,
   allMetrics = []
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [expanded, setExpanded] = useState(false);
+  const isRTL = i18n.dir() === 'rtl';
 
   const METRIC_LABELS = {
     overall_score: t('parameters.metrics.overallScore'),
@@ -74,7 +75,8 @@ export default function BeforeAfterComparison({
   const formatDate = (dateStr) => {
     if (!dateStr) return 'N/A';
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const locale = i18n.language === 'he' ? 'he-IL' : 'en-US';
+    return date.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
   const getTrendIcon = (comparison) => {
@@ -93,9 +95,9 @@ export default function BeforeAfterComparison({
       <div className="beforeAfter__header" onClick={() => setExpanded(!expanded)}>
         <div className="beforeAfter__titleRow">
           <Trophy size={20} className="beforeAfter__icon" />
-          <h3 className="beforeAfter__title">Your Progress Journey</h3>
-          <button className="beforeAfter__toggle" aria-label={expanded ? 'Collapse' : 'Expand'}>
-            <span className="beforeAfter__toggleText">{expanded ? 'Hide Details' : 'View Details'}</span>
+          <h3 className="beforeAfter__title">{t('beforeAfter.title')}</h3>
+          <button className="beforeAfter__toggle" aria-label={expanded ? t('beforeAfter.collapseAria') : t('beforeAfter.expandAria')}>
+            <span className="beforeAfter__toggleText">{expanded ? t('beforeAfter.hideDetails') : t('beforeAfter.viewDetails')}</span>
             {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
           </button>
         </div>
@@ -105,13 +107,13 @@ export default function BeforeAfterComparison({
             <span className={`beforeAfter__changeValue ${comparisonData.overallChange >= 0 ? 'positive' : 'negative'}`}>
               {comparisonData.overallChange >= 0 ? '+' : ''}{comparisonData.overallChange.toFixed(1)}
             </span>
-            <span className="beforeAfter__changeLabel">overall improvement</span>
+            <span className="beforeAfter__changeLabel">{t('beforeAfter.overallImprovement')}</span>
           </div>
           
           <div className="beforeAfter__quickStats">
             <span className="beforeAfter__stat">
               <span className="beforeAfter__statValue">{comparisonData.totalSessions}</span>
-              <span className="beforeAfter__statLabel">sessions</span>
+              <span className="beforeAfter__statLabel">{t('myProgress.sessionUnitPlural')}</span>
             </span>
           </div>
         </div>
@@ -121,15 +123,15 @@ export default function BeforeAfterComparison({
       {expanded && (
         <div className="beforeAfter__content">
           {/* Timeline */}
-          <div className="beforeAfter__timeline">
+          <div className={`beforeAfter__timeline ${isRTL ? 'beforeAfter__timeline--rtl' : ''}`}>
             <div className="beforeAfter__timelinePoint beforeAfter__timelinePoint--first">
               <Calendar size={14} />
-              <span>First: {formatDate(comparisonData.firstDate)}</span>
+              <span>{t('beforeAfter.first')}: {formatDate(comparisonData.firstDate)}</span>
             </div>
             <div className="beforeAfter__timelineLine" />
             <div className="beforeAfter__timelinePoint beforeAfter__timelinePoint--latest">
               <Calendar size={14} />
-              <span>Latest: {formatDate(comparisonData.latestDate)}</span>
+              <span>{t('beforeAfter.latest')}: {formatDate(comparisonData.latestDate)}</span>
             </div>
           </div>
 
@@ -149,7 +151,7 @@ export default function BeforeAfterComparison({
                 
                 <div className="beforeAfter__metricBars">
                   <div className="beforeAfter__metricBar">
-                    <span className="beforeAfter__barLabel">Before</span>
+                    <span className="beforeAfter__barLabel">{t('beforeAfter.before')}</span>
                     <div className="beforeAfter__barContainer">
                       <div 
                         className="beforeAfter__barFill beforeAfter__barFill--first" 
@@ -160,7 +162,7 @@ export default function BeforeAfterComparison({
                   </div>
                   
                   <div className="beforeAfter__metricBar">
-                    <span className="beforeAfter__barLabel">Now</span>
+                    <span className="beforeAfter__barLabel">{t('beforeAfter.now')}</span>
                     <div className="beforeAfter__barContainer">
                       <div 
                         className={`beforeAfter__barFill beforeAfter__barFill--latest ${metric.isPositive ? 'improved' : ''}`}
@@ -177,13 +179,13 @@ export default function BeforeAfterComparison({
           {/* Encouragement Message */}
           <div className="beforeAfter__encouragement">
             {comparisonData.overallChange >= 2 ? (
-              <p>Amazing progress! You've improved significantly since you started. Keep up the great work!</p>
+              <p>{t('beforeAfter.encouragement.amazing')}</p>
             ) : comparisonData.overallChange >= 0.5 ? (
-              <p>You're making steady progress! Consistency is key - keep practicing.</p>
+              <p>{t('beforeAfter.encouragement.steady')}</p>
             ) : comparisonData.overallChange >= 0 ? (
-              <p>You're maintaining your skills. Try focusing on one area at a time for faster improvement.</p>
+              <p>{t('beforeAfter.encouragement.maintaining')}</p>
             ) : (
-              <p>Don't worry about small dips - they're normal! Focus on your strengths and keep practicing.</p>
+              <p>{t('beforeAfter.encouragement.dips')}</p>
             )}
           </div>
         </div>

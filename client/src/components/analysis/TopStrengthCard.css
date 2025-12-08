@@ -105,7 +105,7 @@
   width: fit-content;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .topStrengthCard {
     padding: 24px;
   }

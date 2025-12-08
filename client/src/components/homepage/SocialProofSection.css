@@ -237,8 +237,17 @@
   font-family: var(--font-display);
 }
 
+.socialProofSection__carouselContainer {
+  position: relative;
+  max-width: 840px;
+  margin: 0 auto;
+  padding: 0 60px;
+  display: block;
+}
+
 .socialProofSection__carousel {
   overflow: hidden;
+  width: 100%;
   max-width: 640px;
   margin: 0 auto;
 }
@@ -257,14 +266,6 @@
   border: 1px solid var(--border-light);
   text-align: start;
   position: relative;
-}
-
-.socialProofSection__quoteIcon {
-  color: var(--primary);
-  opacity: 0.2;
-  position: absolute;
-  top: 20px;
-  right: 20px;
 }
 
 .socialProofSection__testimonialText {
@@ -339,27 +340,87 @@
   border-radius: 10px;
 }
 
+/* Arrow Navigation */
+.socialProofSection__arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  min-width: 40px !important;
+  min-height: 40px !important;
+  border-radius: 50%;
+  border: 1px solid var(--border-light);
+  background: white;
+  color: var(--text-dark);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+}
+
+.socialProofSection__arrow:hover {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+}
+
+.socialProofSection__arrow:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.socialProofSection__arrow--prev {
+  left: 0;
+}
+
+.socialProofSection__arrow--next {
+  right: 0;
+}
+
+[dir="rtl"] .socialProofSection__arrow--prev {
+  left: auto;
+  right: 0;
+  transform: translateY(-50%) scaleX(-1);
+}
+
+[dir="rtl"] .socialProofSection__arrow:active {
+  transform: translateY(-50%) scaleX(-1) scale(0.95);
+}
+
+[dir="rtl"] .socialProofSection__arrow--next {
+  right: auto;
+  left: 0;
+  transform: translateY(-50%) scaleX(-1);
+}
+
 /* Dots Navigation */
 .socialProofSection__dots {
   display: flex;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
   margin-top: 24px;
 }
 
 .socialProofSection__dot {
-  width: 10px;
-  height: 10px;
+  width: 6px;
+  height: 6px;
+  min-width: 0 !important;
+  min-height: 0 !important;
   border-radius: 50%;
   background: #e2e8f0;
   border: none;
   cursor: pointer;
   padding: 0;
-  transition: background 0.2s ease, transform 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .socialProofSection__dot:hover {
   background: #cbd5e1;
+  transform: scale(1.2);
 }
 
 .socialProofSection__dot.active {
@@ -367,64 +428,102 @@
   transform: scale(1.2);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .socialProofSection {
-    padding: 80px 20px;
+    padding: 60px 16px;
   }
 
   .socialProofSection__stats {
-    gap: 16px;
-    margin-bottom: 60px;
+    gap: 12px;
+    margin-bottom: 48px;
+    flex-direction: column;
   }
   
   .socialProofSection__stat {
     padding: 16px 20px;
-    flex: 1 1 calc(50% - 8px);
-    min-width: 140px;
-    flex-direction: column;
-    text-align: center;
-    gap: 8px;
+    width: 100%;
+    flex-direction: row;
+    text-align: left;
+    gap: 12px;
   }
   
   .socialProofSection__statValue {
-    font-size: 24px;
+    font-size: 22px;
   }
 
   .socialProofSection__header {
-    margin-bottom: 60px;
+    margin-bottom: 48px;
   }
 
   .socialProofSection__grid {
     grid-template-columns: 1fr;
-    gap: 24px;
+    gap: 20px;
   }
 
   .socialProofSection__card {
-    padding: 32px 24px;
+    padding: 28px 20px;
+  }
+
+  .socialProofSection__card:hover {
+    transform: none;
   }
   
   .socialProofSection__testimonials {
-    margin-bottom: 60px;
+    margin-bottom: 48px;
   }
   
   .socialProofSection__testimonialsTitle {
-    margin-bottom: 32px;
+    margin-bottom: 28px;
   }
   
   .socialProofSection__testimonialCard {
-    padding: 28px 24px;
+    padding: 24px 20px;
   }
   
   .socialProofSection__testimonialText {
-    font-size: 16px;
+    font-size: 15px;
   }
   
   .socialProofSection__testimonialMeta {
     flex-direction: column;
     align-items: flex-start;
+    gap: 12px;
   }
   
   .socialProofSection__testimonialResult {
     align-items: flex-start;
+  }
+
+  .socialProofSection__carouselContainer {
+    padding: 0;
+    gap: 0;
+  }
+
+  .socialProofSection__carousel {
+    max-width: 100%;
+  }
+
+  .socialProofSection__arrow {
+    display: none;
+  }
+
+  .socialProofSection__arrow svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .socialProofSection__dots {
+    gap: 6px;
+    margin-top: 20px;
+  }
+
+  .socialProofSection__dot {
+    width: 5px;
+    height: 5px;
+  }
+
+  .socialProofSection__dot:hover,
+  .socialProofSection__dot.active {
+    transform: scale(1.2);
   }
 }

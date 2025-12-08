@@ -154,7 +154,7 @@
   line-height: 1.6;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .scoreCardHero__container {
     padding: 32px 24px;
   }

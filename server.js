@@ -11,7 +11,8 @@ import {
   saveAnalysis, 
   getUserAnalyses, 
   getAnalysisById, 
-  canUserUploadAnalysis, 
+  canUserUploadAnalysis,
+  canUserUploadVideoWithDuration, 
   markFreeAnalysisUsed, 
   saveOnboardingAnswers, 
   getUserWithOnboarding,
@@ -56,7 +57,8 @@ import {
   completeMission,
   getMissionCompletions,
   getMissionCompletionStats,
-  uncompleteMission
+  uncompleteMission,
+  supabase
 } from './services/supabaseService.js';
 import { processAnalysisMetrics, METRICS_PROCESSOR_VERSION } from './services/scoringService.js';
 import { uploadVideoToS3, getVideoUrl } from './services/s3Service.js';
@@ -480,6 +482,7 @@ function estimateAnalysisCostUsd(durationSeconds) {
     });
   }
 
+  // Check global maximum (hard limit for all plans)
   if (durationSeconds > MAX_VIDEO_DURATION_SECONDS) {
     logAnalysisGate('video_too_long', {
       clerkUserId,
@@ -492,21 +495,24 @@ function estimateAnalysisCostUsd(durationSeconds) {
     });
   }
 
-    // Check if user can upload analysis (subscription limits)
-    if (clerkUserId) {
-      const canUpload = await canUserUploadAnalysis(clerkUserId);
-      if (!canUpload.allowed) {
-        logAnalysisGate('subscription_blocked', {
-          clerkUserId,
-          reason: canUpload.reason
-        });
-        return res.status(403).json({ 
-          error: canUpload.message || 'Upload not allowed',
-          reason: canUpload.reason,
-          requiresUpgrade: canUpload.reason === 'free_limit_reached' || canUpload.reason === 'monthly_limit_reached'
-        });
-      }
+  // Check if user can upload analysis (subscription limits and duration limits)
+  if (clerkUserId) {
+    const canUpload = await canUserUploadVideoWithDuration(clerkUserId, durationSeconds);
+    if (!canUpload.allowed) {
+      logAnalysisGate('subscription_blocked', {
+        clerkUserId,
+        reason: canUpload.reason,
+        durationSeconds
+      });
+      return res.status(403).json({ 
+        error: canUpload.message || 'Upload not allowed',
+        reason: canUpload.reason,
+        requiresUpgrade: canUpload.reason === 'free_limit_reached' || 
+                        canUpload.reason === 'monthly_limit_reached' || 
+                        canUpload.reason === 'video_duration_exceeded'
+      });
     }
+  }
 
     // Parse user context from request header
     let userContext = {};
@@ -518,18 +524,22 @@ function estimateAnalysisCostUsd(durationSeconds) {
       }
     }
 
-    // Load user preference from DB if not in header
-    if (clerkUserId && userContext.includeEnvironmentFeedback === undefined) {
+    // Load user data once and cache it for reuse (OPTIMIZATION: 1.2 Cache User Data)
+    let cachedUserData = null;
+    if (clerkUserId) {
       try {
-        const userData = await getUserWithOnboarding(clerkUserId);
-        if (userData && userData.include_environment_feedback !== undefined) {
-          userContext.includeEnvironmentFeedback = userData.include_environment_feedback;
-        } else {
-          // Default to true if not set
-          userContext.includeEnvironmentFeedback = true;
+        cachedUserData = await getUserWithOnboarding(clerkUserId);
+        // Set environment feedback preference if not in header
+        if (userContext.includeEnvironmentFeedback === undefined) {
+          if (cachedUserData && cachedUserData.include_environment_feedback !== undefined) {
+            userContext.includeEnvironmentFeedback = cachedUserData.include_environment_feedback;
+          } else {
+            // Default to true if not set
+            userContext.includeEnvironmentFeedback = true;
+          }
         }
       } catch (e) {
-        console.warn('Failed to load user environment feedback preference:', e);
+        console.warn('Failed to load user data:', e);
         // Default to true on error
         userContext.includeEnvironmentFeedback = true;
       }
@@ -643,25 +653,21 @@ function estimateAnalysisCostUsd(durationSeconds) {
           console.warn('Filename encoding issue, using original:', e);
         }
 
-        // Upload to S3 (optional - continue even if it fails)
+        // OPTIMIZATION 1.1: Move S3 upload to background - don't await it, start analysis immediately
         if (process.env.AWS_S3_BUCKET_NAME) {
-          console.log('S3 configuration found, attempting to upload video...');
-          console.log('S3 Config:', {
-            bucket: process.env.AWS_S3_BUCKET_NAME,
-            region: process.env.AWS_REGION || 'us-east-1',
-            hasAccessKey: !!process.env.AWS_ACCESS_KEY_ID,
-            hasSecretKey: !!process.env.AWS_SECRET_ACCESS_KEY
-          });
-          try {
-            const s3Result = await uploadVideoToS3(
-              videoBuffer,
-              filename,
-              mimeType,
-              userId
-            );
+          console.log('S3 configuration found, starting background upload...');
+          // Start S3 upload in background, don't wait for it
+          uploadVideoToS3(
+            videoBuffer,
+            filename,
+            mimeType,
+            userId
+          ).then(s3Result => {
             s3Key = s3Result.key;
             console.log(`✅ Video uploaded to S3 successfully: ${s3Key}`);
-          } catch (s3Error) {
+            // If analysis was already saved, update it with S3 key
+            // Note: This is handled in the background processing section
+          }).catch(s3Error => {
             console.error('❌ Failed to upload video to S3 (continuing anyway):', s3Error.message);
             console.error('S3 Error details:', {
               message: s3Error.message,
@@ -669,7 +675,8 @@ function estimateAnalysisCostUsd(durationSeconds) {
               name: s3Error.name
             });
             // Continue with analysis even if S3 upload fails
-          }
+          });
+          // Continue immediately without waiting for S3 upload
         } else {
           console.warn('⚠️  S3 not configured: AWS_S3_BUCKET_NAME is not set in .env file');
           console.warn('   Videos will not be stored in S3. Add AWS_S3_BUCKET_NAME to .env to enable S3 storage.');
@@ -682,24 +689,27 @@ function estimateAnalysisCostUsd(durationSeconds) {
       console.warn('No Clerk user ID provided - analysis will not be saved to database');
     }
 
-    // Build historical context for Gemini (if authenticated)
+    // OPTIMIZATION 1.6: Build historical context and cache data for reuse in metrics processing
     // Only include historical context if user has 2+ previous analyses to avoid anchoring bias for new users
     let historicalContext = null;
+    let cachedPreviousMetrics = null;
+    let cachedUserBaseline = null;
     if (clerkUserId && userId) {
       try {
-        const previousMetrics = await getUserPreviousMetrics(clerkUserId, 3);
+        cachedPreviousMetrics = await getUserPreviousMetrics(clerkUserId, 3);
         
         // Only include historical context if user has meaningful history (2+ analyses)
         // This prevents anchoring bias for new users' first few analyses
-        if (previousMetrics && previousMetrics.length >= 2) {
-          const [userBaseline, recentActionItems] = await Promise.all([
+        if (cachedPreviousMetrics && cachedPreviousMetrics.length >= 2) {
+          const [userBaselineResult, recentActionItems] = await Promise.all([
             getUserBaseline(clerkUserId),
             getUserActionItems(clerkUserId, null, journeyId)
           ]);
-          historicalContext = buildHistoricalContextPayload(previousMetrics, userBaseline, recentActionItems);
-          console.log(`[analyze-video] Including historical context (${previousMetrics.length} previous analyses)`);
+          cachedUserBaseline = userBaselineResult; // Cache for reuse
+          historicalContext = buildHistoricalContextPayload(cachedPreviousMetrics, cachedUserBaseline, recentActionItems);
+          console.log(`[analyze-video] Including historical context (${cachedPreviousMetrics.length} previous analyses)`);
         } else {
-          console.log(`[analyze-video] Skipping historical context for new user (only ${previousMetrics?.length || 0} previous analyses)`);
+          console.log(`[analyze-video] Skipping historical context for new user (only ${cachedPreviousMetrics?.length || 0} previous analyses)`);
         }
       } catch (historyError) {
         console.warn('Failed to build historical context:', historyError.message || historyError);
@@ -760,35 +770,84 @@ function estimateAnalysisCostUsd(durationSeconds) {
       validationResult = validateAnalysisResponse(analysisResult);
     }
     
+    // Ensure we have valid analysis result before proceeding
+    if (!analysisResult) {
+      console.error('[analyze-video] Analysis result is null or undefined');
+      return res.status(500).json({ error: 'Analysis failed: No result from AI model' });
+    }
+    
     const resultMarkdown = analysisResult.text || analysisResult; // Support both old and new format
     const metrics = analysisResult.metrics || null;
+    
+    // Ensure we have valid markdown result
+    if (!resultMarkdown || typeof resultMarkdown !== 'string') {
+      console.error('[analyze-video] Invalid analysis result format:', typeof resultMarkdown);
+      return res.status(500).json({ error: 'Analysis failed: Invalid result format' });
+    }
     
     // Check if this is a Module 1 baseline assessment
     const isModule1Baseline = courseContext?.type === 'baseline' && courseContext?.moduleId === 'module-1';
     
-    // Save to database if Supabase is configured and user is authenticated
-    let analysisId = null;
-    let unlockedAchievements = [];
-    if (clerkUserId && userId) {
+    // OPTIMIZATION 2.1: Return response immediately after Gemini analysis
+    // Move all post-processing (metrics saving, action items, achievements) to background
+    // This allows the user to see results in ~30-60s instead of ~180s
+    
+    // Format metrics for Module 1 baseline response (needed for immediate response)
+    let formattedMetrics = metrics;
+    if (isModule1Baseline && metrics && metrics.warmth_score !== undefined) {
+      formattedMetrics = {
+        warmth_score: metrics.warmth_score,
+        competence_score: metrics.competence_score,
+        quadrant: metrics.quadrant,
+        warmth_evidence: metrics.warmth_evidence,
+        competence_evidence: metrics.competence_evidence,
+        first_impression_analysis: metrics.first_impression_analysis,
+        congruence: metrics.congruence,
+        recommendations: metrics.recommendations
+      };
+    }
+    
+    // Return response immediately with analysis results
+    // Post-processing will continue in background
+    const responseData = {
+      result: resultMarkdown,
+      analysisId: null, // Will be set in background
+      metrics: formattedMetrics,
+      unlockedAchievements: [], // Will be populated in background
+      completedPracticePrompts: []
+    };
+    
+    // Start background post-processing (fire-and-forget)
+    // This includes: saving to DB, processing metrics, action items, achievements, etc.
+    (async () => {
       try {
-        // Ensure filename is properly encoded as UTF-8
-        let filename = req.file.originalname;
-        try {
-          const decoded = Buffer.from(filename, 'latin1').toString('utf8');
-          if (decoded !== filename && /[\u0080-\uFFFF]/.test(decoded)) {
-            filename = decoded;
-          }
-        } catch (e) {
-          console.warn('Filename encoding issue, using original:', e);
-        }
-        
-        console.log(`[analyze-video] Attempting to save analysis for user ${userId} with journeyId: ${journeyId}`);
-        console.log('[analyze-video] S3 Key to save:', s3Key || 'NULL (S3 not configured or upload failed)');
-        const saved = await saveAnalysis(userId, {
-          videoFilename: filename,
-          videoSize: req.file.size,
-          mimeType: mimeType,
-          s3Key: s3Key, // Store S3 key in database (can be null if S3 not configured)
+        // Save to database if Supabase is configured and user is authenticated
+        let analysisId = null;
+        let unlockedAchievements = [];
+        const completedPracticePrompts = []; // Initialize for background processing
+        if (clerkUserId && userId) {
+          try {
+            // Ensure filename is properly encoded as UTF-8
+            let filename = req.file.originalname;
+            try {
+              const decoded = Buffer.from(filename, 'latin1').toString('utf8');
+              if (decoded !== filename && /[\u0080-\uFFFF]/.test(decoded)) {
+                filename = decoded;
+              }
+            } catch (e) {
+              console.warn('Filename encoding issue, using original:', e);
+            }
+            
+            console.log(`[Background] Attempting to save analysis for user ${userId} with journeyId: ${journeyId}`);
+            // S3 upload happens in parallel, so s3Key might be null initially
+            // We'll save it as null and update later if S3 upload completes
+            const currentS3Key = s3Key || null;
+            console.log('[Background] S3 Key to save:', currentS3Key || 'NULL (S3 not configured or upload in progress)');
+            const saved = await saveAnalysis(userId, {
+              videoFilename: filename,
+              videoSize: req.file.size,
+              mimeType: mimeType,
+              s3Key: currentS3Key, // Store S3 key in database (can be null if S3 upload still in progress)
           userContext: userContext,
           analysisResult: resultMarkdown,
           videoHash,
@@ -800,41 +859,52 @@ function estimateAnalysisCostUsd(durationSeconds) {
           rawMetrics: analysisResult.rawMetrics || null,
           recordingPrompt: recordingPromptPayload,
           journeyId: journeyId
-        });
-        
-        if (saved && saved.s3_key) {
-          console.log(`✅ Analysis saved with S3 key: ${saved.s3_key}`);
-        } else if (saved && !saved.s3_key) {
-          console.warn(`⚠️  Analysis saved but s3_key is NULL. S3 may not be configured or upload failed.`);
-        }
-        
-        if (saved) {
-          analysisId = saved.id;
-          console.log(`Analysis saved successfully with ID: ${analysisId}`);
-          
-          // Log any validation issues from the analysis
-          if (validationResult && validationResult.issues && validationResult.issues.length > 0) {
-            try {
-              await logAnalysisQuality(analysisId, userId, validationResult.issues);
-              console.log(`[analyze-video] Logged ${validationResult.issues.length} validation issue(s) for analysis ${analysisId}`);
-            } catch (logError) {
-              console.warn('Failed to log validation issues:', logError.message);
+            });
+            
+            if (saved && saved.s3_key) {
+              console.log(`✅ Analysis saved with S3 key: ${saved.s3_key}`);
+            } else if (saved && !saved.s3_key) {
+              console.warn(`⚠️  Analysis saved but s3_key is NULL. S3 may not be configured or upload failed.`);
             }
-          }
-          
-          notifyAnalysisStored({
-            clerkUserId,
-            analysisId,
-            metricsVersion: analysisResult.metricsVersion || METRICS_VERSION,
-            aiModelVersion: analysisResult.modelVersion || GEMINI_MODEL
-          }).catch(() => {});
-          
-          // Send analysis complete email
-          if (userId && metrics) {
-            try {
-              const userData = await getUserWithOnboarding(clerkUserId);
-              const userEmail = userData?.email || req.headers['x-user-email'];
-              const userName = userData?.first_name || userData?.name || null;
+            
+            if (saved) {
+              analysisId = saved.id;
+              console.log(`[Background] Analysis saved successfully with ID: ${analysisId}`);
+              
+              // If S3 upload completed after we saved, update the analysis record
+              // Check s3Key again (it might have been set by the background upload)
+              if (!currentS3Key && s3Key) {
+                supabase
+                  .from('analyses')
+                  .update({ s3_key: s3Key })
+                  .eq('id', analysisId)
+                  .then(() => console.log(`[Background] Updated analysis ${analysisId} with S3 key: ${s3Key}`))
+                  .catch(err => console.warn('[Background] Failed to update analysis with S3 key:', err));
+              }
+              
+              // Log any validation issues from the analysis
+              if (validationResult && validationResult.issues && validationResult.issues.length > 0) {
+                try {
+                  await logAnalysisQuality(analysisId, userId, validationResult.issues);
+                  console.log(`[Background] Logged ${validationResult.issues.length} validation issue(s) for analysis ${analysisId}`);
+                } catch (logError) {
+                  console.warn('Failed to log validation issues:', logError.message);
+                }
+              }
+              
+              notifyAnalysisStored({
+                clerkUserId,
+                analysisId,
+                metricsVersion: analysisResult.metricsVersion || METRICS_VERSION,
+                aiModelVersion: analysisResult.modelVersion || GEMINI_MODEL
+              }).catch(() => {});
+              
+              // Send analysis complete email
+              if (userId && metrics) {
+                try {
+                  // OPTIMIZATION 1.2: Use cached user data instead of fetching again
+                  const userEmail = cachedUserData?.email || req.headers['x-user-email'];
+                  const userName = cachedUserData?.first_name || cachedUserData?.name || null;
               
               if (userEmail) {
                 sendAnalysisCompleteEmail({
@@ -855,15 +925,15 @@ function estimateAnalysisCostUsd(durationSeconds) {
           // Process and save communication metrics if available
           if (metrics) {
             try {
-              // Get user's primary goal for scoring weights
-              const userData = await getUserWithOnboarding(clerkUserId);
-              const userGoal = userData?.primary_goal || 'general';
+              // OPTIMIZATION 1.2: Use cached user data instead of fetching again
+              const userGoal = cachedUserData?.primary_goal || 'general';
               
-              // Get baseline, global stats, and previous metrics for processing
+              // OPTIMIZATION 1.6: Reuse cached historical context data instead of fetching again
+              // Only fetch if we don't have cached data (shouldn't happen, but safety check)
               const [userBaseline, globalStatsMap, previousMetrics] = await Promise.all([
-                getUserBaseline(clerkUserId),
+                cachedUserBaseline !== null ? Promise.resolve(cachedUserBaseline) : getUserBaseline(clerkUserId),
                 getAllGlobalStats(),
-                getUserPreviousMetrics(clerkUserId, 3)
+                cachedPreviousMetrics !== null ? Promise.resolve(cachedPreviousMetrics) : getUserPreviousMetrics(clerkUserId, 3)
               ]);
               
               // Process metrics with new scoring system
@@ -931,101 +1001,74 @@ function estimateAnalysisCostUsd(durationSeconds) {
               };
               const focusMetricKey = determineWeakestMetricKey(metricsToSave);
               
-              // Save metrics
+              // OPTIMIZATION 1.3: Parallelize post-analysis database operations
+              // Save metrics, insights, and check for similar analysis in parallel
               console.log('[analyze-video] Saving metrics with journeyId:', journeyId, 'analysisId:', analysisId);
-              const savedMetrics = await saveCommunicationMetrics(userId, analysisId, metricsToSave, journeyId);
+              const [savedMetrics, insightsResult, similarAnalysis] = await Promise.all([
+                saveCommunicationMetrics(userId, analysisId, metricsToSave, journeyId),
+                metrics.insights && metrics.insights.length > 0 
+                  ? saveCommunicationInsights(userId, analysisId, metrics.insights, journeyId).then(() => ({ success: true })).catch(err => ({ success: false, error: err }))
+                  : Promise.resolve({ success: true, skipped: true }),
+                findSimilarRecentAnalysis(clerkUserId, videoHash, durationSeconds).catch(err => {
+                  console.warn('Error checking for similar analysis:', err.message);
+                  return null;
+                })
+              ]);
+              
               if (savedMetrics) {
                 console.log('[analyze-video] Communication metrics saved successfully, journeyId:', savedMetrics.journey_id);
               } else {
                 console.error('[analyze-video] Failed to save communication metrics');
               }
               
-              // Score variance detection for similar videos
-              // Check if there's a similar video uploaded recently (possible re-encode)
-              try {
-                const similarAnalysis = await findSimilarRecentAnalysis(clerkUserId, videoHash, durationSeconds);
-                
-                if (similarAnalysis?.type === 'similar' && similarAnalysis.analysis?.overall_score && metricsToSave.overall_score) {
-                  const previousScore = similarAnalysis.analysis.overall_score;
-                  const currentScore = metricsToSave.overall_score;
-                  const scoreDiff = Math.abs(currentScore - previousScore);
-                  
-                  // Log warning if score differs by more than 5 points for similar video
-                  if (scoreDiff > 5) {
-                    console.warn(`[Score Variance Alert] Similar video detected with ${scoreDiff.toFixed(1)} point difference`);
-                    console.warn(`[Score Variance Alert] Previous: ${previousScore.toFixed(1)}, Current: ${currentScore.toFixed(1)}`);
-                    console.warn(`[Score Variance Alert] Previous analysis: ${similarAnalysis.analysis.id} (${similarAnalysis.analysis.video_filename})`);
-                    
-                    // Log to analysis quality log
-                    await logAnalysisQuality(analysisId, userId, [{
-                      type: 'score_variance',
-                      severity: 'warning',
-                      previousScore,
-                      currentScore,
-                      difference: scoreDiff,
-                      previousAnalysisId: similarAnalysis.analysis.id
-                    }]);
-                  }
-                }
-              } catch (varianceError) {
-                console.warn('Error checking score variance:', varianceError.message);
-              }
-              
-              // Save insights
-              if (metrics.insights && metrics.insights.length > 0) {
-                await saveCommunicationInsights(userId, analysisId, metrics.insights, journeyId);
+              if (insightsResult.success && !insightsResult.skipped) {
                 console.log('Communication insights saved');
               }
               
+              // Score variance detection for similar videos
+              // Check if there's a similar video uploaded recently (possible re-encode)
+              if (similarAnalysis?.type === 'similar' && similarAnalysis.analysis?.overall_score && metricsToSave.overall_score) {
+                const previousScore = similarAnalysis.analysis.overall_score;
+                const currentScore = metricsToSave.overall_score;
+                const scoreDiff = Math.abs(currentScore - previousScore);
+                
+                // Log warning if score differs by more than 5 points for similar video
+                if (scoreDiff > 5) {
+                  console.warn(`[Score Variance Alert] Similar video detected with ${scoreDiff.toFixed(1)} point difference`);
+                  console.warn(`[Score Variance Alert] Previous: ${previousScore.toFixed(1)}, Current: ${currentScore.toFixed(1)}`);
+                  console.warn(`[Score Variance Alert] Previous analysis: ${similarAnalysis.analysis.id} (${similarAnalysis.analysis.video_filename})`);
+                  
+                  // Log to analysis quality log (don't await - fire and forget)
+                  logAnalysisQuality(analysisId, userId, [{
+                    type: 'score_variance',
+                    severity: 'warning',
+                    previousScore,
+                    currentScore,
+                    difference: scoreDiff,
+                    previousAnalysisId: similarAnalysis.analysis.id
+                  }]).catch(err => console.warn('Failed to log score variance:', err));
+                }
+              }
+              
+              // OPTIMIZATION 1.5: Parallelize action item status updates
               // Mark old pending action items as completed when a new analysis is finished
               // Action items are meant for the "next video", so once a new analysis is done, old ones should be completed
               try {
                 const oldActionItems = await getUserActionItems(clerkUserId, 'pending', journeyId);
                 if (oldActionItems && oldActionItems.length > 0) {
                   console.log(`[analyze-video] Marking ${oldActionItems.length} old pending action items as completed (new analysis finished)`);
-                  for (const oldItem of oldActionItems) {
-                    // Only mark as completed if it's from a previous analysis (not the current one)
-                    if (oldItem.analysis_id && oldItem.analysis_id !== analysisId) {
-                      await updateActionItemStatus(clerkUserId, oldItem.id, 'completed');
-                    }
-                  }
+                  // Parallelize updates instead of sequential loop
+                  const updatePromises = oldActionItems
+                    .filter(oldItem => oldItem.analysis_id && oldItem.analysis_id !== analysisId)
+                    .map(oldItem => updateActionItemStatus(clerkUserId, oldItem.id, 'completed'));
+                  await Promise.all(updatePromises);
                 }
               } catch (archiveError) {
                 console.error('Error archiving old action items:', archiveError);
                 // Don't fail the request if archiving fails
               }
 
-              // Parse and save action items from analysis result
-              if (resultMarkdown) {
-                try {
-                  const actionItems = parseActionItems(resultMarkdown);
-                  console.log(`[analyze-video] Parsed ${actionItems.length} action items from analysis`);
-                  if (actionItems.length > 0) {
-                    console.log('[analyze-video] Action items found:', actionItems.map(a => a.title));
-                    console.log('[analyze-video] Saving action items with journeyId:', journeyId);
-                    const savedActionItems = await saveActionItems(userId, analysisId, actionItems, { 
-                      userContext, 
-                      journeyId,
-                      maxActionItems: 4,  // Increased from 1 to save more action items (Communication + Body Language tips)
-                      generatePracticePrompts: true,
-                      focusMetricKey
-                    });
-                    console.log(`Saved ${savedActionItems.length} action items to database`);
-                    if (savedActionItems.length === 0 && actionItems.length > 0) {
-                      console.warn('No action items were saved - possible duplicates or errors');
-                    }
-                  } else {
-                    console.log('No action items found in analysis result');
-                  }
-                } catch (actionItemsError) {
-                  console.error('Error saving action items:', actionItemsError);
-                  console.error('Error stack:', actionItemsError.stack);
-                  // Don't fail the request if action items save fails
-                }
-              } else {
-                console.log('No resultMarkdown available to parse action items from');
-              }
-              
+              // OPTIMIZATION 1.3: Check achievements in parallel with action items processing
               // Check and unlock achievements (use final scores for achievements)
               const achievementMetrics = {
                 presence: metricsToSave.presence,
@@ -1036,9 +1079,102 @@ function estimateAnalysisCostUsd(durationSeconds) {
                 confidence: metricsToSave.confidence,
                 overall_score: metricsToSave.overall_score
               };
-              unlockedAchievements = await checkAndUnlockAchievements(userId, achievementMetrics);
+              const achievementsPromise = checkAndUnlockAchievements(userId, achievementMetrics);
+              
+              // Parse action items and process in parallel with achievements
+              let actionItemsPromise = Promise.resolve([]);
+              let parsedActionItems = [];
+              if (resultMarkdown) {
+                try {
+                  parsedActionItems = parseActionItems(resultMarkdown);
+                  console.log(`[analyze-video] Parsed ${parsedActionItems.length} action items from analysis`);
+                  if (parsedActionItems.length > 0) {
+                    // Separate tips from other items (quick wins, recording notes)
+                    const tips = parsedActionItems.filter(item => 
+                      item.item_type === 'tip' || !item.item_type || item.item_type === null
+                    );
+                    const otherItems = parsedActionItems.filter(item => 
+                      item.item_type && item.item_type !== 'tip'
+                    );
+                    
+                    console.log('[analyze-video] Action items found:', {
+                      tips: tips.length,
+                      communication: tips.filter(t => t.tip_section === 'communication' || t.section === 'communication').length,
+                      bodyLanguage: tips.filter(t => t.tip_section === 'bodyLanguage' || t.section === 'body-language').length,
+                      other: otherItems.length,
+                      allTitles: parsedActionItems.map(a => a.title)
+                    });
+                    console.log('[analyze-video] Saving action items with journeyId:', journeyId);
+                    
+                    // Save ALL tips (no limit), but limit other items
+                    const tipsPromise = tips.length > 0 ? saveActionItems(userId, analysisId, tips, { 
+                      userContext, 
+                      journeyId,
+                      maxActionItems: 999,  // Save ALL tips (no practical limit)
+                      generatePracticePrompts: false, // Generate in background after response
+                      focusMetricKey
+                    }) : Promise.resolve([]);
+                    
+                    // Save other items (quick wins, recording notes) with limit
+                    const otherItemsPromise = otherItems.length > 0 ? saveActionItems(userId, analysisId, otherItems, { 
+                      userContext, 
+                      journeyId,
+                      maxActionItems: 10,  // Limit non-tip items
+                      generatePracticePrompts: false, // Don't generate prompts for these
+                      focusMetricKey
+                    }) : Promise.resolve([]);
+                    
+                    actionItemsPromise = Promise.all([tipsPromise, otherItemsPromise]).then(([tips, others]) => [...tips, ...others]);
+                  } else {
+                    console.log('No action items found in analysis result');
+                  }
+                } catch (actionItemsError) {
+                  console.error('Error parsing action items:', actionItemsError);
+                  actionItemsPromise = Promise.resolve([]);
+                }
+              } else {
+                console.log('No resultMarkdown available to parse action items from');
+              }
+              
+              // Wait for both action items and achievements in parallel
+              const [savedActionItems, achievementsResult] = await Promise.all([
+                actionItemsPromise,
+                achievementsPromise
+              ]);
+              
+              unlockedAchievements = achievementsResult || [];
               if (unlockedAchievements.length > 0) {
                 console.log(`Unlocked ${unlockedAchievements.length} achievements`);
+              }
+              
+              // Generate practice prompts in background (fire-and-forget) - only for tips
+              if (savedActionItems && savedActionItems.length > 0) {
+                // Separate tips from other items for practice prompt generation
+                const tips = parsedActionItems.filter(item => 
+                  item.item_type === 'tip' || !item.item_type || item.item_type === null
+                );
+                
+                if (tips.length > 0) {
+                  // Trigger background generation for tips only
+                  saveActionItems(userId, analysisId, tips, {
+                    userContext,
+                    journeyId,
+                    maxActionItems: 999, // Save ALL tips (no practical limit)
+                    generatePracticePrompts: true, // Generate now in background
+                    focusMetricKey,
+                    backgroundGeneration: true // Flag to indicate this is background work
+                  }).catch(err => {
+                    console.error('Background practice prompt generation failed:', err);
+                  });
+                }
+                
+                const tipsCount = savedActionItems.filter(item => 
+                  item.item_type === 'tip' || !item.item_type
+                ).length;
+                console.log(`[Background] Saved ${savedActionItems.length} action items to database (${tipsCount} tips)`);
+                if (savedActionItems.length === 0 && parsedActionItems.length > 0) {
+                  console.warn('[Background] No action items were saved - possible duplicates or errors');
+                }
               }
 
               if (
@@ -1147,38 +1283,31 @@ function estimateAnalysisCostUsd(durationSeconds) {
           clerkUserId: clerkUserId
         });
         // Don't fail the request if DB save fails - user still gets their analysis
+        }
+      } else {
+        if (!clerkUserId) {
+          console.warn('Cannot save analysis: No Clerk user ID provided');
+        }
+        if (!userId) {
+          console.warn('Cannot save analysis: User ID not available');
+        }
       }
-    } else {
-      if (!clerkUserId) {
-        console.warn('Cannot save analysis: No Clerk user ID provided');
-      }
-      if (!userId) {
-        console.warn('Cannot save analysis: User ID not available');
-      }
+      
+      console.log('[Background] Post-processing completed for analysis');
+    } catch (backgroundError) {
+      console.error('[Background] Error in post-processing:', backgroundError);
+      console.error('[Background] Error stack:', backgroundError?.stack);
+      // Don't fail - analysis was already returned to user
+      // Log error but don't throw - this is fire-and-forget
     }
-
-    // Format metrics for Module 1 baseline response
-    let formattedMetrics = metrics;
-    if (isModule1Baseline && metrics && metrics.warmth_score !== undefined) {
-      formattedMetrics = {
-        warmth_score: metrics.warmth_score,
-        competence_score: metrics.competence_score,
-        quadrant: metrics.quadrant,
-        warmth_evidence: metrics.warmth_evidence,
-        competence_evidence: metrics.competence_evidence,
-        first_impression_analysis: metrics.first_impression_analysis,
-        congruence: metrics.congruence,
-        recommendations: metrics.recommendations
-      };
-    }
-    
-    return res.json({ 
-      result: resultMarkdown,
-      analysisId: analysisId, // Return analysis ID for frontend reference
-      metrics: formattedMetrics, // Return metrics if available
-      unlockedAchievements: unlockedAchievements, // Return any newly unlocked achievements
-      completedPracticePrompts: completedPracticePrompts
+    })().catch(err => {
+      // Catch any unhandled promise rejections in the background function
+      console.error('[Background] Unhandled error in background processing:', err);
+      console.error('[Background] Error stack:', err?.stack);
     });
+    
+    // Return response immediately (before post-processing completes)
+    return res.json(responseData);
   } catch (err) {
     // Basic error logging
     console.error('Analyze error:', err?.message || err);
@@ -1746,9 +1875,15 @@ app.post('/api/practice-missions/generate', async (req, res) => {
 
     // Get user context
     const userData = await getUserWithOnboarding(clerkUserId);
+    const userId = await getOrCreateUser(clerkUserId);
+    const languagePreference = await getUserLanguagePreference(userId);
+    
+    // Merge userContext from request body (if provided) with database values
+    const requestUserContext = req.body.userContext || {};
     const userContext = {
-      primaryGoal: userData?.primary_goal || 'confidence',
-      confidenceLevel: userData?.confidence_level || 'medium'
+      primaryGoal: requestUserContext.primaryGoal || userData?.primary_goal || 'confidence',
+      confidenceLevel: requestUserContext.confidenceLevel || userData?.confidence_level || 'medium',
+      language: requestUserContext.language || languagePreference || 'en' // Add language preference
     };
 
     // Get previous missions from database to avoid repetition

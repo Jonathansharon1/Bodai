@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Sparkles, Zap, Shield, Rocket, Star, Quote, Users, TrendingUp, Award } from 'lucide-react';
+import { Sparkles, Zap, Shield, Rocket, Star, ChevronLeft, ChevronRight, Users, TrendingUp, Award } from 'lucide-react';
 import './SocialProofSection.css';
 
 export default function SocialProofSection() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const sectionRef = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
   const [activeTestimonial, setActiveTestimonial] = useState(0);
+  const isRTL = i18n.dir() === 'rtl';
 
   const highlights = useMemo(() => [
     {
@@ -60,6 +61,14 @@ export default function SocialProofSection() {
       text: t('marketing.socialProof.testimonials.emily.text'),
       improvement: t('marketing.socialProof.testimonials.emily.improvement'),
       rating: 5
+    },
+    {
+      id: 4,
+      name: t('marketing.socialProof.testimonials.jonathan.name', { defaultValue: 'Yonatan Sharon' }),
+      role: t('marketing.socialProof.testimonials.jonathan.role'),
+      text: t('marketing.socialProof.testimonials.jonathan.text'),
+      improvement: t('marketing.socialProof.testimonials.jonathan.improvement'),
+      rating: 5
     }
   ], [t]);
 
@@ -98,6 +107,14 @@ export default function SocialProofSection() {
     return () => clearInterval(timer);
   }, [TESTIMONIALS.length]);
 
+  const goToPrevious = () => {
+    setActiveTestimonial((prev) => (prev - 1 + TESTIMONIALS.length) % TESTIMONIALS.length);
+  };
+
+  const goToNext = () => {
+    setActiveTestimonial((prev) => (prev + 1) % TESTIMONIALS.length);
+  };
+
   return (
     <section ref={sectionRef} className={`socialProofSection ${isVisible ? 'socialProofSection--visible' : ''}`}>
       <div className="socialProofSection__container">
@@ -118,44 +135,60 @@ export default function SocialProofSection() {
         <div className={`socialProofSection__testimonials ${isVisible ? 'socialProofSection__testimonials--visible' : ''}`}>
           <h2 className="socialProofSection__testimonialsTitle">{t('marketing.socialProof.testimonialsTitle')}</h2>
           
-          <div className="socialProofSection__carousel">
-            <div 
-              className="socialProofSection__track"
-              style={{ transform: `translateX(-${activeTestimonial * 100}%)` }}
+          <div className="socialProofSection__carouselContainer">
+            <button 
+              className="socialProofSection__arrow socialProofSection__arrow--prev"
+              onClick={goToPrevious}
+              aria-label="Previous testimonial"
             >
-              {TESTIMONIALS.map((testimonial) => (
-                <div key={testimonial.id} className="socialProofSection__testimonialCard">
-                  <Quote size={28} className="socialProofSection__quoteIcon" />
-                  
-                  <p className="socialProofSection__testimonialText">
-                    "{testimonial.text}"
-                  </p>
-                  
-                  <div className="socialProofSection__testimonialMeta">
-                    <div className="socialProofSection__testimonialAuthor">
-                      <div className="socialProofSection__avatar">
-                        {testimonial.name.charAt(0)}
-                      </div>
-                      <div className="socialProofSection__authorInfo">
-                        <span className="socialProofSection__authorName">{testimonial.name}</span>
-                        <span className="socialProofSection__authorRole">{testimonial.role}</span>
-                      </div>
-                    </div>
+              <ChevronLeft size={24} />
+            </button>
+            
+            <div className="socialProofSection__carousel">
+              <div 
+                className="socialProofSection__track"
+                style={{ transform: `translateX(${(isRTL ? 1 : -1) * activeTestimonial * 100}%)` }}
+              >
+                {TESTIMONIALS.map((testimonial) => (
+                  <div key={testimonial.id} className="socialProofSection__testimonialCard">
+                    <p className="socialProofSection__testimonialText">
+                      "{testimonial.text}"
+                    </p>
                     
-                    <div className="socialProofSection__testimonialResult">
-                      <div className="socialProofSection__rating">
-                        {[...Array(testimonial.rating)].map((_, i) => (
-                          <Star key={i} size={14} fill="#fbbf24" color="#fbbf24" />
-                        ))}
+                    <div className="socialProofSection__testimonialMeta">
+                      <div className="socialProofSection__testimonialAuthor">
+                        <div className="socialProofSection__avatar">
+                          {testimonial.name.charAt(0)}
+                        </div>
+                        <div className="socialProofSection__authorInfo">
+                          <span className="socialProofSection__authorName">{testimonial.name}</span>
+                          <span className="socialProofSection__authorRole">{testimonial.role}</span>
+                        </div>
                       </div>
-                      <span className="socialProofSection__improvement">
-                        {testimonial.improvement}
-                      </span>
+                      
+                      <div className="socialProofSection__testimonialResult">
+                        <div className="socialProofSection__rating">
+                          {[...Array(testimonial.rating)].map((_, i) => (
+                            <Star key={i} size={14} fill="#fbbf24" color="#fbbf24" />
+                          ))}
+                        </div>
+                        <span className="socialProofSection__improvement">
+                          {testimonial.improvement}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
+            
+            <button 
+              className="socialProofSection__arrow socialProofSection__arrow--next"
+              onClick={goToNext}
+              aria-label="Next testimonial"
+            >
+              <ChevronRight size={24} />
+            </button>
           </div>
           
           {/* Dots Navigation */}

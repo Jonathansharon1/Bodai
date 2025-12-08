@@ -5,11 +5,25 @@
   min-height: 100vh;
   background: #f8fafc;
   position: relative;
+  padding-top: 72px;
 }
 
 [dir="rtl"] .dashboardLayout {
   margin-left: 0;
   margin-right: 280px;
+}
+
+@media (max-width: 767px) {
+  .dashboardLayout {
+    margin-left: 0;
+    margin-right: 0;
+    padding-top: 64px;
+  }
+
+  [dir="rtl"] .dashboardLayout {
+    margin-left: 0;
+    margin-right: 0;
+  }
 }
 
 /* Animated Background */
@@ -1341,15 +1355,7 @@
   }
 }
 
-@media (max-width: 768px) {
-  .dashboardLayout {
-    margin-left: 0;
-  }
-
-  [dir="rtl"] .dashboardLayout {
-    margin-right: 0;
-  }
-
+@media (max-width: 767px) {
   .dashboard {
     padding: 24px 16px;
   }

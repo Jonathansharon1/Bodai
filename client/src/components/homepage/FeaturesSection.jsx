@@ -11,21 +11,27 @@ export default function FeaturesSection() {
   const features = useMemo(() => [
     {
       icon: Brain,
-      title: t('marketing.features.aiAnalysis.title'),
-      description: t('marketing.features.aiAnalysis.description'),
+      title: t('marketing.features.personalCoach.title'),
+      description: t('marketing.features.personalCoach.description'),
       color: '#004E64'
     },
     {
       icon: Target,
+      title: t('marketing.features.aiAnalysis.title'),
+      description: t('marketing.features.aiAnalysis.description'),
+      color: '#46B5D1'
+    },
+    {
+      icon: TrendingUp,
       title: t('marketing.features.personalized.title'),
       description: t('marketing.features.personalized.description'),
-      color: '#46B5D1'
+      color: '#FF8C64'
     },
     {
       icon: TrendingUp,
       title: t('marketing.features.progress.title'),
       description: t('marketing.features.progress.description'),
-      color: '#FF8C64'
+      color: '#8B5CF6'
     },
   ], [t]);
 

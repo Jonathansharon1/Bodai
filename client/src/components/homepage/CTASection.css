@@ -134,25 +134,27 @@
   margin: 0;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .ctaSection {
-    padding: 80px 20px;
+    padding: 60px 16px;
   }
 
   .ctaSection__icon {
-    width: 80px;
-    height: 80px;
+    width: 72px;
+    height: 72px;
     margin-bottom: 24px;
   }
 
   .ctaSection__actions {
     flex-direction: column;
     width: 100%;
+    gap: 12px;
   }
 
   .ctaSection__button {
     width: 100%;
     justify-content: center;
+    padding: 14px 28px;
   }
 }
 

@@ -1,9 +1,13 @@
 import React from 'react';
 import { UserButton } from '@clerk/clerk-react';
+import { Menu } from 'lucide-react';
 import Logo from '../Logo';
+import { useSidebar } from './SidebarContext';
 import './DashboardHeader.css';
 
 export default function DashboardHeader({ title, subtitle, action, onNavigate }) {
+  const { toggle } = useSidebar();
+
   const handleHomeClick = (e) => {
     e.preventDefault();
     if (onNavigate) {
@@ -17,6 +21,13 @@ export default function DashboardHeader({ title, subtitle, action, onNavigate })
     <header className="dashboardHeader">
       <div className="dashboardHeader__content">
         <div className="dashboardHeader__left">
+          <button 
+            className="dashboardHeader__menuToggle sidebar-toggle"
+            onClick={toggle}
+            aria-label="Toggle menu"
+          >
+            <Menu size={24} />
+          </button>
           <a className="dashboardHeader__brand" href="/" onClick={handleHomeClick}>
             <Logo size={24} className="dashboardHeader__logo" />
           </a>

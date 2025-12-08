@@ -46,6 +46,12 @@ const parseAnalysisText = (markdown) => {
   const lines = markdown.split('\n');
   let currentSection = null;
   let currentContent = [];
+  
+  // Debug: Log the markdown to help diagnose parsing issues
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[parseAnalysisText] Parsing markdown, length:', markdown.length);
+    console.log('[parseAnalysisText] First 500 chars:', markdown.substring(0, 500));
+  }
 
   const savePreviousSection = () => {
     if (!currentSection || currentContent.length === 0) return;
@@ -98,7 +104,16 @@ const parseAnalysisText = (markdown) => {
     }
 
     // Communication Tips / טיפים לתקשורת
-    if ((line.includes('Communication Tips') || line.includes('טיפים לתקשורת') || line.includes('🗣')) && (line.includes('**') || line.match(/^##?/))) {
+    // More flexible detection: check if line contains the header text (with or without markdown)
+    const isCommunicationHeader = line.includes('Communication Tips') || 
+                                  line.includes('טיפים לתקשורת') || 
+                                  line.includes('🗣') ||
+                                  (line.toLowerCase().includes('communication') && line.toLowerCase().includes('tip'));
+    // Accept header even without markdown formatting (more flexible)
+    if (isCommunicationHeader) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[parseAnalysisText] Found Communication Tips header:', line);
+      }
       savePreviousSection();
       currentSection = 'communication';
       currentContent = [];
@@ -106,7 +121,16 @@ const parseAnalysisText = (markdown) => {
     }
 
     // Body Language Tips / טיפים לשפת גוף
-    if ((line.includes('Body Language Tips') || line.includes('טיפים לשפת גוף') || line.includes('🧍')) && (line.includes('**') || line.match(/^##?/))) {
+    // More flexible detection: check if line contains the header text (with or without markdown)
+    const isBodyLanguageHeader = line.includes('Body Language Tips') || 
+                                 line.includes('טיפים לשפת גוף') || 
+                                 line.includes('🧍') ||
+                                 (line.toLowerCase().includes('body language') && line.toLowerCase().includes('tip'));
+    // Accept header even without markdown formatting (more flexible)
+    if (isBodyLanguageHeader) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[parseAnalysisText] Found Body Language Tips header:', line);
+      }
       savePreviousSection();
       currentSection = 'bodyLanguage';
       currentContent = [];
@@ -150,6 +174,16 @@ const parseAnalysisText = (markdown) => {
   // Process final section
   savePreviousSection();
 
+  // Debug: Log parsed sections
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[parseAnalysisText] Parsed sections:', {
+      communicationTips: sections.communicationTips.length,
+      bodyLanguageTips: sections.bodyLanguageTips.length,
+      keyStrengths: sections.keyStrengths.length,
+      focusAreas: sections.focusAreas.length
+    });
+  }
+
   // If we have legacy actionPlan but no new tips, convert them
   if (sections.actionPlan.length > 0 && sections.communicationTips.length === 0 && sections.bodyLanguageTips.length === 0) {
     // Split legacy action items between communication and body language
@@ -170,15 +204,41 @@ const parseAnalysisText = (markdown) => {
 
 // Parse tip items (Communication Tips or Body Language Tips)
 const parseTipItems = (text) => {
+  if (!text || !text.trim()) {
+    return [];
+  }
+  
   const items = [];
   const lines = text.split('\n');
   let currentTip = null;
   let pendingContent = [];
+  
+  // Debug logging
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[parseTipItems] Parsing text, lines:', lines.length);
+    console.log('[parseTipItems] First 200 chars:', text.substring(0, 200));
+  }
 
   // Helper to extract text after label
+  // Handles lines that may start with bullets/dashes
   const extractAfterLabel = (text, patterns) => {
+    // First try without bullet prefix
     for (const pattern of patterns) {
       const match = text.match(new RegExp(`^${pattern}[:\\s-]+(.+)$`, 'i'));
+      if (match) {
+        return match[1].trim();
+      }
+    }
+    // Then try with bullet prefix (e.g., "- מה לתרגל: ...")
+    for (const pattern of patterns) {
+      const match = text.match(new RegExp(`^[-*•]\\s*${pattern}[:\\s-]+(.+)$`, 'i'));
+      if (match) {
+        return match[1].trim();
+      }
+    }
+    // Also check if the pattern appears anywhere in the line (for flexibility)
+    for (const pattern of patterns) {
+      const match = text.match(new RegExp(`${pattern}[:\\s-]+(.+)$`, 'i'));
       if (match) {
         return match[1].trim();
       }
@@ -273,14 +333,50 @@ const parseTipItems = (text) => {
       continue;
     }
 
-    // Check if this is a new tip title (starts with dash/bullet followed by text, or just text without dash)
+    // Check if this is a new tip title (starts with dash/bullet OR number followed by text)
     const isBulletLine = cleaned.match(/^[-*•]\s+/);
+    const isNumberLine = cleaned.match(/^\d+[\.|-|\)]\s+/);
+    const isListStart = isBulletLine || isNumberLine;
     const isIndentedLine = line.match(/^\s{2,}/);
     
-    // If it's a bullet line or indented line, it's likely a detail
-    if (isBulletLine || isIndentedLine) {
+    // Check if this line contains "What to practice" or "Why it matters" labels (even with bullet prefix)
+    const hasWhatToPractice = extractAfterLabel(cleaned, whatToPracticePatterns);
+    const hasWhyItMatters = extractAfterLabel(cleaned, whyItMattersPatterns);
+    
+    // Check if this line is a tip title (starts with dash/number but NOT followed by "What to practice" or "Why it matters")
+    const isTipTitle = isListStart && 
+                       !hasWhatToPractice && 
+                       !hasWhyItMatters &&
+                       !cleaned.match(/^(What to practice|Why it matters|מה לתרגל|למה זה חשוב)[:\s-]/i);
+    
+    // If it's a bullet/number line that's NOT a detail label, it might be a tip title
+    if (isTipTitle && !currentTip) {
+      // This is a new tip title
+      const title = cleaned.replace(/^([-*•]|\d+[\.|-|\)])\s*/, '').replace(/\*\*/g, '').trim();
+      if (title && title.length > 3) {
+        currentTip = {
+          title: title,
+          whatToPractice: '',
+          whyItMatters: ''
+        };
+        pendingContent = [];
+        continue;
+      }
+    }
+    
+    // If it's a bullet/number line or indented line, check if it's a detail label first
+    if ((isListStart || isIndentedLine) && !isTipTitle) {
       if (currentTip) {
-        // This is a detail line for current tip
+        // Check if this line contains a label (What to practice or Why it matters)
+        if (hasWhatToPractice) {
+          currentTip.whatToPractice = hasWhatToPractice;
+          continue;
+        }
+        if (hasWhyItMatters) {
+          currentTip.whyItMatters = hasWhyItMatters;
+          continue;
+        }
+        // Otherwise, it's a regular detail line
         let detailText = cleaned.replace(/^[-*•]\s*/, '').replace(/\*\*/g, '').trim();
         pendingContent.push(detailText);
       }
@@ -349,6 +445,20 @@ const parseTipItems = (text) => {
       currentTip.whatToPractice = currentTip.title;
     }
     items.push(currentTip);
+  }
+
+  // Debug logging
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[parseTipItems] Parsed', items.length, 'tips');
+    items.forEach((tip, idx) => {
+      console.log(`[parseTipItems] Tip ${idx + 1}:`, {
+        title: tip.title,
+        hasWhatToPractice: !!tip.whatToPractice,
+        hasWhyItMatters: !!tip.whyItMatters,
+        whatToPractice: tip.whatToPractice?.substring(0, 50) + '...',
+        whyItMatters: tip.whyItMatters?.substring(0, 50) + '...'
+      });
+    });
   }
 
   return items;
@@ -585,15 +695,27 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
   const [loadingMetrics, setLoadingMetrics] = useState(false);
   const [viewMode, setViewMode] = useState('summary');
 
-  const sections = parseAnalysisText(markdown);
-  const [actionItemsFromDB, setActionItemsFromDB] = useState([]);
+  // Parse markdown first (for immediate display and fallback)
+  // Memoize heavy parsing logic
+  const parsedSections = React.useMemo(() => parseAnalysisText(markdown), [markdown]);
+  
+  // State for tips from database (primary source)
+  const [tipsFromDB, setTipsFromDB] = useState({
+    communication: [],
+    bodyLanguage: []
+  });
+  const [tipsLoading, setTipsLoading] = useState(true);
 
-  // Fetch action items from database if not in markdown
+  // Fetch tips from database (primary source of truth)
   useEffect(() => {
-    if (!user?.id || !analysisId) return;
+    if (!user?.id || !analysisId) {
+      setTipsLoading(false);
+      return;
+    }
 
-    const fetchActionItems = async () => {
+    const fetchTipsFromDB = async () => {
       try {
+        setTipsLoading(true);
         const res = await fetch(
           `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/action-items?analysisId=${analysisId}`,
           {
@@ -606,59 +728,158 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
         if (res.ok) {
           const data = await res.json();
           if (data.actionItems && data.actionItems.length > 0) {
-            // Convert DB action items to display format
-            const formatted = data.actionItems.map(item => {
+            // Filter to only tips (exclude quick wins and recording notes)
+            const tipItems = data.actionItems.filter(item => 
+              !item.item_type || item.item_type === 'tip' || item.item_type === null
+            );
+            
+            // Convert DB tips to display format and group by section
+            const communicationTips = [];
+            const bodyLanguageTips = [];
+            
+            tipItems.forEach(item => {
               let details = {};
               try {
                 details = typeof item.details === 'string'
                   ? JSON.parse(item.details || '{}')
                   : (item.details || {});
               } catch (e) {
-                console.warn('Failed to parse action item details:', e);
+                console.warn('Failed to parse tip details:', e);
               }
 
-              // Convert details object to array format expected by component
-              // Include all_details if available, otherwise build from structured fields
-              const detailsArray = [];
-
-              // First, try to use all_details if it's an array
+              // Extract whatToPractice and whyItMatters from details
+              // Check all_details array first, then structured fields
+              let whatToPractice = '';
+              let whyItMatters = '';
+              
               if (Array.isArray(details.all_details) && details.all_details.length > 0) {
-                detailsArray.push(...details.all_details);
-              } else {
-                // Fall back to structured fields
-                if (details.what_to_do) detailsArray.push(details.what_to_do);
-                if (details.why_it_matters) detailsArray.push(details.why_it_matters);
-                if (details.example) detailsArray.push(details.example);
+                // Parse from all_details array
+                details.all_details.forEach(detail => {
+                  if (typeof detail === 'string') {
+                    if (detail.toLowerCase().includes('what to practice') || detail.includes('מה לתרגל')) {
+                      whatToPractice = detail.replace(/^.*?(what to practice|מה לתרגל)[:\s-]+/i, '').trim();
+                    } else if (detail.toLowerCase().includes('why it matters') || detail.includes('למה זה חשוב')) {
+                      whyItMatters = detail.replace(/^.*?(why it matters|למה זה חשוב)[:\s-]+/i, '').trim();
+                    }
+                  }
+                });
+              }
+              
+              // Fall back to structured fields
+              if (!whatToPractice && details.what_to_do) {
+                whatToPractice = typeof details.what_to_do === 'string' ? details.what_to_do : '';
+              }
+              if (!whyItMatters && details.why_it_matters) {
+                whyItMatters = typeof details.why_it_matters === 'string' ? details.why_it_matters : '';
+              }
+              
+              // If we have details but no structured fields, use first detail as whatToPractice
+              if (!whatToPractice && Array.isArray(details.all_details) && details.all_details.length > 0) {
+                const firstDetail = details.all_details[0];
+                if (typeof firstDetail === 'string' && !firstDetail.toLowerCase().includes('why it matters')) {
+                  whatToPractice = firstDetail;
+                }
               }
 
-              // If still no details, use a default message
-              if (detailsArray.length === 0) {
-                detailsArray.push('Keep this focus in mind for your next recording.');
-              }
-
-              console.log('[AnalysisResult] Formatted action item:', {
+              const tip = {
                 title: item.title,
-                detailsCount: detailsArray.length,
-                hasAllDetails: Array.isArray(details.all_details)
-              });
-
-              return {
-                title: item.title,
-                details: detailsArray,
-                isIntro: false
+                whatToPractice: whatToPractice,
+                whyItMatters: whyItMatters
               };
+
+              // Group by tip_section
+              const section = item.tip_section || 
+                             (item.section === 'body-language' ? 'bodyLanguage' : 
+                              item.section === 'communication' ? 'communication' : null);
+              
+              if (section === 'communication') {
+                communicationTips.push(tip);
+              } else if (section === 'bodyLanguage') {
+                bodyLanguageTips.push(tip);
+              } else {
+                // If no section specified, try to infer from title or default to communication
+                const isBodyLanguage = item.title?.toLowerCase().match(/posture|gesture|eye|body|stance|hand|face|expression|shoulder|position/);
+                if (isBodyLanguage) {
+                  bodyLanguageTips.push(tip);
+                } else {
+                  communicationTips.push(tip);
+                }
+              }
             });
-            setActionItemsFromDB(formatted);
+
+            console.log('[AnalysisResult] Loaded tips from DB:', {
+              communication: communicationTips.length,
+              bodyLanguage: bodyLanguageTips.length,
+              total: tipItems.length
+            });
+
+            setTipsFromDB({
+              communication: communicationTips,
+              bodyLanguage: bodyLanguageTips
+            });
           }
         }
       } catch (error) {
-        console.error('Error fetching action items:', error);
+        console.error('Error fetching tips from database:', error);
+      } finally {
+        setTipsLoading(false);
       }
     };
 
-    // Always fetch from DB as fallback
-    fetchActionItems();
-  }, [user?.id, analysisId, markdown]);
+    fetchTipsFromDB();
+  }, [user?.id, analysisId]);
+
+  // Merge DB tips with parsed tips (prefer DB, supplement with parsed)
+  const mergeTips = (dbTips, parsedTips) => {
+    // Create a map of DB tips by title for deduplication
+    const dbTipsMap = new Map();
+    dbTips.forEach(tip => {
+      const key = tip.title?.toLowerCase().trim();
+      if (key) {
+        dbTipsMap.set(key, tip);
+      }
+    });
+
+    // Add parsed tips that aren't in DB
+    parsedTips.forEach(tip => {
+      const key = tip.title?.toLowerCase().trim();
+      if (key && !dbTipsMap.has(key)) {
+        dbTipsMap.set(key, tip);
+      }
+    });
+
+    return Array.from(dbTipsMap.values());
+  };
+
+  // Merge tips: DB as primary source, parsed as supplement
+  // This ensures all tips are visible even if parsing missed some
+  const mergedCommunicationTips = tipsLoading 
+    ? (parsedSections.communicationTips || []) // Show parsed while loading
+    : mergeTips(tipsFromDB.communication, parsedSections.communicationTips || []);
+    
+  const mergedBodyLanguageTips = tipsLoading
+    ? (parsedSections.bodyLanguageTips || []) // Show parsed while loading
+    : mergeTips(tipsFromDB.bodyLanguage, parsedSections.bodyLanguageTips || []);
+  
+  // Debug logging
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[AnalysisResult] Tips merge result:', {
+      loading: tipsLoading,
+      dbCommunication: tipsFromDB.communication.length,
+      dbBodyLanguage: tipsFromDB.bodyLanguage.length,
+      parsedCommunication: parsedSections.communicationTips?.length || 0,
+      parsedBodyLanguage: parsedSections.bodyLanguageTips?.length || 0,
+      mergedCommunication: mergedCommunicationTips.length,
+      mergedBodyLanguage: mergedBodyLanguageTips.length
+    });
+  }
+  
+  // Use merged sections for display
+  const sections = {
+    ...parsedSections,
+    communicationTips: mergedCommunicationTips,
+    bodyLanguageTips: mergedBodyLanguageTips
+  };
 
   // Fetch metrics and comparison data
   useEffect(() => {

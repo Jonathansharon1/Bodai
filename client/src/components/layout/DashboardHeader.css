@@ -24,7 +24,28 @@
 .dashboardHeader__left {
   display: flex;
   align-items: center;
+  gap: 12px;
   flex-shrink: 0;
+}
+
+.dashboardHeader__menuToggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text-dark);
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.dashboardHeader__menuToggle:hover {
+  background: rgba(0, 78, 100, 0.06);
+  color: var(--accent);
 }
 
 .dashboardHeader__brand {
@@ -92,54 +113,76 @@
   align-items: center;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .dashboardHeader {
     left: 0;
-    padding: 0 16px;
+    padding: 0 12px;
     height: 64px;
   }
 
   .dashboardHeader__content {
-    gap: 16px;
+    gap: 8px;
+  }
+
+  .dashboardHeader__menuToggle {
+    display: flex;
+    margin-right: 8px;
   }
 
   .dashboardHeader__title {
-    font-size: 18px;
+    font-size: 16px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
   }
 
   .dashboardHeader__subtitle {
-    font-size: 12px;
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .dashboardHeader__right {
-    gap: 12px;
+    gap: 8px;
   }
 
   .dashboardHeader__text {
     align-items: flex-start;
     text-align: start;
-  }
-}
-
-@media (max-width: 640px) {
-  .dashboardHeader__content {
-    grid-template-columns: auto 1fr;
-    grid-template-rows: auto auto;
+    min-width: 0;
+    flex: 1;
   }
 
   .dashboardHeader__center {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
-    order: 2;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboardHeader {
+    padding: 0 8px;
   }
 
-  .dashboardHeader__right {
-    order: 1;
+  .dashboardHeader__content {
+    gap: 6px;
   }
 
-  .dashboardHeader__text {
-    align-items: flex-start;
-    text-align: start;
+  .dashboardHeader__title {
+    font-size: 14px;
+  }
+
+  .dashboardHeader__subtitle {
+    font-size: 10px;
+  }
+
+  .dashboardHeader__menuToggle {
+    width: 36px;
+    height: 36px;
+    margin-right: 6px;
   }
 }
 

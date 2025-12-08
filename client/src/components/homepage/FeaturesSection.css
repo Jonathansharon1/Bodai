@@ -115,22 +115,26 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .featuresSection {
-    padding: 60px 20px;
+    padding: 60px 16px;
   }
 
   .featuresSection__header {
-    margin-bottom: 48px;
+    margin-bottom: 40px;
   }
 
   .featuresSection__grid {
     grid-template-columns: 1fr;
-    gap: 24px;
+    gap: 20px;
   }
 
   .featuresSection__card {
-    padding: 32px 24px;
+    padding: 28px 20px;
+  }
+
+  .featuresSection__card:hover {
+    transform: none;
   }
 }
 
