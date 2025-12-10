@@ -2307,13 +2307,15 @@ app.get('/api/communication/achievements', async (req, res) => {
 // In ES modules, __dirname is not available; this reconstructs it safely.
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const clientBuildPath = path.join(__dirname, 'client', 'build');
-
 // Static hosting of the React build output (only effective after `npm run build` in client)
-app.use(express.static(clientBuildPath));
-app.get('*', (_req, res) => {
-  res.sendFile(path.join(clientBuildPath, 'index.html'));
-});
+// Only serve static files if NOT in Vercel (Vercel handles static files separately)
+if (process.env.VERCEL !== '1' && !process.env.VERCEL_ENV) {
+  const clientBuildPath = path.join(__dirname, 'client', 'build');
+  app.use(express.static(clientBuildPath));
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(clientBuildPath, 'index.html'));
+  });
+}
 
 // Email preferences endpoints
 app.get('/api/user/email-preferences', async (req, res) => {
