@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { createClient } from '@supabase/supabase-js';
+import logger from './logger.js';
 import { generatePracticePromptFromAction } from './geminiService.js';
 
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -7,7 +8,7 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_API_KEY; // Service role key for backend
 
 if (!supabaseUrl || !supabaseServiceKey) {
-  console.warn('Supabase credentials not found. Database features will be disabled.');
+  logger.warn({}, 'Supabase credentials not found. Database features will be disabled.');
 } else {
   // Check if using anon key (which won't work for writes)
   if (supabaseServiceKey.includes('anon') || supabaseServiceKey.startsWith('eyJ')) {
@@ -17,9 +18,7 @@ if (!supabaseUrl || !supabaseServiceKey) {
       if (parts.length === 3) {
         const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
         if (payload.role === 'anon') {
-          console.error('⚠️  WARNING: You are using the ANON key instead of SERVICE_ROLE key!');
-          console.error('⚠️  The anon key cannot write to the database. Analyses will NOT be saved.');
-          console.error('⚠️  Please update SUPABASE_SERVICE_ROLE_KEY in your .env file with the service_role key from Supabase Dashboard.');
+          logger.error({}, 'WARNING: You are using the ANON key instead of SERVICE_ROLE key! The anon key cannot write to the database. Analyses will NOT be saved. Please update SUPABASE_SERVICE_ROLE_KEY in your .env file with the service_role key from Supabase Dashboard.');
         }
       }
     } catch (e) {
@@ -71,7 +70,7 @@ export const getOrCreateUser = async (clerkUserId, userProfile = {}) => {
   
   // If there was an actual error (not just "no rows"), throw it
   if (findError && findError.code !== 'PGRST116') {
-    console.error('[getOrCreateUser] Error finding user:', findError);
+    logger.error({ error: findError.message, stack: findError.stack, clerkUserId }, '[getOrCreateUser] Error finding user');
     throw new Error(`Failed to find user: ${findError.message}`);
   }
 
@@ -104,7 +103,7 @@ export const getOrCreateUser = async (clerkUserId, userProfile = {}) => {
     // Handle race condition: if unique constraint violation, user was created by another request
     // Try to fetch the existing user instead of throwing an error
     if (createError.code === '23505' || createError.message?.includes('duplicate') || createError.message?.includes('unique')) {
-      console.log(`[getOrCreateUser] Race condition detected for ${clerkUserId}, fetching existing user`);
+      logger.info({ clerkUserId }, '[getOrCreateUser] Race condition detected, fetching existing user');
       const { data: raceUser, error: raceError } = await supabase
         .from('users')
         .select('id')
@@ -147,7 +146,7 @@ export const syncUserProfile = async (clerkUserId, userProfile = {}) => {
       .single();
 
     if (fetchError || !existingUser) {
-      console.warn('[syncUserProfile] User not found:', clerkUserId);
+      logger.warn({ clerkUserId }, '[syncUserProfile] User not found');
       return null;
     }
 
@@ -195,13 +194,13 @@ export const syncUserProfile = async (clerkUserId, userProfile = {}) => {
       .single();
 
     if (error) {
-      console.error('[syncUserProfile] Error updating user:', error);
+      logger.error({ error: error.message, clerkUserId }, '[syncUserProfile] Error updating user');
       return null;
     }
 
     return data;
   } catch (err) {
-    console.error('[syncUserProfile] Exception:', err);
+    logger.error({ error: err.message, stack: err.stack, clerkUserId }, '[syncUserProfile] Exception');
     return null;
   }
 };
@@ -267,7 +266,7 @@ export const getUserJourneys = async (clerkUserId) => {
     .order('created_at', { ascending: true });
 
   if (error) {
-    console.error('Error fetching user journeys:', error);
+    logger.error({ error: error.message, clerkUserId }, 'Error fetching user journeys');
     return [];
   }
 
@@ -290,7 +289,7 @@ export const getJourneyForUser = async (clerkUserId, journeyId) => {
 
   if (error) {
     if (error.code !== 'PGRST116') {
-      console.error('Error fetching journey:', error);
+      logger.error({ error: error.message, journeyId, clerkUserId }, 'Error fetching journey');
     }
     return null;
   }
@@ -320,7 +319,7 @@ export const createUserJourney = async (clerkUserId, journeyData = {}) => {
     .single();
 
   if (error) {
-    console.error('Error creating journey:', error);
+    logger.error({ error: error.message, clerkUserId }, 'Error creating journey');
     throw new Error(`Failed to create journey: ${error.message}`);
   }
 
@@ -413,7 +412,7 @@ export const updateUserJourney = async (clerkUserId, journeyId, updates = {}) =>
     .single();
 
   if (error) {
-    console.error('Error updating journey:', error);
+    logger.error({ error: error.message, journeyId, clerkUserId }, 'Error updating journey');
     return null;
   }
 
@@ -474,7 +473,7 @@ export const getDefaultJourneyForUser = async (clerkUserId) => {
     .single();
 
   if (error && error.code !== 'PGRST116') {
-    console.error('Error fetching default journey:', error);
+    logger.error({ error: error.message, clerkUserId }, 'Error fetching default journey');
   }
 
   return data || null;
@@ -495,7 +494,7 @@ export const getUserWithSubscription = async (clerkUserId) => {
     .single();
 
   if (error) {
-    console.error('Error fetching user:', error);
+    logger.error({ error: error.message, clerkUserId }, 'Error fetching user');
     return null;
   }
 
@@ -583,7 +582,7 @@ export const canUserUploadVideoWithDuration = async (clerkUserId, durationSecond
     .lte('created_at', endOfMonth.toISOString());
 
   if (error) {
-    console.error('Error counting analyses:', error);
+    logger.error({ error: error.message, clerkUserId }, 'Error counting analyses');
     return { allowed: true, reason: null }; // Allow on error
   }
 
@@ -653,7 +652,7 @@ export const canUserUploadAnalysis = async (clerkUserId) => {
     .lte('created_at', endOfMonth.toISOString());
 
   if (error) {
-    console.error('Error counting analyses:', error);
+    logger.error({ error: error.message, clerkUserId }, 'Error counting analyses');
     return { allowed: true, reason: null }; // Allow on error
   }
 
@@ -756,7 +755,7 @@ export const saveOnboardingAnswers = async (clerkUserId, answers) => {
     .eq('id', userId);
 
   if (error) {
-    console.error('Error saving onboarding answers:', error);
+    logger.error({ error: error.message, clerkUserId }, 'Error saving onboarding answers');
     // If goal_specific_context column doesn't exist, try without it
     if (error.message && error.message.includes('goal_specific_context')) {
       delete updateData.goal_specific_context;
@@ -765,7 +764,7 @@ export const saveOnboardingAnswers = async (clerkUserId, answers) => {
         .update(updateData)
         .eq('id', userId);
       if (retryError) {
-        console.error('Error saving onboarding answers (retry):', retryError);
+        logger.error({ error: retryError.message, clerkUserId }, 'Error saving onboarding answers (retry)');
       }
     }
   }
@@ -773,7 +772,7 @@ export const saveOnboardingAnswers = async (clerkUserId, answers) => {
   try {
     await ensureDefaultJourney(clerkUserId, answers);
   } catch (journeyError) {
-    console.error('Failed to ensure default journey:', journeyError);
+    logger.error({ error: journeyError.message, clerkUserId }, 'Failed to ensure default journey');
   }
 };
 
@@ -801,7 +800,7 @@ export const getUserWithOnboarding = async (clerkUserId) => {
                          null;
     
     if (missingColumn === 'goal_specific_context') {
-      console.warn('goal_specific_context column does not exist, fetching without it. Please run migration.');
+      logger.warn({ clerkUserId }, 'goal_specific_context column does not exist, fetching without it. Please run migration.');
       const retryResult = await supabase
         .from('users')
         .select('id, email, first_name, last_name, full_name, phone, profile_image_url, primary_goal, confidence_level, include_environment_feedback, practice_commitment, onboarding_completed_at, subscription_type, subscription_status, free_analysis_used, consent_version, consent_accepted_at')
@@ -811,7 +810,7 @@ export const getUserWithOnboarding = async (clerkUserId) => {
       if (retryResult.error) {
         // If still error, might be include_environment_feedback missing too
         if (retryResult.error.code === '42703' && retryResult.error.message?.includes('include_environment_feedback')) {
-          console.warn('include_environment_feedback column also does not exist, fetching without it.');
+          logger.warn({ clerkUserId }, 'include_environment_feedback column also does not exist, fetching without it.');
           const retryResult2 = await supabase
             .from('users')
             .select('id, email, first_name, last_name, full_name, phone, profile_image_url, primary_goal, confidence_level, onboarding_completed_at, subscription_type, subscription_status, free_analysis_used, consent_version, consent_accepted_at')
@@ -819,7 +818,7 @@ export const getUserWithOnboarding = async (clerkUserId) => {
             .single();
           
           if (retryResult2.error) {
-            console.error('Error fetching user:', retryResult2.error);
+            logger.error({ error: retryResult2.error.message, clerkUserId }, 'Error fetching user (retry 2)');
             return null;
           }
           
@@ -830,7 +829,7 @@ export const getUserWithOnboarding = async (clerkUserId) => {
           };
         }
         
-        console.error('Error fetching user:', retryResult.error);
+        logger.error({ error: retryResult.error.message, clerkUserId }, 'Error fetching user (retry)');
         return null;
       }
       
@@ -841,7 +840,7 @@ export const getUserWithOnboarding = async (clerkUserId) => {
         include_environment_feedback: retryResult.data.include_environment_feedback !== undefined ? retryResult.data.include_environment_feedback : true
       };
     } else if (missingColumn === 'include_environment_feedback') {
-      console.warn('include_environment_feedback column does not exist, fetching without it. Please run migration.');
+      logger.warn({ clerkUserId }, 'include_environment_feedback column does not exist, fetching without it. Please run migration.');
       const retryResult = await supabase
         .from('users')
         .select('id, email, first_name, last_name, full_name, phone, profile_image_url, primary_goal, confidence_level, goal_specific_context, practice_commitment, onboarding_completed_at, subscription_type, subscription_status, free_analysis_used, consent_version, consent_accepted_at')
@@ -851,7 +850,7 @@ export const getUserWithOnboarding = async (clerkUserId) => {
       if (retryResult.error) {
         // Check if practice_commitment is missing too
         if (retryResult.error.code === '42703' && retryResult.error.message?.includes('practice_commitment')) {
-           console.warn('practice_commitment column also does not exist.');
+           logger.warn({ clerkUserId }, 'practice_commitment column also does not exist.');
            const retryResult2 = await supabase
             .from('users')
             .select('id, email, first_name, last_name, full_name, phone, profile_image_url, primary_goal, confidence_level, goal_specific_context, onboarding_completed_at, subscription_type, subscription_status, free_analysis_used, consent_version, consent_accepted_at')
@@ -866,7 +865,7 @@ export const getUserWithOnboarding = async (clerkUserId) => {
              };
            }
         }
-        console.error('Error fetching user:', retryResult.error);
+        logger.error({ error: retryResult.error.message, clerkUserId }, 'Error fetching user (retry)');
         return null;
       }
       
@@ -876,7 +875,7 @@ export const getUserWithOnboarding = async (clerkUserId) => {
         include_environment_feedback: true // Default value
       };
     } else if (missingColumn === 'practice_commitment') {
-      console.warn('practice_commitment column does not exist, fetching without it.');
+      logger.warn({ clerkUserId }, 'practice_commitment column does not exist, fetching without it.');
       const retryResult = await supabase
         .from('users')
         .select('id, email, first_name, last_name, full_name, phone, profile_image_url, primary_goal, confidence_level, goal_specific_context, include_environment_feedback, onboarding_completed_at, subscription_type, subscription_status, free_analysis_used, consent_version, consent_accepted_at')
@@ -884,7 +883,7 @@ export const getUserWithOnboarding = async (clerkUserId) => {
         .single();
       
       if (retryResult.error) {
-        console.error('Error fetching user:', retryResult.error);
+        logger.error({ error: retryResult.error.message, clerkUserId }, 'Error fetching user (retry)');
         return null;
       }
       
@@ -896,7 +895,7 @@ export const getUserWithOnboarding = async (clerkUserId) => {
   }
 
   if (error) {
-    console.error('Error fetching user:', error);
+    logger.error({ error: error.message, clerkUserId }, 'Error fetching user');
     return null;
   }
 
@@ -908,7 +907,7 @@ export const getUserWithOnboarding = async (clerkUserId) => {
  */
 export const saveAnalysis = async (userId, analysisData) => {
   if (!supabase) {
-    console.warn('Supabase not configured, skipping database save');
+    logger.warn({}, 'Supabase not configured, skipping database save');
     return null;
   }
 
@@ -927,9 +926,9 @@ export const saveAnalysis = async (userId, analysisData) => {
 
   if (analysisData.journeyId) {
     insertData.journey_id = analysisData.journeyId;
-    console.log('[saveAnalysis] Saving analysis with journeyId:', analysisData.journeyId);
+    logger.info({ journeyId: analysisData.journeyId, userId }, '[saveAnalysis] Saving analysis with journeyId');
   } else {
-    console.log('[saveAnalysis] No journeyId provided for analysis');
+    logger.info({ userId }, '[saveAnalysis] No journeyId provided for analysis');
   }
 
 if (analysisData.videoHash) {
@@ -968,13 +967,14 @@ if (analysisData.rawMetrics) {
     insertData.recording_action_item_id = analysisData.recordingPrompt.actionItemId || null;
   }
 
-  console.log('Inserting analysis data:', {
-    userId,
-    videoFilename: analysisData.videoFilename,
-    hasS3Key: !!analysisData.s3Key,
+  logger.info({ 
+    userId, 
+    videoFilename: analysisData.videoFilename, 
+    hasS3Key: !!analysisData.s3Key, 
     s3Key: analysisData.s3Key || 'NULL',
-    resultLength: analysisData.analysisResult?.length || 0
-  });
+    resultLength: analysisData.analysisResult?.length || 0,
+    journeyId: analysisData.journeyId
+  }, '[saveAnalysis] Inserting analysis data');
 
   const removableColumns = [
     'recording_prompt_id',
@@ -1016,7 +1016,7 @@ if (analysisData.rawMetrics) {
     if (missingColumn) {
       // Only warn once per column per server session
       if (!global.warnedMissingColumns.has(missingColumn)) {
-        console.warn(`⚠️  Database column '${missingColumn}' not found. Run migration: migration_add_analysis_versioning.sql`);
+        logger.warn({ missingColumn, userId }, `Database column '${missingColumn}' not found. Run migration: migration_add_analysis_versioning.sql`);
         global.warnedMissingColumns.add(missingColumn);
       }
       const { [missingColumn]: _, ...rest } = attemptData;
@@ -1024,15 +1024,17 @@ if (analysisData.rawMetrics) {
       continue;
     }
 
-    console.error('Error saving analysis to Supabase:', result.error);
-    console.error('Error code:', result.error.code);
-    console.error('Error message:', result.error.message);
-    console.error('Error details:', result.error.details);
-    console.error('Error hint:', result.error.hint);
+    logger.error({ 
+      error: result.error.message, 
+      code: result.error.code, 
+      details: result.error.details, 
+      hint: result.error.hint,
+      userId 
+    }, '[saveAnalysis] Error saving analysis to Supabase');
     throw new Error(`Failed to save analysis: ${result.error.message} (code: ${result.error.code})`);
   }
 
-  console.log('Analysis saved successfully:', data);
+  logger.info({ analysisId: data.id, userId, journeyId: analysisData.journeyId }, '[saveAnalysis] Analysis saved successfully');
   return data;
 };
 
@@ -1062,7 +1064,7 @@ export const getUserAnalyses = async (clerkUserId, limit = 50, journeyId = null)
     .limit(limit);
 
   if (error) {
-    console.error('Error fetching analyses:', error);
+    logger.error({ error: error.message, clerkUserId, limit, journeyId }, 'Error fetching analyses');
     return [];
   }
 
@@ -1088,7 +1090,7 @@ export const getAnalysisById = async (analysisId, clerkUserId) => {
     .single();
 
   if (error) {
-    console.error('Error fetching analysis:', error);
+    logger.error({ error: error.message, analysisId, clerkUserId }, 'Error fetching analysis');
     return null;
   }
 
@@ -1112,7 +1114,7 @@ export const findAnalysisByVideoHash = async (clerkUserId, videoHash) => {
     .maybeSingle();
 
   if (error && error.code !== 'PGRST116') {
-    console.error('Error checking duplicate video hash:', error);
+    logger.error({ error: error.message, clerkUserId }, 'Error checking duplicate video hash');
     return null;
   }
 
@@ -1162,7 +1164,7 @@ export const findSimilarRecentAnalysis = async (clerkUserId, videoHash, duration
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error finding similar analysis:', error);
+      logger.error({ error: error.message, clerkUserId }, 'Error finding similar analysis');
       return null;
     }
 
@@ -1195,7 +1197,7 @@ export const findSimilarRecentAnalysis = async (clerkUserId, videoHash, duration
 
     return null;
   } catch (err) {
-    console.error('Error in findSimilarRecentAnalysis:', err);
+    logger.error({ error: err.message, stack: err.stack, clerkUserId }, 'Error in findSimilarRecentAnalysis');
     return null;
   }
 };
@@ -1213,7 +1215,7 @@ export const findSimilarRecentAnalysis = async (clerkUserId, videoHash, duration
  */
 export const logAnalysisQuality = async (analysisId, userId, issues) => {
   if (!supabase) {
-    console.warn('Supabase not configured, skipping quality log');
+    logger.warn({}, 'Supabase not configured, skipping quality log');
     return false;
   }
 
@@ -1235,14 +1237,14 @@ export const logAnalysisQuality = async (analysisId, userId, issues) => {
       .insert(records);
 
     if (error) {
-      console.error('Error logging analysis quality:', error);
+      logger.error({ error: error.message, analysisId, userId }, 'Error logging analysis quality');
       return false;
     }
 
-    console.log(`[Quality Log] Logged ${records.length} issue(s) for analysis ${analysisId}`);
+    logger.info({ issueCount: records.length, analysisId, userId }, '[Quality Log] Logged issues');
     return true;
   } catch (err) {
-    console.error('Error in logAnalysisQuality:', err);
+    logger.error({ error: err.message, stack: err.stack, analysisId, userId }, 'Error in logAnalysisQuality');
     return false;
   }
 };
@@ -1265,13 +1267,13 @@ export const getAnalysisQualityIssues = async (analysisId) => {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching quality issues:', error);
+      logger.error({ error: error.message, analysisId }, 'Error fetching quality issues');
       return [];
     }
 
     return data || [];
   } catch (err) {
-    console.error('Error in getAnalysisQualityIssues:', err);
+    logger.error({ error: err.message, stack: err.stack, analysisId }, 'Error in getAnalysisQualityIssues');
     return [];
   }
 };
@@ -1295,7 +1297,7 @@ export const getQualityStatistics = async (days = 7) => {
       .gte('created_at', since);
 
     if (error) {
-      console.error('Error fetching quality statistics:', error);
+      logger.error({ error: error.message }, 'Error fetching quality statistics');
       return null;
     }
 
@@ -1317,7 +1319,7 @@ export const getQualityStatistics = async (days = 7) => {
 
     return stats;
   } catch (err) {
-    console.error('Error in getQualityStatistics:', err);
+    logger.error({ error: err.message, stack: err.stack }, 'Error in getQualityStatistics');
     return null;
   }
 };
@@ -1327,7 +1329,7 @@ export const getQualityStatistics = async (days = 7) => {
  */
 export const saveCommunicationMetrics = async (userId, analysisId, metrics, journeyId = null) => {
   if (!supabase) {
-    console.warn('Supabase not configured, skipping metrics save');
+    logger.warn({}, 'Supabase not configured, skipping metrics save');
     return null;
   }
 
@@ -1413,9 +1415,9 @@ export const saveCommunicationMetrics = async (userId, analysisId, metrics, jour
 
   if (journeyId) {
     insertData.journey_id = journeyId;
-    console.log('[saveCommunicationMetrics] Saving metrics with journeyId:', journeyId);
+    logger.info({ journeyId, userId, analysisId }, '[saveCommunicationMetrics] Saving metrics with journeyId');
   } else {
-    console.log('[saveCommunicationMetrics] No journeyId provided for metrics');
+    logger.info({ userId, analysisId }, '[saveCommunicationMetrics] No journeyId provided for metrics');
   }
 
   if (metrics.delivery) {
@@ -1469,9 +1471,15 @@ export const saveCommunicationMetrics = async (userId, analysisId, metrics, jour
     }
   });
 
-  console.log(`[saveCommunicationMetrics] Inserting metrics with ${Object.keys(attemptPayload).length} fields`);
-  console.log(`[saveCommunicationMetrics] journeyId in payload: ${attemptPayload.journey_id || 'NULL'}`);
-  console.log(`[saveCommunicationMetrics] overall_score: ${attemptPayload.overall_score}, presence: ${attemptPayload.presence}, voice_expression: ${attemptPayload.voice_expression}`);
+  logger.info({ 
+    fieldCount: Object.keys(attemptPayload).length, 
+    journeyId: attemptPayload.journey_id || 'NULL',
+    overall_score: attemptPayload.overall_score,
+    presence: attemptPayload.presence,
+    voice_expression: attemptPayload.voice_expression,
+    userId,
+    analysisId
+  }, '[saveCommunicationMetrics] Inserting metrics');
 
   try {
     let { data, error } = await supabase
@@ -1494,7 +1502,7 @@ export const saveCommunicationMetrics = async (userId, analysisId, metrics, jour
       const missingDeliveryColumn = deliveryColumns.find(col => errorMsg.includes(col.toLowerCase()));
       
       if (missingDeliveryColumn || errorMsg.includes('column')) {
-        console.warn(`[saveCommunicationMetrics] Column missing (likely ${missingDeliveryColumn}), removing ALL delivery metrics and retrying`);
+        logger.warn({ missingColumn: missingDeliveryColumn, userId, analysisId }, '[saveCommunicationMetrics] Column missing, removing ALL delivery metrics and retrying');
         deliveryColumns.forEach(col => {
           if (attemptPayload.hasOwnProperty(col)) {
             delete attemptPayload[col];
@@ -1509,51 +1517,56 @@ export const saveCommunicationMetrics = async (userId, analysisId, metrics, jour
           .single();
         
         if (retryResult.error) {
-          console.error('[saveCommunicationMetrics] ❌ ERROR saving communication metrics after retry:', {
-            code: retryResult.error.code,
-            message: retryResult.error.message
-          });
+          logger.error({ 
+            error: retryResult.error.message, 
+            code: retryResult.error.code, 
+            userId, 
+            analysisId 
+          }, '[saveCommunicationMetrics] ERROR saving communication metrics after retry');
           return null;
         }
         
         data = retryResult.data;
         error = null;
       } else {
-        console.error('[saveCommunicationMetrics] ❌ ERROR saving communication metrics:', {
-          code: error.code,
-          message: error.message,
-          hint: error.hint,
-          details: error.details
-        });
+        logger.error({ 
+          error: error.message, 
+          code: error.code, 
+          hint: error.hint, 
+          details: error.details,
+          userId,
+          analysisId
+        }, '[saveCommunicationMetrics] ERROR saving communication metrics');
         return null;
       }
     } else if (error) {
-      console.error('[saveCommunicationMetrics] ❌ ERROR saving communication metrics:', {
-        code: error.code,
-        message: error.message,
-        hint: error.hint,
-        details: error.details
-      });
+      logger.error({ 
+        error: error.message, 
+        code: error.code, 
+        hint: error.hint, 
+        details: error.details,
+        userId,
+        analysisId
+      }, '[saveCommunicationMetrics] ERROR saving communication metrics');
       return null;
     }
 
     if (!data) {
-      console.error('[saveCommunicationMetrics] ❌ Insert succeeded but no data returned');
+      logger.error({ userId, analysisId }, '[saveCommunicationMetrics] Insert succeeded but no data returned');
       return null;
     }
 
-    console.log('[saveCommunicationMetrics] ✅ Successfully saved communication metrics:', {
-      id: data.id,
-      analysis_id: data.analysis_id,
-      journey_id: data.journey_id || 'NULL',
-      overall_score: data.overall_score,
-      user_id: data.user_id
-    });
+    logger.info({ 
+      id: data.id, 
+      analysis_id: data.analysis_id, 
+      journey_id: data.journey_id || 'NULL', 
+      overall_score: data.overall_score, 
+      user_id: data.user_id 
+    }, '[saveCommunicationMetrics] Successfully saved communication metrics');
 
     return data;
   } catch (err) {
-    console.error('[saveCommunicationMetrics] ❌ EXCEPTION while saving metrics:', err);
-    console.error('[saveCommunicationMetrics] Exception stack:', err.stack);
+    logger.error({ error: err.message, stack: err.stack, userId, analysisId }, '[saveCommunicationMetrics] EXCEPTION while saving metrics');
     return null;
   }
 };
@@ -1580,7 +1593,7 @@ export const saveCommunicationInsights = async (userId, analysisId, insights, jo
     .select();
 
   if (error) {
-    console.error('Error saving communication insights:', error);
+    logger.error({ error: error.message, userId, analysisId }, 'Error saving communication insights');
     return [];
   }
 
@@ -1692,7 +1705,7 @@ export const saveActionItems = async (userId, analysisId, actionItems, options =
       // If we are in background mode and prompt generation is requested,
       // check if this existing item needs a prompt
       if (shouldGeneratePrompts && !existingActive.practice_prompt_title) {
-        console.log(`Queueing existing item for practice prompt generation: ${title}`);
+        logger.info({ title, actionItemId: existingActive.id, userId }, '[saveActionItems] Queueing existing item for practice prompt generation');
         // Attach userContext from options since it's not in DB item
         existingActive.userContext = options.userContext;
         // Attach targetMetric if available from options
@@ -1702,19 +1715,18 @@ export const saveActionItems = async (userId, analysisId, actionItems, options =
         
         itemsNeedingPrompts.push(existingActive);
       } else {
-        console.log(`Skipping duplicate active action item: ${title} (existing status: ${existingActive.status})`);
+        logger.info({ title, status: existingActive.status, userId }, '[saveActionItems] Skipping duplicate active action item');
       }
       continue;
     }
     
-    console.log('[saveActionItems] Saving action item with details:', {
-      title: title,
-      hasDetails: action.details && action.details.length > 0,
-      detailsCount: action.details?.length || 0,
-      what_to_do: details.what_to_do,
-      why_it_matters: details.why_it_matters,
-      all_details_count: details.all_details.length
-    });
+    logger.info({ 
+      title, 
+      hasDetails: action.details && action.details.length > 0, 
+      detailsCount: action.details?.length || 0, 
+      userId, 
+      analysisId 
+    }, '[saveActionItems] Saving action item with details');
 
     const inferredMetric = inferTargetMetricFromTitle(title);
     const targetMetric = options.focusMetricKey || inferredMetric;
@@ -1792,7 +1804,7 @@ export const saveActionItems = async (userId, analysisId, actionItems, options =
         // Only warn once per column per server session
         const warningKey = `action_items.${missingColumn}`;
         if (!global.warnedMissingColumns.has(warningKey)) {
-          console.warn(`⚠️  Database column 'action_items.${missingColumn}' not found. Run migration: migration_add_practice_prompt_fields.sql`);
+          logger.warn({ missingColumn, userId }, `Database column 'action_items.${missingColumn}' not found. Run migration: migration_add_practice_prompt_fields.sql`);
           global.warnedMissingColumns.add(warningKey);
         }
         const { [missingColumn]: _, ...rest } = attemptPayload;
@@ -1805,21 +1817,20 @@ export const saveActionItems = async (userId, analysisId, actionItems, options =
     }
 
     if (error) {
-      console.error('Error saving action item:', error);
-      console.error('Error details:', {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint,
-        title: title,
-        userId: userId,
-        analysisId: analysisId
-      });
+      logger.error({ 
+        error: error.message, 
+        code: error.code, 
+        details: error.details, 
+        hint: error.hint, 
+        title, 
+        userId, 
+        analysisId 
+      }, '[saveActionItems] Error saving action item');
       continue;
     }
 
     if (data) {
-      console.log(`Successfully saved action item: "${title}" (ID: ${data.id}, type: ${itemType})`);
+      logger.info({ actionItemId: data.id, title, itemType, userId, analysisId }, '[saveActionItems] Successfully saved action item');
       savedItems.push(data);
       // Only generate practice prompts for tips (not quick wins or recording notes)
       if (shouldGeneratePrompts && (itemType === 'tip' || itemType === null || itemType === undefined)) {
@@ -1831,10 +1842,10 @@ export const saveActionItems = async (userId, analysisId, actionItems, options =
           targetMetric
         });
       } else if (shouldGeneratePrompts && itemType !== 'tip') {
-        console.log(`Skipping practice prompt generation for ${itemType} item: "${title}"`);
+        logger.info({ itemType, title, userId }, '[saveActionItems] Skipping practice prompt generation for non-tip item');
       }
     } else {
-      console.warn(`Action item "${title}" was not saved - no data returned`);
+      logger.warn({ title, userId, analysisId }, '[saveActionItems] Action item was not saved - no data returned');
     }
   }
 
@@ -1842,17 +1853,17 @@ export const saveActionItems = async (userId, analysisId, actionItems, options =
   if (shouldGeneratePrompts && itemsNeedingPrompts.length > 0) {
     if (isBackgroundGeneration) {
       // Generate in background without blocking
-      console.log(`[Background] Generating practice prompts for ${itemsNeedingPrompts.length} action item(s)`);
+      logger.info({ count: itemsNeedingPrompts.length, userId }, '[Background] Generating practice prompts for action items');
       generatePracticePromptsForItems(itemsNeedingPrompts).catch(err => {
-        console.error('[Background] Failed to generate practice prompts:', err);
+        logger.error({ error: err.message, stack: err.stack, userId }, '[Background] Failed to generate practice prompts');
       });
     } else {
       // Generate synchronously (for backward compatibility or when explicitly requested)
-      console.log(`Generating practice prompts for ${itemsNeedingPrompts.length} action item(s)`);
+      logger.info({ count: itemsNeedingPrompts.length, userId }, '[saveActionItems] Generating practice prompts for action items');
       await generatePracticePromptsForItems(itemsNeedingPrompts);
     }
   } else if (shouldGeneratePrompts && !isBackgroundGeneration) {
-    console.log('No action items need practice prompts (shouldGeneratePrompts=true but itemsNeedingPrompts is empty)');
+    logger.info({ userId }, '[saveActionItems] No action items need practice prompts');
   }
 
   return savedItems;
@@ -1870,7 +1881,7 @@ const generatePracticePromptsForItems = async (items) => {
         buildFallbackPracticePrompt(item);
 
       if (prompt) {
-        console.log(`Updating action item ${item.id} with practice prompt: ${prompt.title}`);
+        logger.info({ actionItemId: item.id, promptTitle: prompt.title }, '[saveActionItems] Updating action item with practice prompt');
         const updateResult = await supabase
           .from('action_items')
           .update({
@@ -1889,15 +1900,15 @@ const generatePracticePromptsForItems = async (items) => {
           .eq('id', item.id);
         
         if (updateResult.error) {
-          console.error(`Failed to update practice prompt for action item ${item.id}:`, updateResult.error);
+          logger.error({ error: updateResult.error.message, actionItemId: item.id }, '[saveActionItems] Failed to update practice prompt for action item');
         } else {
-          console.log(`Successfully updated practice prompt for action item ${item.id}`);
+          logger.info({ actionItemId: item.id }, '[saveActionItems] Successfully updated practice prompt for action item');
         }
       } else {
-        console.warn(`No practice prompt (AI or fallback) generated for action item ${item.id}`);
+        logger.warn({ actionItemId: item.id }, '[saveActionItems] No practice prompt (AI or fallback) generated for action item');
       }
     } catch (err) {
-      console.error(`Failed to generate practice prompt for action item ${item.id}:`, err.message || err);
+      logger.error({ error: err.message || err, stack: err.stack, actionItemId: item.id }, '[saveActionItems] Failed to generate practice prompt for action item');
     }
   }
 };
@@ -1919,9 +1930,9 @@ const generatePromptWithRetry = async (item, maxAttempts = 3) => {
       if (prompt) {
         return prompt;
       }
-      console.warn(`Prompt generation returned empty result (attempt ${attempt}/${maxAttempts}) for action item ${item.id}`);
+      logger.warn({ attempt, maxAttempts, actionItemId: item.id }, '[saveActionItems] Prompt generation returned empty result');
     } catch (err) {
-      console.error(`Prompt generation failed (attempt ${attempt}/${maxAttempts}) for action item ${item.id}:`, err.message || err);
+      logger.error({ error: err.message || err, attempt, maxAttempts, actionItemId: item.id }, '[saveActionItems] Prompt generation failed');
     }
 
     if (attempt < maxAttempts) {
@@ -2030,27 +2041,31 @@ export const getUserActionItems = async (clerkUserId, status = null, journeyId =
     .order('created_at', { ascending: false });
 
   if (error) {
-    console.error('Error fetching action items:', error);
-    console.error('Error details:', {
-      message: error.message,
-      code: error.code,
-      details: error.details,
-      hint: error.hint
-    });
+    logger.error({ 
+      error: error.message, 
+      code: error.code, 
+      details: error.details, 
+      hint: error.hint,
+      clerkUserId,
+      status,
+      analysisId
+    }, '[getUserActionItems] Error fetching action items');
     return [];
   }
 
-  console.log(`getUserActionItems: Found ${data?.length || 0} action items for user ${clerkUserId} (status: ${status || 'all'}, analysisId: ${analysisId || 'all'})`);
-  if (data && data.length > 0) {
-    console.log('Action items titles:', data.map(item => item.title));
-  }
+  logger.info({ 
+    count: data?.length || 0, 
+    clerkUserId, 
+    status: status || 'all', 
+    analysisId: analysisId || 'all' 
+  }, '[getUserActionItems] Found action items');
 
   return data || [];
 };
 
 export const saveSelfReflection = async (clerkUserId, reflection = {}) => {
   if (!supabase || !clerkUserId) {
-    console.error('[saveSelfReflection] Missing supabase or clerkUserId');
+    logger.error({}, '[saveSelfReflection] Missing supabase or clerkUserId');
     return null;
   }
 
@@ -2064,12 +2079,12 @@ export const saveSelfReflection = async (clerkUserId, reflection = {}) => {
     journey_id: reflection.journeyId || reflection.journey_id || null
   };
 
-  console.log('[saveSelfReflection] Saving reflection:', {
-    userId,
-    analysis_id: insertPayload.analysis_id,
-    journey_id: insertPayload.journey_id,
-    confidence_rating: insertPayload.confidence_rating
-  });
+  logger.info({ 
+    userId, 
+    analysis_id: insertPayload.analysis_id, 
+    journey_id: insertPayload.journey_id, 
+    confidence_rating: insertPayload.confidence_rating 
+  }, '[saveSelfReflection] Saving reflection');
 
   // Check if reflection already exists
   if (insertPayload.analysis_id) {
@@ -2081,11 +2096,11 @@ export const saveSelfReflection = async (clerkUserId, reflection = {}) => {
       .maybeSingle();
 
     if (checkError && checkError.code !== 'PGRST116') {
-      console.error('[saveSelfReflection] Error checking for existing reflection:', checkError);
+      logger.error({ error: checkError.message, userId, analysisId: insertPayload.analysis_id }, '[saveSelfReflection] Error checking for existing reflection');
     }
 
     if (existing) {
-      console.log('[saveSelfReflection] Updating existing reflection:', existing.id);
+      logger.info({ reflectionId: existing.id, userId }, '[saveSelfReflection] Updating existing reflection');
       // Update existing reflection
       const { data, error } = await supabase
         .from('self_reflections')
@@ -2101,22 +2116,23 @@ export const saveSelfReflection = async (clerkUserId, reflection = {}) => {
         .single();
 
       if (error) {
-        console.error('[saveSelfReflection] Error updating self reflection:', error);
-        console.error('[saveSelfReflection] Error details:', {
-          message: error.message,
-          code: error.code,
-          details: error.details,
-          hint: error.hint
-        });
+        logger.error({ 
+          error: error.message, 
+          code: error.code, 
+          details: error.details, 
+          hint: error.hint,
+          reflectionId: existing.id,
+          userId
+        }, '[saveSelfReflection] Error updating self reflection');
         return null;
       }
-      console.log('[saveSelfReflection] Successfully updated reflection:', data.id);
+      logger.info({ reflectionId: data.id, userId }, '[saveSelfReflection] Successfully updated reflection');
       return data;
     }
   }
 
   // Insert new reflection
-  console.log('[saveSelfReflection] Inserting new reflection');
+  logger.info({ userId, analysisId: insertPayload.analysis_id }, '[saveSelfReflection] Inserting new reflection');
   const { data, error } = await supabase
     .from('self_reflections')
     .insert(insertPayload)
@@ -2124,18 +2140,18 @@ export const saveSelfReflection = async (clerkUserId, reflection = {}) => {
     .single();
 
   if (error) {
-    console.error('[saveSelfReflection] Error saving self reflection:', error);
-    console.error('[saveSelfReflection] Error details:', {
-      message: error.message,
-      code: error.code,
-      details: error.details,
+    logger.error({ 
+      error: error.message, 
+      code: error.code, 
+      details: error.details, 
       hint: error.hint,
+      userId,
       payload: insertPayload
-    });
+    }, '[saveSelfReflection] Error saving self reflection');
     return null;
   }
 
-  console.log('[saveSelfReflection] Successfully saved reflection:', data.id);
+  logger.info({ reflectionId: data.id, userId }, '[saveSelfReflection] Successfully saved reflection');
   return data;
 };
 
@@ -2157,7 +2173,7 @@ export const savePracticeMissions = async (clerkUserId, {
   analysisId = null
 }) => {
   if (!supabase) {
-    console.warn('Supabase not initialized. Cannot save practice missions.');
+    logger.warn({}, 'Supabase not initialized. Cannot save practice missions.');
     return null;
   }
 
@@ -2230,7 +2246,7 @@ export const savePracticeMissions = async (clerkUserId, {
     }
     
     if (missingColumns.length > 0) {
-      console.warn(`[savePracticeMissions] Columns not found: ${missingColumns.join(', ')}, retrying without them`);
+      logger.warn({ missingColumns, parameterKey, clerkUserId }, '[savePracticeMissions] Columns not found, retrying without them');
       const retryResult = await supabase
         .from('practice_missions')
         .insert(insertPayload)
@@ -2242,11 +2258,11 @@ export const savePracticeMissions = async (clerkUserId, {
   }
 
   if (error) {
-    console.error('Error saving practice missions:', error);
+    logger.error({ error: error.message, parameterKey, clerkUserId }, 'Error saving practice missions');
     throw new Error(`Failed to save practice missions: ${error.message}`);
   }
 
-  console.log(`Saved ${missions.length} practice missions for parameter ${parameterKey}`);
+  logger.info({ missionCount: missions.length, parameterKey, clerkUserId }, '[savePracticeMissions] Saved practice missions');
   return data;
 };
 
@@ -2279,7 +2295,7 @@ export const getPracticeMissions = async (clerkUserId, parameterKey, journeyId =
   const { data, error } = await query.maybeSingle();
 
   if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
-    console.error('Error fetching practice missions:', error);
+    logger.error({ error: error.message, clerkUserId, parameterKey }, 'Error fetching practice missions');
     return null;
   }
 
@@ -2334,7 +2350,7 @@ export const getAllPracticeMissions = async (clerkUserId, journeyId = null) => {
   const { data, error } = await query;
 
   if (error) {
-    console.error('Error fetching all practice missions:', error);
+    logger.error({ error: error.message, clerkUserId, journeyId }, 'Error fetching all practice missions');
     return [];
   }
 
@@ -2370,14 +2386,14 @@ export const completeMission = async (clerkUserId, practiceMissionId, missionInd
   if (error) {
     // If it's a unique constraint violation, mission was already completed
     if (error.code === '23505') {
-      console.log(`Mission ${missionIndex} for practice_mission ${practiceMissionId} already completed`);
+      logger.info({ missionIndex, practiceMissionId, clerkUserId }, '[completeMission] Mission already completed');
       return null;
     }
-    console.error('Error completing mission:', error);
+    logger.error({ error: error.message, missionIndex, practiceMissionId, clerkUserId }, 'Error completing mission');
     throw new Error(`Failed to complete mission: ${error.message}`);
   }
 
-  console.log(`Mission ${missionIndex} completed for practice_mission ${practiceMissionId}`);
+  logger.info({ missionIndex, practiceMissionId, clerkUserId }, '[completeMission] Mission completed');
   return data;
 };
 
@@ -2411,7 +2427,7 @@ export const getMissionCompletions = async (clerkUserId, practiceMissionId = nul
   const { data, error } = await query;
 
   if (error) {
-    console.error('Error fetching mission completions:', error);
+    logger.error({ error: error.message, clerkUserId }, 'Error fetching mission completions');
     return [];
   }
 
@@ -2457,7 +2473,7 @@ export const getMissionCompletionStats = async (clerkUserId, journeyId = null) =
   const { data: completions, error: completionsError } = await completionsQuery;
 
   if (completionsError) {
-    console.error('Error fetching completion stats:', completionsError);
+    logger.error({ error: completionsError.message, clerkUserId, journeyId }, 'Error fetching completion stats');
     return {
       totalCompleted: 0,
       totalMissions: 0,
@@ -2529,11 +2545,11 @@ export const uncompleteMission = async (clerkUserId, practiceMissionId, missionI
     .eq('mission_index', missionIndex);
 
   if (error) {
-    console.error('Error uncompleting mission:', error);
+    logger.error({ error: error.message, missionIndex, practiceMissionId, clerkUserId }, 'Error uncompleting mission');
     throw new Error(`Failed to uncomplete mission: ${error.message}`);
   }
 
-  console.log(`Mission ${missionIndex} uncompleted for practice_mission ${practiceMissionId}`);
+  logger.info({ missionIndex, practiceMissionId, clerkUserId }, '[uncompleteMission] Mission uncompleted');
   return true;
 };
 
@@ -2557,7 +2573,7 @@ export const getSelfReflections = async (clerkUserId, limit = 20, journeyId = nu
   const { data, error } = await query;
 
   if (error) {
-    console.error('Error fetching self reflections:', error);
+    logger.error({ error: error.message, clerkUserId, journeyId }, 'Error fetching self reflections');
     return [];
   }
 
@@ -2580,7 +2596,7 @@ export const getReflectionForAnalysis = async (clerkUserId, analysisId) => {
     .maybeSingle();
 
   if (error && error.code !== 'PGRST116') {
-    console.error('Error fetching analysis reflection:', error);
+    logger.error({ error: error.message, analysisId, clerkUserId }, 'Error fetching analysis reflection');
     return null;
   }
 
@@ -2617,7 +2633,7 @@ export const updateActionItemStatus = async (clerkUserId, actionItemId, status) 
     .single();
 
   if (error) {
-    console.error('Error updating action item status:', error);
+    logger.error({ error: error.message, actionItemId, status, clerkUserId }, 'Error updating action item status');
     return null;
   }
 
@@ -2640,7 +2656,7 @@ export const checkAndUnlockAchievements = async (userId, metrics) => {
     .select('*');
 
   if (achievementsError || !achievements) {
-    console.error('Error fetching achievements:', achievementsError);
+    logger.error({ error: achievementsError.message, clerkUserId }, 'Error fetching achievements');
     return [];
   }
 
@@ -2724,7 +2740,7 @@ export const getUserCommunicationMetrics = async (clerkUserId, limit = 20, journ
 
   const userId = await getOrCreateUser(clerkUserId);
 
-  console.log('[getUserCommunicationMetrics] Fetching metrics with journeyId:', journeyId, 'limit:', limit, 'userId:', userId);
+  logger.info({ journeyId, limit, userId, clerkUserId }, '[getUserCommunicationMetrics] Fetching metrics');
 
   let query = supabase
     .from('communication_metrics')
@@ -2740,26 +2756,25 @@ export const getUserCommunicationMetrics = async (clerkUserId, limit = 20, journ
 
   if (journeyId) {
     query = query.eq('journey_id', journeyId);
-    console.log('[getUserCommunicationMetrics] Querying with journeyId filter:', journeyId);
+    logger.info({ journeyId, clerkUserId }, '[getUserCommunicationMetrics] Querying with journeyId filter');
   } else {
-    console.log('[getUserCommunicationMetrics] Querying without journeyId filter');
+    logger.info({ clerkUserId }, '[getUserCommunicationMetrics] Querying without journeyId filter');
   }
 
   let { data, error } = await query
     .order('created_at', { ascending: true })
     .limit(limit);
 
-  console.log('[getUserCommunicationMetrics] Query result:', {
-    count: data?.length || 0,
-    error: error?.code,
-    errorMessage: error?.message,
+  logger.info({ 
+    count: data?.length || 0, 
+    errorCode: error?.code, 
+    errorMessage: error?.message, 
     journeyId: journeyId || 'none',
-    sampleJourneyId: data?.[0]?.journey_id,
-    sampleUserId: data?.[0]?.user_id
-  });
+    clerkUserId
+  }, '[getUserCommunicationMetrics] Query result');
 
   if (error && error.code !== 'PGRST116') {
-    console.error('[getUserCommunicationMetrics] Error fetching communication metrics:', error);
+    logger.error({ error: error.message, code: error.code, clerkUserId, journeyId }, '[getUserCommunicationMetrics] Error fetching communication metrics');
     return [];
   }
 
@@ -2767,13 +2782,13 @@ export const getUserCommunicationMetrics = async (clerkUserId, limit = 20, journ
   if (journeyId && data && data.length > 0) {
     const invalidMetrics = data.filter(m => m.journey_id !== journeyId);
     if (invalidMetrics.length > 0) {
-      console.warn('[getUserCommunicationMetrics] Found metrics with incorrect journeyId:', invalidMetrics.length);
+      logger.warn({ invalidCount: invalidMetrics.length, journeyId, clerkUserId }, '[getUserCommunicationMetrics] Found metrics with incorrect journeyId');
       // Filter out metrics that don't match the requested journeyId
       data = data.filter(m => m.journey_id === journeyId);
     }
   }
 
-  console.log('[getUserCommunicationMetrics] Returning', data?.length || 0, 'metrics for journeyId:', journeyId || 'none');
+  logger.info({ count: data?.length || 0, journeyId: journeyId || 'none', clerkUserId }, '[getUserCommunicationMetrics] Returning metrics');
   return data || [];
 };
 
@@ -2795,7 +2810,7 @@ export const deleteAnalysisForUser = async (clerkUserId, analysisId) => {
     .eq('user_id', userId);
 
   if (error) {
-    console.error('Failed to delete analysis:', error);
+    logger.error({ error: error.message, analysisId, clerkUserId }, 'Failed to delete analysis');
     return false;
   }
 
@@ -2833,7 +2848,7 @@ export const getUserCommunicationInsights = async (clerkUserId, limit = 50, jour
     .limit(limit);
 
   if (error) {
-    console.error('Error fetching communication insights:', error);
+    logger.error({ error: error.message, clerkUserId, journeyId }, 'Error fetching communication insights');
     return [];
   }
 
@@ -2866,7 +2881,7 @@ export const getUserAchievements = async (clerkUserId) => {
     .order('earned_at', { ascending: false });
 
   if (error) {
-    console.error('Error fetching user achievements:', error);
+    logger.error({ error: error.message, clerkUserId }, 'Error fetching user achievements');
     return [];
   }
 
@@ -2883,7 +2898,7 @@ export const getUserCommunicationProfile = async (clerkUserId, journeyId = null)
 
   const userId = await getOrCreateUser(clerkUserId);
 
-  console.log('[getUserCommunicationProfile] Fetching profile with journeyId:', journeyId, 'userId:', userId);
+  logger.info({ journeyId, userId, clerkUserId }, '[getUserCommunicationProfile] Fetching profile');
 
   // Get latest metrics for the specified journey
   let metricsQuery = supabase
@@ -2893,9 +2908,9 @@ export const getUserCommunicationProfile = async (clerkUserId, journeyId = null)
 
   if (journeyId) {
     metricsQuery = metricsQuery.eq('journey_id', journeyId);
-    console.log('[getUserCommunicationProfile] Querying metrics with journeyId filter:', journeyId);
+    logger.info({ journeyId, clerkUserId }, '[getUserCommunicationProfile] Querying metrics with journeyId filter');
   } else {
-    console.log('[getUserCommunicationProfile] Querying metrics without journeyId filter');
+    logger.info({ clerkUserId }, '[getUserCommunicationProfile] Querying metrics without journeyId filter');
   }
 
   let { data: latestMetrics, error: metricsError } = await metricsQuery
@@ -2903,23 +2918,23 @@ export const getUserCommunicationProfile = async (clerkUserId, journeyId = null)
     .limit(1)
     .maybeSingle();
 
-  console.log('[getUserCommunicationProfile] Query result:', {
-    found: !!latestMetrics,
-    error: metricsError?.code,
-    errorMessage: metricsError?.message,
+  logger.info({ 
+    found: !!latestMetrics, 
+    errorCode: metricsError?.code, 
+    errorMessage: metricsError?.message, 
     requestedJourneyId: journeyId || 'none',
     foundJourneyId: latestMetrics?.journey_id,
-    userId: latestMetrics?.user_id
-  });
+    clerkUserId
+  }, '[getUserCommunicationProfile] Query result');
 
   // Verify that the returned metrics belong to the requested journey
   if (journeyId && latestMetrics && latestMetrics.journey_id !== journeyId) {
-    console.warn('[getUserCommunicationProfile] Found metrics with incorrect journeyId. Expected:', journeyId, 'Got:', latestMetrics.journey_id);
+    logger.warn({ expectedJourneyId: journeyId, foundJourneyId: latestMetrics.journey_id, clerkUserId }, '[getUserCommunicationProfile] Found metrics with incorrect journeyId');
     latestMetrics = null;
   }
 
   if (metricsError && metricsError.code !== 'PGRST116') { // PGRST116 = no rows
-    console.error('[getUserCommunicationProfile] Error fetching latest metrics:', metricsError);
+    logger.error({ error: metricsError.message, code: metricsError.code, clerkUserId }, '[getUserCommunicationProfile] Error fetching latest metrics');
   }
 
   // Get latest insight for the specified journey
@@ -2939,12 +2954,12 @@ export const getUserCommunicationProfile = async (clerkUserId, journeyId = null)
 
   // Verify that the returned insight belongs to the requested journey
   if (journeyId && latestInsight && latestInsight.journey_id !== journeyId) {
-    console.warn('[getUserCommunicationProfile] Found insight with incorrect journeyId. Expected:', journeyId, 'Got:', latestInsight.journey_id);
+    logger.warn({ expectedJourneyId: journeyId, foundJourneyId: latestInsight.journey_id, clerkUserId }, '[getUserCommunicationProfile] Found insight with incorrect journeyId');
     latestInsight = null;
   }
 
   if (insightError && insightError.code !== 'PGRST116') {
-    console.error('Error fetching latest insight:', insightError);
+    logger.error({ error: insightError.message, code: insightError.code, clerkUserId }, 'Error fetching latest insight');
   }
 
   return {
@@ -2970,7 +2985,7 @@ export const getUserBaseline = async (clerkUserId) => {
     .single();
 
   if (error && error.code !== 'PGRST116') { // PGRST116 = no rows
-    console.error('Error fetching user baseline:', error);
+    logger.error({ error: error.message, code: error.code, clerkUserId }, 'Error fetching user baseline');
     return null;
   }
 
@@ -2996,7 +3011,7 @@ export const calculateUserBaseline = async (clerkUserId, minAnalyses = 2) => {
     .limit(3);
 
   if (metricsError) {
-    console.error('Error fetching metrics for baseline:', metricsError);
+    logger.error({ error: metricsError.message, clerkUserId }, 'Error fetching metrics for baseline');
     return null;
   }
 
@@ -3089,7 +3104,7 @@ export const calculateUserBaseline = async (clerkUserId, minAnalyses = 2) => {
 
     result = data;
     if (error) {
-      console.error('Error updating user baseline:', error);
+      logger.error({ error: error.message, clerkUserId }, 'Error updating user baseline');
       return null;
     }
   } else {
@@ -3102,7 +3117,7 @@ export const calculateUserBaseline = async (clerkUserId, minAnalyses = 2) => {
 
     result = data;
     if (error) {
-      console.error('Error creating user baseline:', error);
+      logger.error({ error: error.message, clerkUserId }, 'Error creating user baseline');
       return null;
     }
   }
@@ -3151,7 +3166,7 @@ export const getGlobalStats = async (subMetricKey) => {
     .single();
 
   if (error && error.code !== 'PGRST116') {
-    console.error('Error fetching global stats:', error);
+    logger.error({ error: error.message }, 'Error fetching global stats');
     return null;
   }
 
@@ -3171,7 +3186,7 @@ export const getAllGlobalStats = async () => {
     .select('*');
 
   if (error) {
-    console.error('Error fetching all global stats:', error);
+    logger.error({ error: error.message }, 'Error fetching all global stats');
     return {};
   }
 
@@ -3309,7 +3324,7 @@ export const calculateGlobalStats = async () => {
         .single();
 
       if (error) {
-        console.error(`Error updating global stats for ${key}:`, error);
+        logger.error({ error: error.message, key }, 'Error updating global stats');
       } else {
         results[key] = data;
       }
@@ -3322,7 +3337,7 @@ export const calculateGlobalStats = async () => {
         .single();
 
       if (error) {
-        console.error(`Error creating global stats for ${key}:`, error);
+        logger.error({ error: error.message, key }, 'Error creating global stats');
       } else {
         results[key] = data;
       }
@@ -3350,7 +3365,7 @@ export const getUserPreviousMetrics = async (clerkUserId, limit = 3) => {
     .limit(limit);
 
   if (error) {
-    console.error('Error fetching previous metrics:', error);
+    logger.error({ error: error.message, clerkUserId }, 'Error fetching previous metrics');
     return [];
   }
 
@@ -3395,7 +3410,7 @@ export const getWeeklyPracticeCount = async (clerkUserId, journeyId = null) => {
   const { count, error } = await query;
 
   if (error) {
-    console.error('Error counting weekly practices:', error);
+    logger.error({ error: error.message, clerkUserId, journeyId }, 'Error counting weekly practices');
     return { count: 0, weekStart: weekStart.toISOString(), weekEnd: weekEnd.toISOString() };
   }
 
@@ -3488,13 +3503,13 @@ export const getUserEmailPreferences = async (userId) => {
       .single();
 
     if (error) {
-      console.error('[getUserEmailPreferences] Error:', error);
+      logger.error({ error: error.message, clerkUserId }, '[getUserEmailPreferences] Error');
       return null;
     }
 
     return data;
   } catch (err) {
-    console.error('[getUserEmailPreferences] Exception:', err);
+    logger.error({ error: err.message, stack: err.stack, clerkUserId }, '[getUserEmailPreferences] Exception');
     return null;
   }
 };
@@ -3540,7 +3555,7 @@ export const updateUserEmailPreferences = async (clerkUserId, preferences) => {
 
     return data;
   } catch (err) {
-    console.error('[updateUserEmailPreferences] Error:', err);
+    logger.error({ error: err.message, stack: err.stack, clerkUserId }, '[updateUserEmailPreferences] Error');
     throw err;
   }
 };
@@ -3561,13 +3576,13 @@ export const getUserLanguagePreference = async (userId) => {
       .single();
 
     if (error) {
-      console.error('[getUserLanguagePreference] Error:', error);
+      logger.error({ error: error.message, userId }, '[getUserLanguagePreference] Error');
       return null;
     }
 
     return data?.language_preference || 'en';
   } catch (err) {
-    console.error('[getUserLanguagePreference] Exception:', err);
+    logger.error({ error: err.message, stack: err.stack, userId }, '[getUserLanguagePreference] Exception');
     return null;
   }
 };
@@ -3609,7 +3624,7 @@ export const updateUserLanguagePreference = async (clerkUserId, languagePreferen
 
     return data;
   } catch (err) {
-    console.error('[updateUserLanguagePreference] Error:', err);
+    logger.error({ error: err.message, stack: err.stack, clerkUserId, languagePreference }, '[updateUserLanguagePreference] Error');
     throw err;
   }
 };
@@ -3619,7 +3634,7 @@ export const updateUserLanguagePreference = async (clerkUserId, languagePreferen
  */
 export const logEmailSent = async ({ userId, emailType, recipientEmail, subject, status = 'sent', metadata = {} }) => {
   if (!supabase || !userId) {
-    console.warn('[logEmailSent] Supabase or userId not provided');
+    logger.warn({}, '[logEmailSent] Supabase or userId not provided');
     return null;
   }
 
@@ -3638,13 +3653,13 @@ export const logEmailSent = async ({ userId, emailType, recipientEmail, subject,
       .single();
 
     if (error) {
-      console.error('[logEmailSent] Error:', error);
+      logger.error({ error: error.message, userId, emailType }, '[logEmailSent] Error');
       return null;
     }
 
     return data;
   } catch (err) {
-    console.error('[logEmailSent] Exception:', err);
+    logger.error({ error: err.message, stack: err.stack, userId, emailType }, '[logEmailSent] Exception');
     return null;
   }
 };
@@ -3677,13 +3692,13 @@ export const getUserEmailHistory = async (clerkUserId, limit = 20) => {
       .limit(limit);
 
     if (error) {
-      console.error('[getUserEmailHistory] Error:', error);
+      logger.error({ error: error.message, clerkUserId }, '[getUserEmailHistory] Error');
       return [];
     }
 
     return data || [];
   } catch (err) {
-    console.error('[getUserEmailHistory] Exception:', err);
+    logger.error({ error: err.message, stack: err.stack, clerkUserId }, '[getUserEmailHistory] Exception');
     return [];
   }
 };
@@ -3694,7 +3709,7 @@ export const getUserEmailHistory = async (clerkUserId, limit = 20) => {
  */
 export const getUsersNeedingReminders = async () => {
   if (!supabase) {
-    console.warn('[getUsersNeedingReminders] Supabase not initialized');
+    logger.warn({}, '[getUsersNeedingReminders] Supabase not initialized');
     return [];
   }
 
@@ -3717,7 +3732,7 @@ export const getUsersNeedingReminders = async () => {
       .not('email', 'is', null);
 
     if (usersError) {
-      console.error('[getUsersNeedingReminders] Error fetching users:', usersError);
+      logger.error({ error: usersError.message }, '[getUsersNeedingReminders] Error fetching users');
       return [];
     }
 
@@ -3783,7 +3798,7 @@ export const getUsersNeedingReminders = async () => {
             last_analysis_date: lastAnalysis?.created_at || null
           };
         } catch (err) {
-          console.warn(`[getUsersNeedingReminders] Error processing user ${user.id}:`, err.message);
+          logger.warn({ error: err.message, userId: user.id }, '[getUsersNeedingReminders] Error processing user');
           return null;
         }
       })
@@ -3797,7 +3812,7 @@ export const getUsersNeedingReminders = async () => {
       u.days_since_last_analysis > 0
     );
   } catch (err) {
-    console.error('[getUsersNeedingReminders] Exception:', err);
+    logger.error({ error: err.message, stack: err.stack }, '[getUsersNeedingReminders] Exception');
     return [];
   }
 };

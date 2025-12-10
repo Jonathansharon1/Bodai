@@ -235,6 +235,15 @@
   z-index: 0;
 }
 
+[dir="rtl"] .sidebar--collapsed + .dashboardLayout .myProgressPage::after {
+  left: auto;
+  right: 72px;
+}
+
+.sidebar--collapsed + .dashboardLayout .myProgressPage::after {
+  left: 72px;
+}
+
 [dir="rtl"] .myProgressPage::after {
   left: auto;
   right: 280px;
@@ -687,10 +696,17 @@ html[lang="he"] .deliveryStats__value--pill {
   gap: 24px;
 }
 
-.trendList__footer {
+/* Trend list footer - only show inside trendSection */
+.trendSection .trendList__footer {
   display: flex;
   justify-content: center;
   margin-top: 20px;
+}
+
+/* Hide footer if it appears outside trendSection */
+.myProgressPage__section:not(.trendSection) .trendList__footer,
+.myProgressPage__section--focus .trendList__footer {
+  display: none !important;
 }
 
 .trendList__toggle {

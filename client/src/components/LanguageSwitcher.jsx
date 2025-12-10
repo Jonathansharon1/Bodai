@@ -8,7 +8,7 @@ export default function LanguageSwitcher({ showLabel = false, className = '' }) 
   const { i18n } = useTranslation();
   const { user } = useUser();
   const [loading, setLoading] = useState(false);
-  const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
   // Load user's language preference on mount
   useEffect(() => {

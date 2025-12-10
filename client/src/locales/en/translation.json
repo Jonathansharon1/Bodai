@@ -161,6 +161,88 @@
       "label": "Language"
     }
   },
+  "auth": {
+    "signIn": {
+      "title": "Welcome Back",
+      "subtitle": "Continue your journey to confident, impactful communication. Your progress is waiting.",
+      "headerNoAccount": "Don't have an account?",
+      "headerCta": "Sign Up"
+    },
+    "signUp": {
+      "titleLine1": "Transform Your Communication",
+      "titleAccent": "One Video at a Time",
+      "subtitle": "Join thousands who are mastering confident body language and powerful delivery. Get instant AI-powered feedback and personalized coaching tailored to your goals.",
+      "headerHaveAccount": "Already have an account?",
+      "headerCta": "Sign In"
+    },
+    "footerCopyright": "© {{year}} BodAI. All rights reserved.",
+    "clerk": {
+      "signIn": {
+        "title": "Sign in to BodAI",
+        "subtitle": "",
+        "emailAddress": {
+          "label": "Email address",
+          "placeholder": "Enter your email"
+        },
+        "password": {
+          "label": "Password",
+          "placeholder": "Enter your password"
+        },
+        "forgotPassword": "Forgot password?",
+        "continue": "Continue",
+        "divider": "or continue with",
+        "noAccount": "Don't have an account?",
+        "signUp": "Sign up"
+      },
+      "signUp": {
+        "title": "Create your account",
+        "subtitle": "to continue to BodAI",
+        "emailAddress": {
+          "label": "Email address",
+          "placeholder": "Enter your email"
+        },
+        "password": {
+          "label": "Password",
+          "placeholder": "Create a password"
+        },
+        "continue": "Continue",
+        "divider": "or continue with",
+        "hasAccount": "Already have an account?",
+        "signIn": "Sign in"
+      },
+      "forgotPassword": {
+        "title": "Reset password",
+        "subtitle": "Enter your email address and we will send you a reset link",
+        "emailAddress": {
+          "label": "Email address",
+          "placeholder": "Enter your email"
+        },
+        "submit": "Send reset link",
+        "backToSignIn": "Back to sign in"
+      },
+      "verification": {
+        "title": "Verify your email",
+        "subtitle": "Enter the verification code sent to your email",
+        "codeInput": {
+          "label": "Verification code",
+          "placeholder": "Enter code"
+        },
+        "resend": "Resend code",
+        "continue": "Continue"
+      },
+      "common": {
+        "or": "or",
+        "continueWith": "Continue with",
+        "loading": "Loading...",
+        "error": {
+          "generic": "Something went wrong. Please try again.",
+          "invalidEmail": "Please enter a valid email address",
+          "passwordTooShort": "Password must be at least 8 characters",
+          "invalidCode": "Invalid verification code"
+        }
+      }
+    }
+  },
   "sidebar": {
     "home": "Home",
     "dashboard": "Dashboard",
@@ -1070,7 +1152,7 @@
     "payAsYouGoEyebrow": "Just need one?",
     "payAsYouGoTitle": "Pay per video",
     "payAsYouGoDescription": "Don't need a subscription? Buy individual analyses anytime.",
-    "payAsYouGoPrice": "$2.50",
+    "payAsYouGoPrice": "$1.50",
     "payAsYouGoPeriod": "per video (up to 10 min)",
     "payAsYouGoCta": "Purchase a single analysis",
     "faqEyebrow": "Have a question?",

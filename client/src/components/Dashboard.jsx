@@ -117,6 +117,7 @@ export default function Dashboard({
     achievements: [],
     actionItems: [],
   });
+  const [hasAnalyses, setHasAnalyses] = useState(false);
   const [journeyModalOpen, setJourneyModalOpen] = useState(false);
   const [journeyModalError, setJourneyModalError] = useState(null);
   const [journeyModalSubmitting, setJourneyModalSubmitting] = useState(false);
@@ -157,7 +158,11 @@ export default function Dashboard({
         if (journeyIdParam) {
           params.append("journeyId", journeyIdParam);
         }
-        const endpoint = `${process.env.REACT_APP_API_URL || "http://localhost:5000/api/communication/progress"}${params.toString() ? `?${params.toString()}` : ""}`;
+        // Use Vite proxy in dev, full URL in production
+        const apiBase = import.meta.env.DEV
+          ? "" // use Vite proxy in dev
+          : (import.meta.env.VITE_API_URL || "http://localhost:5000");
+        const endpoint = `${apiBase}/api/communication/progress${params.toString() ? `?${params.toString()}` : ""}`;
         
         const res = await fetch(endpoint, {
           headers: {
@@ -198,6 +203,33 @@ export default function Dashboard({
     },
     [user, activeJourneyId],
   );
+
+  // Fetch analyses list (to detect if user already has analyses and hide the first-time hero)
+  useEffect(() => {
+    const fetchAnalyses = async () => {
+      if (!user) return;
+      try {
+        const apiBase = import.meta.env.DEV
+          ? "" // use Vite proxy in dev
+          : (import.meta.env.VITE_API_URL || "http://localhost:5000");
+        const res = await fetch(`${apiBase}/api/analyses`, {
+          headers: {
+            "X-Clerk-User-Id": user.id,
+            "Content-Type": "application/json",
+          },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const count = data?.analyses?.length || 0;
+          setHasAnalyses(count > 0);
+        }
+      } catch (err) {
+        console.error("Failed to fetch analyses list:", err);
+      }
+    };
+
+    fetchAnalyses();
+  }, [user, refreshTrigger]);
 
   useEffect(() => {
     if (user) {
@@ -257,13 +289,13 @@ export default function Dashboard({
         headers["X-User-Image-Url"] = user.imageUrl;
       }
 
-      const res = await fetch(
-        process.env.REACT_APP_API_URL ||
-          "http://localhost:5000/api/user/profile",
-        {
-          headers,
-        },
-      );
+      // Use Vite proxy in dev, full URL in production
+      const apiBase = import.meta.env.DEV
+        ? "" // use Vite proxy in dev
+        : (import.meta.env.VITE_API_URL || "http://localhost:5000");
+      const res = await fetch(`${apiBase}/api/user/profile`, {
+        headers,
+      });
 
       if (res.ok) {
         const data = await res.json();
@@ -698,8 +730,13 @@ export default function Dashboard({
     setShowCelebration(false);
   };
 
-  // Check if user is new (no analyses yet)
-  const isNewUser = !progressData.metrics || progressData.metrics.length === 0;
+  // Check if user is new (no analyses yet) - fall back to analyses list if metrics are empty
+  const isNewUser =
+    (!progressData.metrics || progressData.metrics.length === 0) &&
+    !hasAnalyses;
+
+  // Show dashboard content if user has analyses OR metrics (even if metrics are still loading)
+  const hasDashboardData = hasAnalyses || (progressData.metrics && progressData.metrics.length > 0) || latestMetrics;
 
   // Generate dynamic, encouraging title based on user's goal and whether they're new
   const getDashboardTitle = () => {
@@ -1156,35 +1193,48 @@ export default function Dashboard({
         </div>
       )}
 
-      {/* Profile Card */}
-      {latestMetrics && (
+      {/* Profile Card - Show if we have metrics OR if user has analyses (metrics might be loading) */}
+      {(latestMetrics || hasAnalyses) && (
         <div className="dashboard__profileCard">
           <div className="profileCard">
-            <div className="profileCard__score">
-              <div className="profileCard__scoreLabel">
-                {t("dashboard.scoreLabel")}
+            {latestMetrics ? (
+              <>
+                <div className="profileCard__score">
+                  <div className="profileCard__scoreLabel">
+                    {t("dashboard.scoreLabel")}
+                  </div>
+                  <div className="profileCard__scoreValue">
+                    {Math.round(latestMetrics.overall_score || 0)}
+                    {scoreTrend && (
+                      <span
+                        className={`profileCard__trend ${
+                          scoreTrend.isPositive ? "positive" : "negative"
+                        }`}
+                      >
+                        {scoreTrend.isPositive ? "↑" : "↓"} {scoreTrend.value}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="profileCard__info">
+                  <h2 className="profileCard__stage">
+                    {getStageLabel(latestMetrics.stage_title)}
+                  </h2>
+                  {latestInsight && (
+                    <p className="profileCard__insight">{latestInsight.content}</p>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="profileCard__info">
+                <h2 className="profileCard__stage">
+                  {t("dashboard.loadingMetrics", "Loading your metrics...")}
+                </h2>
+                <p className="profileCard__insight">
+                  {t("dashboard.loadingMetricsText", "We're processing your analyses. Your scores will appear here soon.")}
+                </p>
               </div>
-              <div className="profileCard__scoreValue">
-                {Math.round(latestMetrics.overall_score || 0)}
-                {scoreTrend && (
-                  <span
-                    className={`profileCard__trend ${
-                      scoreTrend.isPositive ? "positive" : "negative"
-                    }`}
-                  >
-                    {scoreTrend.isPositive ? "↑" : "↓"} {scoreTrend.value}
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="profileCard__info">
-              <h2 className="profileCard__stage">
-                {getStageLabel(latestMetrics.stage_title)}
-              </h2>
-              {latestInsight && (
-                <p className="profileCard__insight">{latestInsight.content}</p>
-              )}
-            </div>
+            )}
           </div>
         </div>
       )}

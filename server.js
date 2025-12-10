@@ -1,9 +1,12 @@
 import 'dotenv/config';
+import * as Sentry from '@sentry/node';
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { v4 as uuidv4 } from 'uuid';
+import logger, { createRequestLogger } from './services/logger.js';
 import { analyzeBodyLanguage, generatePracticeMissions } from './services/geminiService.js';
 import crypto from 'crypto';
 import { 
@@ -73,6 +76,18 @@ import {
 } from './services/emailService.js';
 import { validateAnalysisResponse } from './services/responseValidator.js';
 
+// Initialize Sentry BEFORE creating Express app
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'development',
+    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+    integrations: [
+      new Sentry.Integrations.Http({ tracing: true }),
+    ],
+  });
+}
+
 const app = express();
 const port = process.env.PORT || 5000;
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3-pro-preview';
@@ -91,9 +106,24 @@ const logAnalysisGate = (reason, details = {}) => {
     ...details,
     timestamp: new Date().toISOString()
   };
-  console.warn(`[ANALYSIS_GATE][${reason}]`, payload);
+  logger.warn({ reason, ...payload }, '[ANALYSIS_GATE]');
   notifyAnalysisGate(reason, payload).catch(() => {});
 };
+
+// Sentry request handler - must be before other middleware
+if (process.env.SENTRY_DSN) {
+  app.use(Sentry.Handlers.requestHandler());
+  app.use(Sentry.Handlers.tracingHandler());
+}
+
+// Request ID middleware - must be before other middleware
+app.use((req, res, next) => {
+  const requestId = req.headers['x-request-id'] || uuidv4();
+  req.requestId = requestId;
+  req.logger = createRequestLogger(requestId);
+  res.setHeader('X-Request-ID', requestId);
+  next();
+});
 
 // CORS for development: allows the React dev server (port 3000) to call this API.
 // Change CLIENT_ORIGIN in .env if your frontend runs elsewhere.
@@ -111,9 +141,41 @@ const upload = multer({
   },
 });
 
-// Health check
+// Health check endpoint (for load balancers)
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true });
+  res.json({ 
+    ok: true,
+    timestamp: new Date().toISOString(),
+    service: 'bodai-api'
+  });
+});
+
+// Readiness endpoint (checks critical dependencies)
+app.get('/api/ready', async (_req, res) => {
+  const checks = {
+    database: false,
+    gemini: false,
+    timestamp: new Date().toISOString()
+  };
+  
+  // Check database connection
+  if (supabase) {
+    try {
+      const { error } = await supabase.from('users').select('id').limit(1);
+      checks.database = !error;
+    } catch (err) {
+      checks.database = false;
+    }
+  }
+  
+  // Check Gemini API key
+  checks.gemini = !!process.env.API_KEY;
+  
+  const isReady = checks.database && checks.gemini;
+  res.status(isReady ? 200 : 503).json({
+    ready: isReady,
+    checks
+  });
 });
 
 // Simple endpoint for Teams & Enterprise contact form
@@ -129,7 +191,7 @@ app.post('/api/contact/teams', async (req, res) => {
       createdAt: new Date().toISOString()
     };
 
-    console.log('[TeamsContact] New teams/enterprise inquiry:', payload);
+    req.logger.info({ payload }, '[TeamsContact] New teams/enterprise inquiry');
 
     // Send notification email to founder / sales inbox
     try {
@@ -152,13 +214,13 @@ app.post('/api/contact/teams', async (req, res) => {
         metadata: { source: 'contact_teams_form' }
       });
     } catch (emailError) {
-      console.error('[TeamsContact] Failed to send teams contact email:', emailError.message || emailError);
+      req.logger.error({ error: emailError.message || emailError, stack: emailError.stack }, '[TeamsContact] Failed to send teams contact email');
     }
 
     // In the future we can persist this to Supabase or send an email notification.
     return res.status(200).json({ ok: true });
   } catch (err) {
-    console.error('[TeamsContact] Failed to handle teams contact form:', err);
+    req.logger.error({ error: err.message, stack: err.stack }, '[TeamsContact] Failed to handle teams contact form');
     return res.status(500).json({ error: 'Failed to submit your request' });
   }
 });
@@ -179,7 +241,7 @@ const getClerkUserId = (req) => {
   
   // Log warning if we got something that looks like a JWT
   if (userId && userId.startsWith('eyJ')) {
-    console.warn('[getClerkUserId] Received JWT token instead of user ID - ignoring');
+    logger.warn({ userId: userId.substring(0, 20) + '...' }, '[getClerkUserId] Received JWT token instead of user ID - ignoring');
   }
   
   return null;
@@ -520,7 +582,7 @@ function estimateAnalysisCostUsd(durationSeconds) {
       try {
         userContext = JSON.parse(req.headers['x-user-context']);
       } catch (e) {
-        console.warn('Failed to parse userContext from header:', e);
+        req.logger.warn({ error: e.message }, 'Failed to parse userContext from header');
       }
     }
 
@@ -539,29 +601,29 @@ function estimateAnalysisCostUsd(durationSeconds) {
           }
         }
       } catch (e) {
-        console.warn('Failed to load user data:', e);
+        req.logger.warn({ error: e.message, clerkUserId }, 'Failed to load user data');
         // Default to true on error
         userContext.includeEnvironmentFeedback = true;
       }
     }
 
     let journeyId = req.body?.journey_id || req.body?.journeyId || null;
-    console.log('[analyze-video] Received journeyId from request:', journeyId);
+    req.logger.info({ journeyId }, '[analyze-video] Received journeyId from request');
     if (clerkUserId) {
       if (journeyId) {
         const journey = await getJourneyForUser(clerkUserId, journeyId);
         if (!journey) {
-          console.error('[analyze-video] Journey not found:', journeyId);
+          req.logger.error({ journeyId, clerkUserId }, '[analyze-video] Journey not found');
           return res.status(404).json({ error: 'Journey not found' });
         }
-        console.log('[analyze-video] Journey validated:', journeyId);
+        req.logger.info({ journeyId }, '[analyze-video] Journey validated');
       } else {
         const defaultJourney = await getDefaultJourneyForUser(clerkUserId);
         journeyId = defaultJourney?.id || null;
-        console.log('[analyze-video] Using default journey:', journeyId);
+        req.logger.info({ journeyId }, '[analyze-video] Using default journey');
       }
     }
-    console.log('[analyze-video] Final journeyId to use:', journeyId);
+    req.logger.info({ journeyId }, '[analyze-video] Final journeyId to use');
 
     // Parse course context if provided
     let courseContext = null;
@@ -572,7 +634,7 @@ function estimateAnalysisCostUsd(durationSeconds) {
           : req.body.courseContext;
         userContext.courseContext = courseContext;
       } catch (e) {
-        console.warn('Failed to parse courseContext:', e);
+        req.logger.warn({ error: e.message }, 'Failed to parse courseContext');
       }
     }
 
@@ -627,7 +689,7 @@ function estimateAnalysisCostUsd(durationSeconds) {
           });
         }
       } catch (dupError) {
-        console.warn('Duplicate hash check failed, continuing:', dupError);
+        req.logger.warn({ error: dupError.message, clerkUserId }, 'Duplicate hash check failed, continuing');
       }
     }
 
@@ -640,7 +702,7 @@ function estimateAnalysisCostUsd(durationSeconds) {
         // Get user profile from headers if available
         const userProfile = getUserProfileFromHeaders(req);
         userId = await getOrCreateUser(clerkUserId, userProfile || {});
-        console.log(`User ID retrieved: ${userId}`);
+        req.logger.info({ userId, clerkUserId }, 'User ID retrieved');
         
         // Ensure filename is properly encoded as UTF-8
         let filename = req.file.originalname;
@@ -650,12 +712,12 @@ function estimateAnalysisCostUsd(durationSeconds) {
             filename = decoded;
           }
         } catch (e) {
-          console.warn('Filename encoding issue, using original:', e);
+          req.logger.warn({ error: e.message, filename }, 'Filename encoding issue, using original');
         }
 
         // OPTIMIZATION 1.1: Move S3 upload to background - don't await it, start analysis immediately
         if (process.env.AWS_S3_BUCKET_NAME) {
-          console.log('S3 configuration found, starting background upload...');
+          req.logger.info({ userId }, 'S3 configuration found, starting background upload');
           // Start S3 upload in background, don't wait for it
           uploadVideoToS3(
             videoBuffer,
@@ -664,29 +726,28 @@ function estimateAnalysisCostUsd(durationSeconds) {
             userId
           ).then(s3Result => {
             s3Key = s3Result.key;
-            console.log(`✅ Video uploaded to S3 successfully: ${s3Key}`);
+            logger.info({ s3Key, userId }, 'Video uploaded to S3 successfully');
             // If analysis was already saved, update it with S3 key
             // Note: This is handled in the background processing section
           }).catch(s3Error => {
-            console.error('❌ Failed to upload video to S3 (continuing anyway):', s3Error.message);
-            console.error('S3 Error details:', {
-              message: s3Error.message,
-              code: s3Error.code,
-              name: s3Error.name
-            });
+            logger.error({ 
+              error: s3Error.message, 
+              code: s3Error.code, 
+              name: s3Error.name,
+              userId 
+            }, 'Failed to upload video to S3 (continuing anyway)');
             // Continue with analysis even if S3 upload fails
           });
           // Continue immediately without waiting for S3 upload
         } else {
-          console.warn('⚠️  S3 not configured: AWS_S3_BUCKET_NAME is not set in .env file');
-          console.warn('   Videos will not be stored in S3. Add AWS_S3_BUCKET_NAME to .env to enable S3 storage.');
+          req.logger.warn({}, 'S3 not configured: AWS_S3_BUCKET_NAME is not set in .env file');
         }
       } catch (userError) {
-        console.error('Failed to get/create user:', userError);
+        req.logger.error({ error: userError.message, stack: userError.stack, clerkUserId }, 'Failed to get/create user');
         // If we can't get user ID, we can't save to database, but we can still return analysis
       }
     } else {
-      console.warn('No Clerk user ID provided - analysis will not be saved to database');
+      req.logger.warn({}, 'No Clerk user ID provided - analysis will not be saved to database');
     }
 
     // OPTIMIZATION 1.6: Build historical context and cache data for reuse in metrics processing
@@ -707,12 +768,12 @@ function estimateAnalysisCostUsd(durationSeconds) {
           ]);
           cachedUserBaseline = userBaselineResult; // Cache for reuse
           historicalContext = buildHistoricalContextPayload(cachedPreviousMetrics, cachedUserBaseline, recentActionItems);
-          console.log(`[analyze-video] Including historical context (${cachedPreviousMetrics.length} previous analyses)`);
+          req.logger.info({ previousAnalysesCount: cachedPreviousMetrics.length }, '[analyze-video] Including historical context');
         } else {
-          console.log(`[analyze-video] Skipping historical context for new user (only ${cachedPreviousMetrics?.length || 0} previous analyses)`);
+          req.logger.info({ previousAnalysesCount: cachedPreviousMetrics?.length || 0 }, '[analyze-video] Skipping historical context for new user');
         }
       } catch (historyError) {
-        console.warn('Failed to build historical context:', historyError.message || historyError);
+        req.logger.warn({ error: historyError.message || historyError, clerkUserId }, 'Failed to build historical context');
       }
     }
     if (historicalContext) {
@@ -747,16 +808,20 @@ function estimateAnalysisCostUsd(durationSeconds) {
         validationResult = validateAnalysisResponse(analysisResult);
         
         if (validationResult.isValid) {
-          console.log(`[analyze-video] Analysis validation passed on attempt ${analysisAttempts}`);
+          req.logger.info({ attempt: analysisAttempts }, '[analyze-video] Analysis validation passed');
           break;
         }
         
-        console.warn(`[analyze-video] Analysis validation failed (attempt ${analysisAttempts}/${MAX_ANALYSIS_RETRIES}):`, validationResult.summary);
-        console.warn('[analyze-video] Validation issues:', JSON.stringify(validationResult.issues, null, 2));
+        req.logger.warn({ 
+          attempt: analysisAttempts, 
+          maxRetries: MAX_ANALYSIS_RETRIES,
+          summary: validationResult.summary,
+          issues: validationResult.issues
+        }, '[analyze-video] Analysis validation failed');
         
         // Don't retry if we've exhausted attempts
         if (analysisAttempts >= MAX_ANALYSIS_RETRIES) {
-          console.warn('[analyze-video] Max retries reached, proceeding with potentially incomplete response');
+          req.logger.warn({}, '[analyze-video] Max retries reached, proceeding with potentially incomplete response');
         }
       }
       
@@ -765,14 +830,14 @@ function estimateAnalysisCostUsd(durationSeconds) {
         setCachedAnalysis(cacheKey, analysisResult, 1000 * 60 * 60 * 12); // 12 hours
       }
     } else {
-      console.log(`Reused cached Gemini result for ${cacheKey}`);
+      req.logger.info({ cacheKey }, 'Reused cached Gemini result');
       // Validate cached result too
       validationResult = validateAnalysisResponse(analysisResult);
     }
     
     // Ensure we have valid analysis result before proceeding
     if (!analysisResult) {
-      console.error('[analyze-video] Analysis result is null or undefined');
+      req.logger.error({}, '[analyze-video] Analysis result is null or undefined');
       return res.status(500).json({ error: 'Analysis failed: No result from AI model' });
     }
     
@@ -781,7 +846,7 @@ function estimateAnalysisCostUsd(durationSeconds) {
     
     // Ensure we have valid markdown result
     if (!resultMarkdown || typeof resultMarkdown !== 'string') {
-      console.error('[analyze-video] Invalid analysis result format:', typeof resultMarkdown);
+      req.logger.error({ resultType: typeof resultMarkdown }, '[analyze-video] Invalid analysis result format');
       return res.status(500).json({ error: 'Analysis failed: Invalid result format' });
     }
     
@@ -835,14 +900,14 @@ function estimateAnalysisCostUsd(durationSeconds) {
                 filename = decoded;
               }
             } catch (e) {
-              console.warn('Filename encoding issue, using original:', e);
+              logger.warn({ error: e.message, userId }, '[Background] Filename encoding issue, using original');
             }
             
-            console.log(`[Background] Attempting to save analysis for user ${userId} with journeyId: ${journeyId}`);
+            logger.info({ userId, journeyId }, '[Background] Attempting to save analysis');
             // S3 upload happens in parallel, so s3Key might be null initially
             // We'll save it as null and update later if S3 upload completes
             const currentS3Key = s3Key || null;
-            console.log('[Background] S3 Key to save:', currentS3Key || 'NULL (S3 not configured or upload in progress)');
+            logger.info({ s3Key: currentS3Key || 'NULL', userId }, '[Background] S3 Key to save');
             const saved = await saveAnalysis(userId, {
               videoFilename: filename,
               videoSize: req.file.size,
@@ -862,14 +927,14 @@ function estimateAnalysisCostUsd(durationSeconds) {
             });
             
             if (saved && saved.s3_key) {
-              console.log(`✅ Analysis saved with S3 key: ${saved.s3_key}`);
+              logger.info({ analysisId: saved.id, s3Key: saved.s3_key, userId }, '[Background] Analysis saved with S3 key');
             } else if (saved && !saved.s3_key) {
-              console.warn(`⚠️  Analysis saved but s3_key is NULL. S3 may not be configured or upload failed.`);
+              logger.warn({ analysisId: saved.id, userId }, '[Background] Analysis saved but s3_key is NULL. S3 may not be configured or upload failed');
             }
             
             if (saved) {
               analysisId = saved.id;
-              console.log(`[Background] Analysis saved successfully with ID: ${analysisId}`);
+              logger.info({ analysisId, userId }, '[Background] Analysis saved successfully');
               
               // If S3 upload completed after we saved, update the analysis record
               // Check s3Key again (it might have been set by the background upload)
@@ -878,17 +943,17 @@ function estimateAnalysisCostUsd(durationSeconds) {
                   .from('analyses')
                   .update({ s3_key: s3Key })
                   .eq('id', analysisId)
-                  .then(() => console.log(`[Background] Updated analysis ${analysisId} with S3 key: ${s3Key}`))
-                  .catch(err => console.warn('[Background] Failed to update analysis with S3 key:', err));
+                  .then(() => logger.info({ analysisId, s3Key }, '[Background] Updated analysis with S3 key'))
+                  .catch(err => logger.warn({ error: err.message, analysisId }, '[Background] Failed to update analysis with S3 key'));
               }
               
               // Log any validation issues from the analysis
               if (validationResult && validationResult.issues && validationResult.issues.length > 0) {
                 try {
                   await logAnalysisQuality(analysisId, userId, validationResult.issues);
-                  console.log(`[Background] Logged ${validationResult.issues.length} validation issue(s) for analysis ${analysisId}`);
+                  logger.info({ analysisId, issueCount: validationResult.issues.length }, '[Background] Logged validation issues');
                 } catch (logError) {
-                  console.warn('Failed to log validation issues:', logError.message);
+                  logger.warn({ error: logError.message, analysisId }, '[Background] Failed to log validation issues');
                 }
               }
               
@@ -914,11 +979,11 @@ function estimateAnalysisCostUsd(durationSeconds) {
                   analysisId,
                   overallScore: metrics.overall_score
                 }).catch((emailError) => {
-                  console.warn('Failed to send analysis complete email:', emailError.message);
+                  logger.warn({ error: emailError.message, userId, analysisId }, '[Background] Failed to send analysis complete email');
                 });
               }
             } catch (emailError) {
-              console.warn('Error preparing analysis complete email:', emailError.message);
+              logger.warn({ error: emailError.message, userId }, '[Background] Error preparing analysis complete email');
             }
           }
           
@@ -949,9 +1014,9 @@ function estimateAnalysisCostUsd(durationSeconds) {
                     userGoal: userGoal
                   });
                   
-                  console.log('Metrics processed with new scoring system');
+                  logger.info({ userId, analysisId }, '[Background] Metrics processed with new scoring system');
                 } catch (processError) {
-                  console.error('Error processing metrics:', processError);
+                  logger.error({ error: processError.message, stack: processError.stack, userId, analysisId }, '[Background] Error processing metrics');
                   // Fall back to using LLM's final scores directly
                   processedMetrics = null;
                 }
@@ -959,7 +1024,7 @@ function estimateAnalysisCostUsd(durationSeconds) {
 
               if (journeyId) {
                 updateUserJourney(clerkUserId, journeyId, { lastActiveAt: new Date().toISOString() })
-                  .catch(err => console.error('Failed to update journey activity timestamp:', err));
+                  .catch(err => logger.error({ error: err.message, journeyId, clerkUserId }, '[Background] Failed to update journey activity timestamp'));
               }
               
               const modelVersion = analysisResult.modelVersion || GEMINI_MODEL;
@@ -1003,26 +1068,26 @@ function estimateAnalysisCostUsd(durationSeconds) {
               
               // OPTIMIZATION 1.3: Parallelize post-analysis database operations
               // Save metrics, insights, and check for similar analysis in parallel
-              console.log('[analyze-video] Saving metrics with journeyId:', journeyId, 'analysisId:', analysisId);
+              logger.info({ journeyId, analysisId, userId }, '[Background] Saving metrics');
               const [savedMetrics, insightsResult, similarAnalysis] = await Promise.all([
                 saveCommunicationMetrics(userId, analysisId, metricsToSave, journeyId),
                 metrics.insights && metrics.insights.length > 0 
                   ? saveCommunicationInsights(userId, analysisId, metrics.insights, journeyId).then(() => ({ success: true })).catch(err => ({ success: false, error: err }))
                   : Promise.resolve({ success: true, skipped: true }),
                 findSimilarRecentAnalysis(clerkUserId, videoHash, durationSeconds).catch(err => {
-                  console.warn('Error checking for similar analysis:', err.message);
+                  logger.warn({ error: err.message, clerkUserId }, '[Background] Error checking for similar analysis');
                   return null;
                 })
               ]);
               
               if (savedMetrics) {
-                console.log('[analyze-video] Communication metrics saved successfully, journeyId:', savedMetrics.journey_id);
+                logger.info({ journeyId: savedMetrics.journey_id, analysisId, userId }, '[Background] Communication metrics saved successfully');
               } else {
-                console.error('[analyze-video] Failed to save communication metrics');
+                logger.error({ analysisId, userId }, '[Background] Failed to save communication metrics');
               }
               
               if (insightsResult.success && !insightsResult.skipped) {
-                console.log('Communication insights saved');
+                logger.info({ analysisId, userId }, '[Background] Communication insights saved');
               }
               
               // Score variance detection for similar videos
@@ -1034,9 +1099,15 @@ function estimateAnalysisCostUsd(durationSeconds) {
                 
                 // Log warning if score differs by more than 5 points for similar video
                 if (scoreDiff > 5) {
-                  console.warn(`[Score Variance Alert] Similar video detected with ${scoreDiff.toFixed(1)} point difference`);
-                  console.warn(`[Score Variance Alert] Previous: ${previousScore.toFixed(1)}, Current: ${currentScore.toFixed(1)}`);
-                  console.warn(`[Score Variance Alert] Previous analysis: ${similarAnalysis.analysis.id} (${similarAnalysis.analysis.video_filename})`);
+                  logger.warn({ 
+                    scoreDiff: scoreDiff.toFixed(1), 
+                    previousScore, 
+                    currentScore, 
+                    previousAnalysisId: similarAnalysis.analysis.id,
+                    videoFilename: similarAnalysis.analysis.video_filename,
+                    analysisId,
+                    userId
+                  }, '[Score Variance Alert] Similar video detected with significant score difference');
                   
                   // Log to analysis quality log (don't await - fire and forget)
                   logAnalysisQuality(analysisId, userId, [{
@@ -1046,7 +1117,7 @@ function estimateAnalysisCostUsd(durationSeconds) {
                     currentScore,
                     difference: scoreDiff,
                     previousAnalysisId: similarAnalysis.analysis.id
-                  }]).catch(err => console.warn('Failed to log score variance:', err));
+                  }]).catch(err => logger.warn({ error: err.message, analysisId }, '[Background] Failed to log score variance'));
                 }
               }
               
@@ -1056,7 +1127,7 @@ function estimateAnalysisCostUsd(durationSeconds) {
               try {
                 const oldActionItems = await getUserActionItems(clerkUserId, 'pending', journeyId);
                 if (oldActionItems && oldActionItems.length > 0) {
-                  console.log(`[analyze-video] Marking ${oldActionItems.length} old pending action items as completed (new analysis finished)`);
+                  logger.info({ count: oldActionItems.length, analysisId, userId }, '[Background] Marking old pending action items as completed');
                   // Parallelize updates instead of sequential loop
                   const updatePromises = oldActionItems
                     .filter(oldItem => oldItem.analysis_id && oldItem.analysis_id !== analysisId)
@@ -1064,7 +1135,7 @@ function estimateAnalysisCostUsd(durationSeconds) {
                   await Promise.all(updatePromises);
                 }
               } catch (archiveError) {
-                console.error('Error archiving old action items:', archiveError);
+                logger.error({ error: archiveError.message, stack: archiveError.stack, analysisId, userId }, '[Background] Error archiving old action items');
                 // Don't fail the request if archiving fails
               }
 
@@ -1087,7 +1158,7 @@ function estimateAnalysisCostUsd(durationSeconds) {
               if (resultMarkdown) {
                 try {
                   parsedActionItems = parseActionItems(resultMarkdown);
-                  console.log(`[analyze-video] Parsed ${parsedActionItems.length} action items from analysis`);
+                  logger.info({ count: parsedActionItems.length, analysisId }, '[Background] Parsed action items from analysis');
                   if (parsedActionItems.length > 0) {
                     // Separate tips from other items (quick wins, recording notes)
                     const tips = parsedActionItems.filter(item => 
@@ -1097,14 +1168,15 @@ function estimateAnalysisCostUsd(durationSeconds) {
                       item.item_type && item.item_type !== 'tip'
                     );
                     
-                    console.log('[analyze-video] Action items found:', {
+                    logger.info({ 
                       tips: tips.length,
                       communication: tips.filter(t => t.tip_section === 'communication' || t.section === 'communication').length,
                       bodyLanguage: tips.filter(t => t.tip_section === 'bodyLanguage' || t.section === 'body-language').length,
                       other: otherItems.length,
-                      allTitles: parsedActionItems.map(a => a.title)
-                    });
-                    console.log('[analyze-video] Saving action items with journeyId:', journeyId);
+                      analysisId,
+                      journeyId
+                    }, '[Background] Action items found');
+                    logger.info({ journeyId, analysisId }, '[Background] Saving action items');
                     
                     // Save ALL tips (no limit), but limit other items
                     const tipsPromise = tips.length > 0 ? saveActionItems(userId, analysisId, tips, { 
@@ -1126,14 +1198,14 @@ function estimateAnalysisCostUsd(durationSeconds) {
                     
                     actionItemsPromise = Promise.all([tipsPromise, otherItemsPromise]).then(([tips, others]) => [...tips, ...others]);
                   } else {
-                    console.log('No action items found in analysis result');
+                    logger.info({ analysisId }, '[Background] No action items found in analysis result');
                   }
                 } catch (actionItemsError) {
-                  console.error('Error parsing action items:', actionItemsError);
+                  logger.error({ error: actionItemsError.message, stack: actionItemsError.stack, analysisId }, '[Background] Error parsing action items');
                   actionItemsPromise = Promise.resolve([]);
                 }
               } else {
-                console.log('No resultMarkdown available to parse action items from');
+                logger.info({ analysisId }, '[Background] No resultMarkdown available to parse action items from');
               }
               
               // Wait for both action items and achievements in parallel
@@ -1144,7 +1216,7 @@ function estimateAnalysisCostUsd(durationSeconds) {
               
               unlockedAchievements = achievementsResult || [];
               if (unlockedAchievements.length > 0) {
-                console.log(`Unlocked ${unlockedAchievements.length} achievements`);
+                logger.info({ count: unlockedAchievements.length, analysisId, userId }, '[Background] Unlocked achievements');
               }
               
               // Generate practice prompts in background (fire-and-forget) - only for tips
@@ -1164,16 +1236,16 @@ function estimateAnalysisCostUsd(durationSeconds) {
                     focusMetricKey,
                     backgroundGeneration: true // Flag to indicate this is background work
                   }).catch(err => {
-                    console.error('Background practice prompt generation failed:', err);
+                    logger.error({ error: err.message, stack: err.stack, analysisId, userId }, '[Background] Practice prompt generation failed');
                   });
                 }
                 
                 const tipsCount = savedActionItems.filter(item => 
                   item.item_type === 'tip' || !item.item_type
                 ).length;
-                console.log(`[Background] Saved ${savedActionItems.length} action items to database (${tipsCount} tips)`);
+                logger.info({ total: savedActionItems.length, tips: tipsCount, analysisId, userId }, '[Background] Saved action items to database');
                 if (savedActionItems.length === 0 && parsedActionItems.length > 0) {
-                  console.warn('[Background] No action items were saved - possible duplicates or errors');
+                  logger.warn({ parsedCount: parsedActionItems.length, analysisId }, '[Background] No action items were saved - possible duplicates or errors');
                 }
               }
 
@@ -1189,17 +1261,17 @@ function estimateAnalysisCostUsd(durationSeconds) {
                 if (practiceScore >= 7) {
                   try {
                     await updateActionItemStatus(clerkUserId, recordingPromptPayload.actionItemId, 'completed');
-                    console.log(`Action item ${recordingPromptPayload.actionItemId} completed via prompt focus score (${practiceScore})`);
+                    logger.info({ actionItemId: recordingPromptPayload.actionItemId, practiceScore, analysisId }, '[Background] Action item completed via prompt focus score');
                     completedPracticePrompts.push({
                       actionItemId: recordingPromptPayload.actionItemId,
                       title: recordingPromptPayload.title,
                       score: practiceScore
                     });
                   } catch (completionErr) {
-                    console.error('Failed to update action item status after prompt evaluation:', completionErr);
+                    logger.error({ error: completionErr.message, actionItemId: recordingPromptPayload.actionItemId, analysisId }, '[Background] Failed to update action item status after prompt evaluation');
                   }
                   } else {
-                    console.log(`Practice prompt score below completion threshold (${practiceScore}) for action item ${recordingPromptPayload.actionItemId}`);
+                    logger.info({ actionItemId: recordingPromptPayload.actionItemId, practiceScore }, '[Background] Practice prompt score below completion threshold');
                   }
                 }
               }
@@ -1232,19 +1304,19 @@ function estimateAnalysisCostUsd(durationSeconds) {
                       }, {
                         onConflict: 'user_id,module_id'
                       });
-                    console.log('Module 1 baseline saved successfully');
+                    logger.info({ userId, analysisId, moduleId: moduleData.id }, '[Background] Module 1 baseline saved successfully');
                   }
                 } catch (baselineError) {
-                  console.error('Failed to save Module 1 baseline:', baselineError);
+                  logger.error({ error: baselineError.message, stack: baselineError.stack, userId, analysisId }, '[Background] Failed to save Module 1 baseline');
                   // Don't fail the request if baseline save fails
                 }
               }
               
               // Update baseline (async, don't wait)
               calculateUserBaseline(clerkUserId, 2).then(() => {
-                console.log('User baseline updated');
+                logger.info({ clerkUserId }, '[Background] User baseline updated');
               }).catch(err => {
-                console.error('Failed to update baseline:', err);
+                logger.error({ error: err.message, clerkUserId }, '[Background] Failed to update baseline');
               });
               
               // Trigger global stats calculation (async, don't wait - runs in background)
@@ -1252,13 +1324,13 @@ function estimateAnalysisCostUsd(durationSeconds) {
               // For now, we'll run it less frequently to avoid performance issues
               if (Math.random() < 0.1) { // 10% chance to recalculate
                 calculateGlobalStats().then(() => {
-                  console.log('Global stats updated');
+                  logger.info({}, '[Background] Global stats updated');
                 }).catch(err => {
-                  console.error('Failed to update global stats:', err);
+                  logger.error({ error: err.message }, '[Background] Failed to update global stats');
                 });
               }
             } catch (metricsError) {
-              console.error('Failed to save metrics/insights:', metricsError);
+              logger.error({ error: metricsError.message, stack: metricsError.stack, userId, analysisId }, '[Background] Failed to save metrics/insights');
               // Don't fail the request if metrics save fails
             }
           }
@@ -1266,51 +1338,54 @@ function estimateAnalysisCostUsd(durationSeconds) {
           // Mark free analysis as used if this is their first one
           try {
             await markFreeAnalysisUsed(clerkUserId);
-            console.log('Free analysis marked as used');
+            logger.info({ clerkUserId }, '[Background] Free analysis marked as used');
           } catch (markError) {
-            console.error('Failed to mark free analysis as used:', markError);
+            logger.error({ error: markError.message, clerkUserId }, '[Background] Failed to mark free analysis as used');
             // Don't fail the request if this fails
           }
         } else {
-          console.warn('saveAnalysis returned null - analysis may not have been saved');
+          logger.warn({ userId }, '[Background] saveAnalysis returned null - analysis may not have been saved');
         }
       } catch (dbError) {
-        console.error('Failed to save analysis to database:', dbError);
-        console.error('Error details:', {
-          message: dbError.message,
-          stack: dbError.stack,
-          userId: userId,
-          clerkUserId: clerkUserId
-        });
+        logger.error({ 
+          error: dbError.message, 
+          stack: dbError.stack, 
+          userId, 
+          clerkUserId 
+        }, '[Background] Failed to save analysis to database');
         // Don't fail the request if DB save fails - user still gets their analysis
         }
       } else {
         if (!clerkUserId) {
-          console.warn('Cannot save analysis: No Clerk user ID provided');
+          logger.warn({}, '[Background] Cannot save analysis: No Clerk user ID provided');
         }
         if (!userId) {
-          console.warn('Cannot save analysis: User ID not available');
+          logger.warn({}, '[Background] Cannot save analysis: User ID not available');
         }
       }
       
-      console.log('[Background] Post-processing completed for analysis');
+      logger.info({ analysisId, userId }, '[Background] Post-processing completed for analysis');
     } catch (backgroundError) {
-      console.error('[Background] Error in post-processing:', backgroundError);
-      console.error('[Background] Error stack:', backgroundError?.stack);
+      logger.error({ 
+        error: backgroundError?.message, 
+        stack: backgroundError?.stack 
+      }, '[Background] Error in post-processing');
       // Don't fail - analysis was already returned to user
       // Log error but don't throw - this is fire-and-forget
     }
     })().catch(err => {
       // Catch any unhandled promise rejections in the background function
-      console.error('[Background] Unhandled error in background processing:', err);
-      console.error('[Background] Error stack:', err?.stack);
+      logger.error({ 
+        error: err?.message, 
+        stack: err?.stack 
+      }, '[Background] Unhandled error in background processing');
     });
     
     // Return response immediately (before post-processing completes)
     return res.json(responseData);
   } catch (err) {
     // Basic error logging
-    console.error('Analyze error:', err?.message || err);
+    req.logger.error({ error: err?.message || err, stack: err?.stack }, 'Analyze error');
     return res.status(500).json({ error: 'Failed to analyze video' });
   }
 });
@@ -1334,7 +1409,7 @@ app.get('/api/analyses', async (req, res) => {
     const analyses = await getUserAnalyses(clerkUserId, 50, journeyId);
     return res.json({ analyses });
   } catch (err) {
-    console.error('Error fetching analyses:', err);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId }, 'Error fetching analyses');
     return res.status(500).json({ error: 'Failed to fetch analyses' });
   }
 });
@@ -1351,7 +1426,7 @@ app.get('/api/practice-commitment/status', async (req, res) => {
     const status = await checkPracticeCommitmentStatus(clerkUserId, journeyId);
     return res.json(status);
   } catch (err) {
-    console.error('Error checking practice commitment status:', err);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId, journeyId }, 'Error checking practice commitment status');
     return res.status(500).json({ error: 'Failed to check practice commitment status' });
   }
 });
@@ -1369,7 +1444,7 @@ app.delete('/api/analyses/:id', async (req, res) => {
     }
     return res.json({ success: true });
   } catch (err) {
-    console.error('Error deleting analysis:', err);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId, analysisId: req.params.id }, 'Error deleting analysis');
     return res.status(500).json({ error: 'Failed to delete analysis' });
   }
 });
@@ -1393,7 +1468,7 @@ app.get('/api/analyses/:id', async (req, res) => {
       try {
         videoUrl = await getVideoUrl(analysis.s3_key, 3600); // 1 hour expiry
       } catch (s3Error) {
-        console.error('Failed to generate video URL:', s3Error);
+        req.logger.error({ error: s3Error.message, s3Key: analysis.s3_key, analysisId: req.params.id }, 'Failed to generate video URL');
       }
     }
 
@@ -1404,7 +1479,7 @@ app.get('/api/analyses/:id', async (req, res) => {
       }
     });
   } catch (err) {
-    console.error('Error fetching analysis:', err);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId, analysisId: req.params.id }, 'Error fetching analysis');
     return res.status(500).json({ error: 'Failed to fetch analysis' });
   }
 });
@@ -1436,7 +1511,7 @@ app.get('/api/analyses/:id/video-url', async (req, res) => {
 
     return res.json({ video_url: videoUrl });
   } catch (err) {
-    console.error('Error generating video URL:', err);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId, analysisId: req.params.id }, 'Error generating video URL');
     return res.status(500).json({ error: 'Failed to generate video URL' });
   }
 });
@@ -1471,17 +1546,17 @@ app.post('/api/user/onboarding', async (req, res) => {
             userEmail,
             userName
           }).catch((emailError) => {
-            console.warn('Failed to send welcome email:', emailError.message);
+            req.logger.warn({ error: emailError.message, userId, userEmail }, 'Failed to send welcome email');
           });
         }
       } catch (emailError) {
-        console.warn('Error preparing welcome email:', emailError.message);
+        req.logger.warn({ error: emailError.message, clerkUserId }, 'Error preparing welcome email');
       }
     }
     
     return res.json({ success: true });
   } catch (err) {
-    console.error('Error saving onboarding:', err);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId }, 'Error saving onboarding');
     return res.status(500).json({ error: 'Failed to save onboarding answers' });
   }
 });
@@ -1497,7 +1572,7 @@ app.get('/api/journeys', async (req, res) => {
     const journeys = await getUserJourneys(clerkUserId);
     return res.json({ journeys });
   } catch (err) {
-    console.error('Error fetching journeys:', err);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId }, 'Error fetching journeys');
     return res.status(500).json({ error: 'Failed to fetch journeys' });
   }
 });
@@ -1550,7 +1625,7 @@ app.post('/api/journeys', async (req, res) => {
 
     return res.json({ journey });
   } catch (err) {
-    console.error('Error creating journey:', err);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId }, 'Error creating journey');
     return res.status(500).json({ error: 'Failed to create journey' });
   }
 });
@@ -1613,7 +1688,7 @@ app.patch('/api/journeys/:id', async (req, res) => {
 
     return res.json({ journey });
   } catch (err) {
-    console.error('Error updating journey:', err);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId, journeyId: req.params.id }, 'Error updating journey');
     return res.status(500).json({ error: 'Failed to update journey' });
   }
 });
@@ -1643,13 +1718,13 @@ app.put('/api/user/preferences', async (req, res) => {
       .eq('id', userId);
 
     if (error) {
-      console.error('Error updating user preferences:', error);
+      req.logger.error({ error: error.message, clerkUserId }, 'Error updating user preferences');
       return res.status(500).json({ error: 'Failed to update preferences' });
     }
 
     return res.json({ success: true });
   } catch (err) {
-    console.error('Error updating user preferences:', err);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId }, 'Error updating user preferences');
     return res.status(500).json({ error: 'Failed to update preferences' });
   }
 });
@@ -1675,7 +1750,7 @@ app.get('/api/user/profile', async (req, res) => {
         // Fetch the newly created user
         userData = await getUserWithOnboarding(clerkUserId);
       } catch (createError) {
-        console.error('Error creating user:', createError);
+        req.logger.error({ error: createError.message, stack: createError.stack, clerkUserId }, 'Error creating user');
         return res.status(500).json({ error: 'Failed to create user' });
       }
     } else if (userProfile) {
@@ -1692,7 +1767,7 @@ app.get('/api/user/profile', async (req, res) => {
 
     return res.json({ user: userData });
   } catch (err) {
-    console.error('Error fetching user profile:', err);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId }, 'Error fetching user profile');
     return res.status(500).json({ error: 'Failed to fetch user profile' });
   }
 });
@@ -1713,7 +1788,7 @@ app.get('/api/communication/progress', async (req, res) => {
       }
     }
 
-    console.log('[api/communication/progress] Fetching progress data for journeyId:', journeyId);
+    req.logger.info({ journeyId, clerkUserId }, '[api/communication/progress] Fetching progress data');
     
     const [profile, metrics, insights, achievements, actionItems] = await Promise.all([
       getUserCommunicationProfile(clerkUserId, journeyId),
@@ -1723,13 +1798,15 @@ app.get('/api/communication/progress', async (req, res) => {
       getUserActionItems(clerkUserId, 'pending', journeyId) // Get pending action items for To-Do List
     ]);
 
-    console.log('[api/communication/progress] Results:', {
+    req.logger.info({ 
       profileHasLatestMetrics: !!profile?.latest_metrics,
       metricsCount: metrics?.length || 0,
       insightsCount: insights?.length || 0,
       achievementsCount: achievements?.length || 0,
-      actionItemsCount: actionItems?.length || 0
-    });
+      actionItemsCount: actionItems?.length || 0,
+      journeyId,
+      clerkUserId
+    }, '[api/communication/progress] Results');
 
     return res.json({
       profile,
@@ -1739,8 +1816,7 @@ app.get('/api/communication/progress', async (req, res) => {
       actionItems
     });
   } catch (err) {
-    console.error('[api/communication/progress] Error fetching communication progress:', err);
-    console.error('[api/communication/progress] Error stack:', err.stack);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId, journeyId }, '[api/communication/progress] Error fetching communication progress');
     return res.status(500).json({ error: 'Failed to fetch communication progress' });
   }
 });
@@ -1775,7 +1851,7 @@ app.get('/api/debug/metrics', async (req, res) => {
       error: error?.message
     });
   } catch (err) {
-    console.error('[api/debug/metrics] Error:', err);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId }, '[api/debug/metrics] Error');
     return res.status(500).json({ error: err.message });
   }
 });
@@ -1799,7 +1875,7 @@ app.get('/api/communication/metrics', async (req, res) => {
     const metrics = await getUserCommunicationMetrics(clerkUserId, limit, journeyId);
     return res.json({ metrics });
   } catch (err) {
-    console.error('Error fetching communication metrics:', err);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId, journeyId }, 'Error fetching communication metrics');
     return res.status(500).json({ error: 'Failed to fetch communication metrics' });
   }
 });
@@ -1823,7 +1899,7 @@ app.get('/api/communication/insights', async (req, res) => {
     const insights = await getUserCommunicationInsights(clerkUserId, limit, journeyId);
     return res.json({ insights });
   } catch (err) {
-    console.error('Error fetching communication insights:', err);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId, journeyId }, 'Error fetching communication insights');
     return res.status(500).json({ error: 'Failed to fetch communication insights' });
   }
 });
@@ -1857,10 +1933,10 @@ app.post('/api/practice-missions/generate', async (req, res) => {
       if (existingMissions && existingMissions.missions && Array.isArray(existingMissions.missions) && existingMissions.missions.length > 0) {
         // Check if missions are stale (score changed by ±1.0 points or more)
         if (existingMissions.is_stale) {
-          console.log(`[api/practice-missions] Missions for ${parameterKey} are stale (score changed by ${existingMissions.score_diff?.toFixed(1)} points), regenerating...`);
+          req.logger.info({ parameterKey, scoreDiff: existingMissions.score_diff?.toFixed(1), clerkUserId }, '[api/practice-missions] Missions are stale, regenerating');
           // Fall through to regeneration logic below
         } else {
-          console.log(`[api/practice-missions] Returning existing missions for ${parameterKey} from database`);
+          req.logger.info({ parameterKey, clerkUserId }, '[api/practice-missions] Returning existing missions from database');
           return res.json({ 
             missions: existingMissions.missions,
             fromCache: true,
@@ -1892,7 +1968,7 @@ app.post('/api/practice-missions/generate', async (req, res) => {
       .filter(m => m.parameter_key === parameterKey)
       .flatMap(m => m.missions || []);
 
-    console.log(`[api/practice-missions] Generating new missions for ${parameterKey} (score: ${currentScore})`);
+    req.logger.info({ parameterKey, currentScore, clerkUserId }, '[api/practice-missions] Generating new missions');
 
     const missions = await generatePracticeMissions({
       parameterKey,
@@ -1917,7 +1993,7 @@ app.post('/api/practice-missions/generate', async (req, res) => {
         latestAnalysisId = analyses[0].id;
       }
     } catch (err) {
-      console.warn('[api/practice-missions] Could not fetch latest analysis ID:', err);
+      req.logger.warn({ error: err.message, clerkUserId }, '[api/practice-missions] Could not fetch latest analysis ID');
     }
 
     // Save missions to database and get the ID
@@ -1937,15 +2013,15 @@ app.post('/api/practice-missions/generate', async (req, res) => {
         analysisId: latestAnalysisId
       });
       savedMissionId = savedMission?.id || null;
-      console.log(`[api/practice-missions] Saved ${missions.length} missions to database (ID: ${savedMissionId})`);
+      req.logger.info({ missionCount: missions.length, savedMissionId, parameterKey, clerkUserId }, '[api/practice-missions] Saved missions to database');
     } catch (saveError) {
-      console.error('[api/practice-missions] Failed to save missions to database:', saveError);
+      req.logger.error({ error: saveError.message, stack: saveError.stack, parameterKey, clerkUserId }, '[api/practice-missions] Failed to save missions to database');
       // Try to get existing mission ID as fallback
       try {
         const existing = await getPracticeMissions(clerkUserId, parameterKey, journeyId);
         savedMissionId = existing?.id || null;
       } catch (err) {
-        console.warn('[api/practice-missions] Could not fetch existing mission:', err);
+        req.logger.warn({ error: err.message, parameterKey, clerkUserId }, '[api/practice-missions] Could not fetch existing mission');
       }
     }
 
@@ -1956,7 +2032,7 @@ app.post('/api/practice-missions/generate', async (req, res) => {
       id: savedMissionId
     });
   } catch (err) {
-    console.error('[api/practice-missions] Error generating practice missions:', err);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId, parameterKey }, '[api/practice-missions] Error generating practice missions');
     return res.status(500).json({ error: 'Failed to generate practice missions' });
   }
 });
@@ -1990,7 +2066,7 @@ app.get('/api/practice-missions', async (req, res) => {
 
     return res.json({ missions: formattedMissions });
   } catch (err) {
-    console.error('[api/practice-missions] Error fetching practice missions:', err);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId, journeyId }, '[api/practice-missions] Error fetching practice missions');
     return res.status(500).json({ error: 'Failed to fetch practice missions' });
   }
 });
@@ -2024,7 +2100,7 @@ app.post('/api/practice-missions/complete', async (req, res) => {
 
     return res.json({ completion, success: true });
   } catch (err) {
-    console.error('[api/practice-missions/complete] Error completing mission:', err);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId }, '[api/practice-missions/complete] Error completing mission');
     return res.status(500).json({ error: 'Failed to complete mission' });
   }
 });
@@ -2047,7 +2123,7 @@ app.post('/api/practice-missions/uncomplete', async (req, res) => {
 
     return res.json({ success: true });
   } catch (err) {
-    console.error('[api/practice-missions/uncomplete] Error uncompleting mission:', err);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId }, '[api/practice-missions/uncomplete] Error uncompleting mission');
     return res.status(500).json({ error: 'Failed to uncomplete mission' });
   }
 });
@@ -2067,7 +2143,7 @@ app.get('/api/practice-missions/completions', async (req, res) => {
 
     return res.json({ completions });
   } catch (err) {
-    console.error('[api/practice-missions/completions] Error fetching completions:', err);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId }, '[api/practice-missions/completions] Error fetching completions');
     return res.status(500).json({ error: 'Failed to fetch mission completions' });
   }
 });
@@ -2086,7 +2162,7 @@ app.get('/api/practice-missions/stats', async (req, res) => {
 
     return res.json({ stats });
   } catch (err) {
-    console.error('[api/practice-missions/stats] Error fetching stats:', err);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId }, '[api/practice-missions/stats] Error fetching stats');
     return res.status(500).json({ error: 'Failed to fetch completion statistics' });
   }
 });
@@ -2112,7 +2188,7 @@ app.get('/api/action-items', async (req, res) => {
     const actionItems = await getUserActionItems(clerkUserId, status, journeyId, analysisId);
     return res.json({ actionItems });
   } catch (err) {
-    console.error('Error fetching action items:', err);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId, status, journeyId }, 'Error fetching action items');
     return res.status(500).json({ error: 'Failed to fetch action items' });
   }
 });
@@ -2139,7 +2215,7 @@ app.patch('/api/action-items/:id/status', async (req, res) => {
 
     return res.json({ actionItem: updated });
   } catch (err) {
-    console.error('Error updating action item status:', err);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId, actionItemId: req.params.id, status: req.body.status }, 'Error updating action item status');
     return res.status(500).json({ error: 'Failed to update action item status' });
   }
 });
@@ -2152,16 +2228,17 @@ app.post('/api/reflections', async (req, res) => {
     }
 
     const { confidenceRating, mood, notes, analysisId, journeyId } = req.body || {};
-    console.log('[api/reflections] Received reflection data:', {
-      confidenceRating,
-      mood,
-      analysisId,
-      journeyId,
-      hasNotes: !!notes
-    });
+    req.logger.info({ 
+      confidenceRating, 
+      mood, 
+      analysisId, 
+      journeyId, 
+      hasNotes: !!notes,
+      clerkUserId 
+    }, '[api/reflections] Received reflection data');
 
     if (!confidenceRating || Number.isNaN(Number(confidenceRating))) {
-      console.error('[api/reflections] Invalid confidenceRating:', confidenceRating);
+      req.logger.warn({ confidenceRating, clerkUserId }, '[api/reflections] Invalid confidenceRating');
       return res.status(400).json({ error: 'confidenceRating (1-5) is required' });
     }
 
@@ -2174,15 +2251,14 @@ app.post('/api/reflections', async (req, res) => {
     });
 
     if (!payload) {
-      console.error('[api/reflections] saveSelfReflection returned null');
+      req.logger.error({ clerkUserId, analysisId }, '[api/reflections] saveSelfReflection returned null');
       return res.status(500).json({ error: 'Failed to save reflection' });
     }
 
-    console.log('[api/reflections] Successfully saved reflection:', payload.id);
+    req.logger.info({ reflectionId: payload.id, clerkUserId, analysisId }, '[api/reflections] Successfully saved reflection');
     return res.json({ reflection: payload });
   } catch (err) {
-    console.error('[api/reflections] Error saving reflection:', err);
-    console.error('[api/reflections] Error stack:', err.stack);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId, analysisId }, '[api/reflections] Error saving reflection');
     return res.status(500).json({ error: 'Failed to save reflection' });
   }
 });
@@ -2206,7 +2282,7 @@ app.get('/api/reflections', async (req, res) => {
     const reflections = await getSelfReflections(clerkUserId, limit, journeyId);
     return res.json({ reflections });
   } catch (err) {
-    console.error('Error fetching reflections:', err);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId, journeyId }, 'Error fetching reflections');
     return res.status(500).json({ error: 'Failed to fetch reflections' });
   }
 });
@@ -2222,7 +2298,7 @@ app.get('/api/communication/achievements', async (req, res) => {
     const achievements = await getUserAchievements(clerkUserId);
     return res.json({ achievements });
   } catch (err) {
-    console.error('Error fetching achievements:', err);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId }, 'Error fetching achievements');
     return res.status(500).json({ error: 'Failed to fetch achievements' });
   }
 });
@@ -2252,7 +2328,7 @@ app.get('/api/user/email-preferences', async (req, res) => {
     
     return res.json({ preferences: preferences || { email_notifications_enabled: true, email_marketing_enabled: true } });
   } catch (err) {
-    console.error('Error fetching email preferences:', err);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId }, 'Error fetching email preferences');
     return res.status(500).json({ error: 'Failed to fetch email preferences' });
   }
 });
@@ -2273,7 +2349,7 @@ app.put('/api/user/email-preferences', async (req, res) => {
     
     return res.json({ preferences: updated });
   } catch (err) {
-    console.error('Error updating email preferences:', err);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId }, 'Error updating email preferences');
     return res.status(500).json({ error: 'Failed to update email preferences' });
   }
 });
@@ -2290,7 +2366,7 @@ app.get('/api/user/email-history', async (req, res) => {
     
     return res.json({ emails: history });
   } catch (err) {
-    console.error('Error fetching email history:', err);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId }, 'Error fetching email history');
     return res.status(500).json({ error: 'Failed to fetch email history' });
   }
 });
@@ -2307,7 +2383,7 @@ app.get('/api/user/language-preference', async (req, res) => {
     
     return res.json({ languagePreference: languagePreference || 'en' });
   } catch (err) {
-    console.error('Error fetching language preference:', err);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId }, 'Error fetching language preference');
     return res.status(500).json({ error: 'Failed to fetch language preference' });
   }
 });
@@ -2329,12 +2405,142 @@ app.put('/api/user/language-preference', async (req, res) => {
     
     return res.json({ languagePreference: updated.language_preference });
   } catch (err) {
-    console.error('Error updating language preference:', err);
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId, languagePreference: req.body.languagePreference }, 'Error updating language preference');
     return res.status(500).json({ error: 'Failed to update language preference' });
   }
 });
 
+// GDPR: Export user data
+app.get('/api/user/data-export', async (req, res) => {
+  try {
+    const clerkUserId = getClerkUserId(req);
+    if (!clerkUserId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const userId = await getOrCreateUser(clerkUserId);
+    
+    // Get all user data
+    const userData = await getUserWithOnboarding(clerkUserId);
+    const analyses = await getUserAnalyses(clerkUserId, 1000);
+    const metrics = await getUserCommunicationMetrics(clerkUserId);
+    const insights = await getUserCommunicationInsights(clerkUserId, 1000);
+    const actionItems = await getUserActionItems(clerkUserId);
+    const reflections = await getSelfReflections(clerkUserId);
+    const journeys = await getUserJourneys(clerkUserId);
+    const achievements = await getUserAchievements(clerkUserId);
+    
+    const exportData = {
+      user: userData,
+      analyses: analyses || [],
+      metrics: metrics || [],
+      insights: insights || [],
+      actionItems: actionItems || [],
+      reflections: reflections || [],
+      journeys: journeys || [],
+      achievements: achievements || [],
+      exportedAt: new Date().toISOString()
+    };
+    
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="bodai-data-export-${Date.now()}.json"`);
+    return res.json(exportData);
+  } catch (err) {
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId }, 'Error exporting user data');
+    return res.status(500).json({ error: 'Failed to export user data' });
+  }
+});
+
+// GDPR: Delete all user data
+app.delete('/api/user/data', async (req, res) => {
+  try {
+    const clerkUserId = getClerkUserId(req);
+    if (!clerkUserId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const userId = await getOrCreateUser(clerkUserId);
+    
+    // Get all analyses to delete S3 videos
+    const analyses = await getUserAnalyses(clerkUserId, 10000);
+    
+    // Delete videos from S3
+    if (analyses && analyses.length > 0) {
+      const { deleteVideoFromS3 } = await import('./services/s3Service.js');
+      for (const analysis of analyses) {
+        if (analysis.s3_key) {
+          try {
+            await deleteVideoFromS3(analysis.s3_key);
+          } catch (err) {
+            req.logger.error({ error: err.message, s3Key: analysis.s3_key, clerkUserId }, 'Failed to delete S3 video');
+            // Continue with deletion even if S3 delete fails
+          }
+        }
+      }
+    }
+    
+    // Delete all user data from database
+    // Note: CASCADE deletes will handle related records
+    if (supabase) {
+      // Delete user (CASCADE will delete all related data)
+      const { error } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', userId);
+      
+      if (error) {
+        req.logger.error({ error: error.message, userId, clerkUserId }, 'Failed to delete user');
+        return res.status(500).json({ error: 'Failed to delete user data' });
+      }
+    }
+    
+    return res.json({ 
+      success: true,
+      message: 'All user data has been deleted',
+      deletedAt: new Date().toISOString()
+    });
+  } catch (err) {
+    req.logger.error({ error: err.message, stack: err.stack, clerkUserId }, 'Error deleting user data');
+    return res.status(500).json({ error: 'Failed to delete user data' });
+  }
+});
+
+// Sentry error handler - must be before custom error handler
+if (process.env.SENTRY_DSN) {
+  app.use(Sentry.Handlers.errorHandler());
+}
+
+// Error handler middleware - must be last (after all routes)
+app.use((err, req, res, next) => {
+  const requestId = req.requestId || 'unknown';
+  const loggerInstance = req.logger || logger;
+  
+  // Set user context for Sentry if available
+  if (process.env.SENTRY_DSN && req.headers['x-clerk-user-id']) {
+    Sentry.setUser({ id: req.headers['x-clerk-user-id'] });
+  }
+  
+  // Capture exception in Sentry
+  if (process.env.SENTRY_DSN) {
+    Sentry.captureException(err);
+  }
+  
+  loggerInstance.error({ 
+    error: err.message, 
+    stack: err.stack, 
+    requestId,
+    path: req.path,
+    method: req.method,
+    clerkUserId: req.headers['x-clerk-user-id'] || null
+  }, 'Unhandled error');
+  
+  res.status(err.status || 500).json({ 
+    error: err.message || 'Internal server error',
+    requestId 
+  });
+});
+
 app.listen(port, () => {
-  console.log(`Server listening on port ${port}`);
+  logger.info({ port, env: process.env.NODE_ENV || 'development' }, 'Server listening');
 });
 

@@ -3,27 +3,34 @@ import { SignUp } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle } from 'lucide-react';
+import { getClerkLocalization } from '../utils/clerkLocalization';
 import './AuthPages.css';
 
 export default function SignUpPage() {
-  const { t } = useTranslation();
-  // Memoize Clerk component to prevent re-mounting and duplicate verification codes
-  // Stable key ensures Clerk doesn't re-initialize when parent re-renders
+  const { t, i18n } = useTranslation();
+  // Memoize Clerk component but allow re-mounting when language changes
+  // Key includes language to force re-mount when language changes
   const clerkSignUp = useMemo(() => (
     <SignUp 
-      key="clerk-sign-up-stable" // Stable key prevents re-mounting
+      key={`clerk-sign-up-${i18n.language}`} // Include language in key to force re-mount on language change
       routing="path" 
       path="/sign-up"
       signInUrl="/sign-in"
       afterSignUpUrl="/onboarding"
+      localization={getClerkLocalization(i18n.language)}
       appearance={{
         elements: {
           rootBox: 'authPage__clerkRoot',
           card: 'authPage__clerkCard',
+          footer: { display: 'none' },
+          footerAction: { display: 'none' },
+          footerActionText: { display: 'none' },
+          footerActionLink: { display: 'none' },
+          headerSubtitle: { display: 'none' },
         }
       }}
     />
-  ), []); // Empty deps - component should only mount once
+  ), [i18n.language]); // Re-mount when language changes
 
   return (
     <div className="authPage">

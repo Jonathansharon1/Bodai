@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Users, CheckCircle, AlertCircle, ArrowRight, ArrowLeft, Send, Briefcase, Building2, Mail, User } from 'lucide-react';
+import { Users, CheckCircle, AlertCircle, ArrowRight, ArrowLeft, Send } from 'lucide-react';
 import './TeamsContactPage.css';
 
-const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export default function TeamsContactPage() {
   const navigate = useNavigate();
-  const { t, i18n } = useTranslation();
-  const isRTL = i18n.dir() === 'rtl';
+  const { t } = useTranslation();
 
   const [form, setForm] = useState({
     name: '',

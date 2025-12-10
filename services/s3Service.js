@@ -3,6 +3,7 @@ import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } fro
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'crypto';
 import path from 'path';
+import logger from './logger.js';
 
 // Initialize S3 client
 const s3Client = new S3Client({
@@ -73,7 +74,7 @@ export const uploadVideoToS3 = async (videoBuffer, originalFilename, mimeType, u
       region: process.env.AWS_REGION || 'us-east-1',
     };
   } catch (error) {
-    console.error('Error uploading video to S3:', error);
+    logger.error({ error: error.message, stack: error.stack, key, userId }, '[S3] Error uploading video');
     throw new Error(`Failed to upload video to S3: ${error.message}`);
   }
 };
@@ -98,7 +99,7 @@ export const getVideoUrl = async (s3Key, expiresIn = 3600) => {
     const url = await getSignedUrl(s3Client, command, { expiresIn });
     return url;
   } catch (error) {
-    console.error('Error generating pre-signed URL:', error);
+    logger.error({ error: error.message, stack: error.stack, s3Key }, '[S3] Error generating pre-signed URL');
     return null;
   }
 };
@@ -122,7 +123,7 @@ export const deleteVideoFromS3 = async (s3Key) => {
     await s3Client.send(command);
     return true;
   } catch (error) {
-    console.error('Error deleting video from S3:', error);
+    logger.error({ error: error.message, stack: error.stack, s3Key }, '[S3] Error deleting video');
     return false;
   }
 };

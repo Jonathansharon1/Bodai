@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { Resend } from 'resend';
+import logger from './logger.js';
 import { 
   logEmailSent, 
   getUserEmailPreferences
@@ -37,21 +38,21 @@ export const sendEmail = async ({
     try {
       const preferences = await getUserEmailPreferences(userId);
       if (!preferences || preferences.email_notifications_enabled === false) {
-        console.log(`[Email] Skipping email to ${to} - notifications disabled`);
+        logger.info({ to, emailType, userId }, '[Email] Skipping email - notifications disabled');
         return { success: false, reason: 'notifications_disabled' };
       }
     } catch (err) {
-      console.warn('[Email] Failed to check preferences, sending anyway:', err.message);
+      logger.warn({ error: err.message, to, userId }, '[Email] Failed to check preferences, sending anyway');
     }
   }
 
   if (!process.env.RESEND_API_KEY) {
-    console.warn('[Email] RESEND_API_KEY not configured, skipping email send');
+    logger.warn({}, '[Email] RESEND_API_KEY not configured, skipping email send');
     return { success: false, reason: 'not_configured' };
   }
 
   try {
-    console.log(`[Email] Attempting to send ${emailType} to ${to} from ${EMAIL_FROM}`);
+    logger.info({ emailType, to, from: EMAIL_FROM, userId }, '[Email] Attempting to send email');
     const result = await resend.emails.send({
       from: `${EMAIL_FROM_NAME} <${EMAIL_FROM}>`,
       to: [to],
@@ -60,23 +61,15 @@ export const sendEmail = async ({
       text: text || html.replace(/<[^>]*>/g, ''), // Strip HTML for text version
     });
 
-    // Debug: Log the full result structure
-    console.log(`[Email] Resend API response for ${emailType}:`, JSON.stringify({
-      hasError: !!result.error,
-      hasData: !!result.data,
-      dataId: result.data?.id,
-      errorMessage: result.error?.message
-    }));
-
     // Check if the result indicates success
     if (result.error) {
-      console.error(`[Email] Resend API returned error for ${emailType} to ${to}:`, result.error);
+      logger.error({ error: result.error, emailType, to, userId }, '[Email] Resend API returned error');
       throw new Error(result.error.message || JSON.stringify(result.error));
     }
 
     // Check if we got a valid response
     if (!result.data || !result.data.id) {
-      console.error(`[Email] Resend API returned invalid response for ${emailType} to ${to}:`, JSON.stringify(result, null, 2));
+      logger.error({ emailType, to, userId, response: result }, '[Email] Resend API returned invalid response');
       throw new Error('Invalid response from Resend API: missing data.id');
     }
 
@@ -95,17 +88,14 @@ export const sendEmail = async ({
           }
         });
       } catch (logError) {
-        console.warn('[Email] Failed to log email:', logError.message);
+        logger.warn({ error: logError.message, emailType, to, userId }, '[Email] Failed to log email');
       }
     }
 
-    console.log(`[Email] ✅ Sent ${emailType} to ${to} (ID: ${result.data.id})`);
+    logger.info({ emailType, to, resendId: result.data.id, userId }, '[Email] Sent email successfully');
     return { success: true, data: result.data };
   } catch (error) {
-    console.error(`[Email] ❌ Failed to send ${emailType} to ${to}:`, error.message);
-    if (error.stack) {
-      console.error('[Email] Error stack:', error.stack);
-    }
+    logger.error({ error: error.message, stack: error.stack, emailType, to, userId }, '[Email] Failed to send email');
 
     // Log failed email
     if (userId) {
@@ -122,7 +112,7 @@ export const sendEmail = async ({
           }
         });
       } catch (logError) {
-        console.warn('[Email] Failed to log failed email:', logError.message);
+        logger.warn({ error: logError.message, emailType, to, userId }, '[Email] Failed to log failed email');
       }
     }
 

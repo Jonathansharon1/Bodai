@@ -2,37 +2,42 @@
   "name": "bodai-client",
   "version": "0.1.0",
   "private": true,
-"dependencies": {
-  "@clerk/clerk-react": "^5.0.0",
-  "canvas-confetti": "^1.9.4",
-  "framer-motion": "^11.18.2",
-  "i18next": "^23.7.0",
-  "i18next-browser-languagedetector": "^7.2.0",
-  "lucide-react": "^0.553.0",
-  "react": "^18.3.1",
-  "react-dom": "^18.3.1",
-  "react-i18next": "^13.5.0",
-  "react-markdown": "^9.0.1",
-  "react-router-dom": "^6.30.2",
-  "react-webcam": "^7.2.0",
-  "recharts": "^3.4.1"
-},
-"devDependencies": {
-  "react-scripts": "5.0.1",
-  "ajv": "6.12.6",
-  "ajv-keywords": "3.5.2"
-},
+  "dependencies": {
+    "@clerk/clerk-react": "^5.58.1",
+    "@clerk/localizations": "^3.30.0",
+    "@sentry/react": "^10.29.0",
+    "canvas-confetti": "^1.9.4",
+    "framer-motion": "^11.18.2",
+    "i18next": "^23.7.0",
+    "i18next-browser-languagedetector": "^7.2.0",
+    "lucide-react": "^0.553.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-i18next": "^13.5.0",
+    "react-markdown": "^9.0.1",
+    "react-router-dom": "^6.30.2",
+    "react-webcam": "^7.2.0",
+    "recharts": "^3.4.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "ajv": "6.12.6",
+    "ajv-keywords": "3.5.2",
+    "vite": "^5.1.0"
+  },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test --env=jsdom",
-    "lint": "react-scripts lint || echo \"Lint completed (react-scripts lint not configured)\"",
-    "eject": "react-scripts eject"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "vite",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint src --ext js,jsx --report-unused-disable-directives --max-warnings 0 || echo \"Lint completed\""
   },
   "eslintConfig": {
     "extends": [
-      "react-app",
-      "react-app/jest"
+      "react-app"
     ]
   },
   "browserslist": {

@@ -83,7 +83,10 @@ const LazyVideo = React.memo(({ analysisId, user, t }) => {
       if (isMounted) setLoading(true);
       
       try {
-        const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+        // Use Vite proxy in dev, full URL in production
+        const apiBase = import.meta.env.DEV
+          ? "" // use Vite proxy in dev
+          : (import.meta.env.VITE_API_URL || "http://localhost:5000");
         const res = await fetch(
           `${apiBase}/api/analyses/${analysisId}/video-url`,
           {
@@ -176,7 +179,11 @@ export default function MyAnalysesPage({
       if (activeJourneyId) {
         params.append('journeyId', activeJourneyId);
       }
-      const url = `${process.env.REACT_APP_API_URL || 'http://localhost:5000/api/analyses'}${params.toString() ? `?${params.toString()}` : ''}`;
+      // Use Vite proxy in dev, full URL in production
+      const apiBase = import.meta.env.DEV
+        ? "" // use Vite proxy in dev
+        : (import.meta.env.VITE_API_URL || "http://localhost:5000");
+      const url = `${apiBase}/api/analyses${params.toString() ? `?${params.toString()}` : ''}`;
       const res = await fetch(url, {
         headers: {
           'X-Clerk-User-Id': user.id,

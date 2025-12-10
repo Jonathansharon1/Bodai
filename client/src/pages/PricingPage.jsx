@@ -90,10 +90,10 @@ export default function PricingPage() {
     
     // English prices (USD)
     const englishPrices = {
-      starter: { monthly: 9.99, yearly: 99.90 },
-      pro: { monthly: 19.99, yearly: 199.90 },
-      proPlus: { monthly: 29.99, yearly: 299.90 },
-      executive: { monthly: 49.99, yearly: 499.90 }
+      starter: { monthly: 5.99, yearly: 59.90 },
+      pro: { monthly: 9.99, yearly: 99.90 },
+      proPlus: { monthly: 15.50, yearly: 155.00 },
+      executive: { monthly: 31.00, yearly: 310.00 }
     };
     
     const prices = isHebrew ? hebrewPrices : englishPrices;
@@ -216,33 +216,7 @@ export default function PricingPage() {
           </p>
         </section>
 
-        <section className="pricingPage__personalCoach" style={{
-          background: 'linear-gradient(135deg, rgba(0, 78, 100, 0.05) 0%, rgba(70, 181, 209, 0.05) 100%)',
-          borderRadius: '24px',
-          padding: '48px 32px',
-          marginBottom: '64px',
-          textAlign: 'center',
-          border: '2px solid rgba(0, 78, 100, 0.1)'
-        }}>
-          <h2 style={{
-            fontSize: 'clamp(24px, 3vw, 32px)',
-            fontWeight: '700',
-            marginBottom: '16px',
-            color: 'var(--text-dark)',
-            fontFamily: 'var(--font-display)'
-          }}>
-            {t('pricing.personalCoachIntro')}
-          </h2>
-          <p style={{
-            fontSize: 'clamp(16px, 2vw, 18px)',
-            lineHeight: '1.7',
-            color: 'var(--text-muted)',
-            maxWidth: '800px',
-            margin: '0 auto'
-          }}>
-            {t('pricing.personalCoachDescription')}
-          </p>
-        </section>
+
 
         <section className="pricingPage__included">
           <div className="included__header">

@@ -32,6 +32,35 @@
   gap: 12px;
 }
 
+.sidebar__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sidebar__collapse {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+}
+
+.sidebar__collapse:hover {
+  background: rgba(0, 78, 100, 0.06);
+  color: var(--text-dark);
+}
+
+.sidebar__collapse:active {
+  transform: scale(0.96);
+}
+
 .sidebar__close {
   display: none;
   align-items: center;
@@ -261,6 +290,75 @@
   background: rgba(0, 78, 100, 0.3);
 }
 
+/* Collapsed (desktop) */
+.sidebar--collapsed {
+  width: 72px;
+  min-width: 72px;
+  align-items: center;
+}
+
+[dir="rtl"] .sidebar--collapsed {
+  align-items: center;
+}
+
+.sidebar--collapsed .sidebar__header {
+  justify-content: center;
+  padding: 16px 12px;
+}
+
+.sidebar--collapsed .sidebar__logoText {
+  display: none;
+}
+
+.sidebar--collapsed .sidebar__actions {
+  gap: 0;
+}
+
+.sidebar--collapsed .sidebar__collapse {
+  background: #eef2f7;
+}
+
+.sidebar--collapsed .sidebar__nav {
+  padding: 12px 8px;
+}
+
+.sidebar--collapsed .sidebar__link {
+  justify-content: center;
+  padding: 12px;
+}
+
+.sidebar--collapsed .sidebar__label {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.sidebar--collapsed .sidebar__link--active::before {
+  left: 6px;
+}
+
+[dir="rtl"] .sidebar--collapsed .sidebar__link--active::before {
+  left: auto;
+  right: 6px;
+}
+
+.sidebar--collapsed .sidebar__user {
+  flex-direction: column;
+  align-items: center;
+  padding: 10px;
+}
+
+.sidebar--collapsed .sidebar__userInfo,
+.sidebar--collapsed .sidebar__userEmail {
+  display: none;
+}
+
+.sidebar--collapsed .sidebar__userAvatar {
+  margin: 0;
+}
+
 @media (max-width: 767px) {
   .sidebar {
     width: 280px;
@@ -284,6 +382,10 @@
 
   .sidebar__close {
     display: flex;
+  }
+
+  .sidebar__collapse {
+    display: none;
   }
 
   .sidebar__overlay {

@@ -47,20 +47,6 @@ export default function CTASection({ isSignedIn = false }) {
               : t('marketing.cta.subtitleNotSignedIn')
             }
           </p>
-          {!isSignedIn && (
-            <p className="ctaSection__personalCoach" style={{ 
-              marginTop: '16px', 
-              fontSize: '18px', 
-              fontWeight: '500',
-              color: 'rgba(255, 255, 255, 0.95)',
-              lineHeight: '1.6',
-              maxWidth: '700px',
-              marginLeft: 'auto',
-              marginRight: 'auto'
-            }}>
-              {t('marketing.cta.personalCoachNote')}
-            </p>
-          )}
           <div className="ctaSection__actions">
             {isSignedIn ? (
               <>

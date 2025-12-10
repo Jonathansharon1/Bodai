@@ -143,43 +143,43 @@ export default function SocialProofSection() {
             >
               <ChevronLeft size={24} />
             </button>
-            
-            <div className="socialProofSection__carousel">
-              <div 
-                className="socialProofSection__track"
-                style={{ transform: `translateX(${(isRTL ? 1 : -1) * activeTestimonial * 100}%)` }}
-              >
-                {TESTIMONIALS.map((testimonial) => (
-                  <div key={testimonial.id} className="socialProofSection__testimonialCard">
-                    <p className="socialProofSection__testimonialText">
-                      "{testimonial.text}"
-                    </p>
-                    
-                    <div className="socialProofSection__testimonialMeta">
-                      <div className="socialProofSection__testimonialAuthor">
-                        <div className="socialProofSection__avatar">
-                          {testimonial.name.charAt(0)}
-                        </div>
-                        <div className="socialProofSection__authorInfo">
-                          <span className="socialProofSection__authorName">{testimonial.name}</span>
-                          <span className="socialProofSection__authorRole">{testimonial.role}</span>
-                        </div>
+          
+          <div className="socialProofSection__carousel">
+            <div 
+              className="socialProofSection__track"
+              style={{ transform: `translateX(${(isRTL ? 1 : -1) * activeTestimonial * 100}%)` }}
+            >
+              {TESTIMONIALS.map((testimonial) => (
+                <div key={testimonial.id} className="socialProofSection__testimonialCard">
+                  <p className="socialProofSection__testimonialText">
+                    "{testimonial.text}"
+                  </p>
+                  
+                  <div className="socialProofSection__testimonialMeta">
+                    <div className="socialProofSection__testimonialAuthor">
+                      <div className="socialProofSection__avatar">
+                        {testimonial.name.charAt(0)}
                       </div>
-                      
-                      <div className="socialProofSection__testimonialResult">
-                        <div className="socialProofSection__rating">
-                          {[...Array(testimonial.rating)].map((_, i) => (
-                            <Star key={i} size={14} fill="#fbbf24" color="#fbbf24" />
-                          ))}
-                        </div>
-                        <span className="socialProofSection__improvement">
-                          {testimonial.improvement}
-                        </span>
+                      <div className="socialProofSection__authorInfo">
+                        <span className="socialProofSection__authorName">{testimonial.name}</span>
+                        <span className="socialProofSection__authorRole">{testimonial.role}</span>
                       </div>
                     </div>
+                    
+                    <div className="socialProofSection__testimonialResult">
+                      <div className="socialProofSection__rating">
+                        {[...Array(testimonial.rating)].map((_, i) => (
+                          <Star key={i} size={14} fill="#fbbf24" color="#fbbf24" />
+                        ))}
+                      </div>
+                      <span className="socialProofSection__improvement">
+                        {testimonial.improvement}
+                      </span>
+                    </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
+            </div>
             </div>
             
             <button 

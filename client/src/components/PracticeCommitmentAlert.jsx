@@ -10,20 +10,20 @@ export default function PracticeCommitmentAlert({ journeyId = null, onDismiss })
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const token = await window.Clerk?.session?.getToken();
-        if (!token) {
-          setLoading(false);
-          return;
-        }
+        // Build base URL (use proxy in dev)
+        const apiBase = import.meta.env.DEV
+          ? '' // use Vite proxy in dev
+          : (import.meta.env.VITE_API_URL || 'http://localhost:5000');
 
-        const url = new URL('/api/practice-commitment/status', process.env.REACT_APP_API_URL || 'http://localhost:5000');
+        const url = new URL('/api/practice-commitment/status', apiBase || window.location.origin);
         if (journeyId) {
           url.searchParams.set('journeyId', journeyId);
         }
 
         const res = await fetch(url.toString(), {
           headers: {
-            'Authorization': `Bearer ${token}`
+            // Backend expects Clerk user ID in header (not bearer token)
+            'X-Clerk-User-Id': window.Clerk?.user?.id || window.Clerk?.session?.user?.id || ''
           }
         });
 

@@ -11,7 +11,9 @@ import {
   Home,
   Target,
   X,
-  Menu
+  Menu,
+  ChevronsLeft,
+  ChevronsRight
 } from 'lucide-react';
 import Logo from '../Logo';
 import { useSidebar } from './SidebarContext';
@@ -42,7 +44,7 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
-  const { isOpen, close, toggle } = useSidebar();
+  const { isOpen, close, toggle, isCollapsed, toggleCollapse, expand } = useSidebar();
 
 const SIDEBAR_ITEMS = [
   {
@@ -119,6 +121,8 @@ const SIDEBAR_ITEMS = [
     // Close sidebar on mobile after navigation
     if (window.innerWidth < 768) {
       close();
+      // ensure expanded when closing mobile drawer
+      expand();
     }
   };
 
@@ -171,7 +175,7 @@ const SIDEBAR_ITEMS = [
       )}
       
       <aside 
-        className={`sidebar ${isOpen ? 'sidebar--open' : ''}`} 
+        className={`sidebar ${isOpen ? 'sidebar--open' : ''} ${isCollapsed ? 'sidebar--collapsed' : ''}`} 
         role="navigation" 
         aria-label="Main navigation"
       >
@@ -180,17 +184,27 @@ const SIDEBAR_ITEMS = [
             <Logo size={24} className="sidebar__logoIcon" />
             <span className="sidebar__logoText">BodAI</span>
           </div>
-          <button 
-            className="sidebar__close"
-            onClick={close}
-            aria-label="Close menu"
-          >
-            <X size={20} />
-          </button>
+          <div className="sidebar__actions">
+            <button
+              className="sidebar__collapse"
+              onClick={toggleCollapse}
+              aria-label={isCollapsed ? t('sidebar.expand', 'Expand sidebar') : t('sidebar.collapse', 'Collapse sidebar')}
+              title={isCollapsed ? t('sidebar.expand', 'Expand sidebar') : t('sidebar.collapse', 'Collapse sidebar')}
+            >
+              {isCollapsed ? <ChevronsRight size={18} /> : <ChevronsLeft size={18} />}
+            </button>
+            <button 
+              className="sidebar__close"
+              onClick={close}
+              aria-label="Close menu"
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
-      <nav className="sidebar__nav">
-        <ul className="sidebar__list">
+        <nav className="sidebar__nav">
+          <ul className="sidebar__list">
           {SIDEBAR_ITEMS.map((item) => {
             const IconComponent = item.icon;
             const isActive = item.external 

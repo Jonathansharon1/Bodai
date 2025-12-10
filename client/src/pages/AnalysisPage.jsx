@@ -95,7 +95,7 @@ export default function AnalysisPage({
   const { id } = useParams();
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
-  const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000';
   const [videoUrl, setVideoUrl] = useState(null);
   const [loadedAnalysis, setLoadedAnalysis] = useState(null);
   const [recentActionItems, setRecentActionItems] = useState([]);
@@ -347,7 +347,7 @@ export default function AnalysisPage({
   useEffect(() => {
     if (id && user?.id && !viewingAnalysis && !loadedAnalysis) {
       fetch(
-        `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/analyses/${id}`,
+        `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/analyses/${id}`,
         {
           headers: {
             'X-Clerk-User-Id': user.id,
@@ -373,7 +373,7 @@ export default function AnalysisPage({
     const analysis = viewingAnalysis || loadedAnalysis;
     if (analysis?.s3_key && user?.id && !videoUrl) {
       fetch(
-        `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/analyses/${analysis.id}/video-url`,
+        `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/analyses/${analysis.id}/video-url`,
         {
           headers: {
             'X-Clerk-User-Id': user.id,
@@ -416,8 +416,12 @@ export default function AnalysisPage({
         if (activeJourneyId) {
           params.append('journeyId', activeJourneyId);
         }
+        // Use Vite proxy in dev, full URL in production
+        const apiBase = import.meta.env.DEV
+          ? "" // use Vite proxy in dev
+          : (import.meta.env.VITE_API_URL || "http://localhost:5000");
         const res = await fetch(
-          `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/action-items?${params.toString()}`,
+          `${apiBase}/api/action-items?${params.toString()}`,
           {
             headers: {
               'X-Clerk-User-Id': user.id,
@@ -430,7 +434,25 @@ export default function AnalysisPage({
         if (!isMounted) return;
 
         if (res.ok) {
-          const data = await res.json();
+          // Handle 304 Not Modified - response body is empty, keep existing data
+          if (res.status === 304) {
+            if (isMounted) {
+              setActionItemsLoading(false);
+            }
+            return;
+          }
+
+          let data = {};
+          try {
+            data = await res.json();
+          } catch (e) {
+            console.warn('Failed to parse action items response:', e);
+            if (isMounted) {
+              setActionItemsLoading(false);
+            }
+            return;
+          }
+
           const items = Array.isArray(data.actionItems) ? data.actionItems : [];
 
           const sorted = [...items].sort((a, b) => {
@@ -466,7 +488,7 @@ export default function AnalysisPage({
           }
         }
       } finally {
-        if (isMounted && attempts === 0) {
+        if (isMounted) {
           setActionItemsLoading(false);
         }
       }
@@ -683,27 +705,6 @@ export default function AnalysisPage({
                 <div className="analysisPage__newLayout">
                   <div className="analysisPage__mainColumn">
                     <div className="analysisPage__dashboardContainer">
-                      {/* Streak Section */}
-                      <div className="analysisPage__streakCard">
-                        <div className="analysisPage__streakHeader">
-                          <div className="analysisPage__streakCount">
-                            <span className="analysisPage__fireIcon">🔥</span>
-                            <span className="analysisPage__streakNumber">{streakData.count}</span>
-                            <span className="analysisPage__streakLabel">{streakData.label}</span>
-                          </div>
-                        </div>
-                        <div className="analysisPage__streakProgress">
-                           <div className="analysisPage__progressBar">
-                              <div 
-                                 className="analysisPage__progressFill" 
-                                 style={{ width: `${(streakData.progress / (streakData.target || 1)) * 100}%` }} 
-                              />
-                           </div>
-                           <span className="analysisPage__progressText">
-                              {streakData.progress} / {streakData.target} {t('streak.videosThisPeriod') || 'videos'}
-                           </span>
-                        </div>
-                      </div>
                       {practiceCompletionNotices && practiceCompletionNotices.length > 0 && (
                         <div className="analysisPage__completionNotice">
                           <div>

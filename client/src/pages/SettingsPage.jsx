@@ -9,7 +9,7 @@ import LanguageSwitcher from '../components/LanguageSwitcher';
 export default function SettingsPage() {
   const { user } = useUser();
   const { t } = useTranslation();
-  const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000';
   
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [emailMarketing, setEmailMarketing] = useState(true);

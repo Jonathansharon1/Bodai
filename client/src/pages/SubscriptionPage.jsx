@@ -25,8 +25,12 @@ export default function SubscriptionPage() {
     
     setLoading(true);
     try {
+      const apiBase = import.meta.env.DEV
+        ? '' // use Vite proxy in dev
+        : (import.meta.env.VITE_API_URL || 'http://localhost:5000');
+
       // TODO: Replace with actual API endpoint when ready
-      const res = await fetch(process.env.REACT_APP_API_URL || 'http://localhost:5000/api/user/profile', {
+      const res = await fetch(`${apiBase}/api/user/profile`, {
         headers: {
           'X-Clerk-User-Id': user.id,
           'Content-Type': 'application/json'
@@ -38,15 +42,12 @@ export default function SubscriptionPage() {
         const userData = data.user;
         
         // Calculate usage stats
-        const analysesRes = await fetch(
-          `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/analyses`,
-          {
-            headers: {
-              'X-Clerk-User-Id': user.id,
-              'Content-Type': 'application/json'
-            }
+        const analysesRes = await fetch(`${apiBase}/api/analyses`, {
+          headers: {
+            'X-Clerk-User-Id': user.id,
+            'Content-Type': 'application/json'
           }
-        );
+        });
 
         let analysesCount = 0;
         if (analysesRes.ok) {

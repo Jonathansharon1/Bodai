@@ -68,6 +68,7 @@ const getParameterCategories = (t) => ({
       { key: 'presence_eye_contact', label: t('parameters.presence.eyeContact'), description: t('parameters.presence.eyeContactDesc') },
       { key: 'presence_facial_relaxation', label: t('parameters.presence.facialRelaxation'), description: t('parameters.presence.facialRelaxationDesc') },
       { key: 'presence_body_posture', label: t('parameters.presence.bodyPosture'), description: t('parameters.presence.bodyPostureDesc') },
+      { key: 'presence_fidgeting', label: t('parameters.presence.fidgeting'), description: t('parameters.presence.fidgetingDesc') },
       { key: 'presence_hand_naturalness', label: t('parameters.presence.handNaturalness'), description: t('parameters.presence.handNaturalnessDesc') },
       { key: 'presence_openness', label: t('parameters.presence.openness'), description: t('parameters.presence.opennessDesc') }
     ]
@@ -278,18 +279,24 @@ export default function MyProgressPage({
     // Normalize title: remove extra spaces, ensure single spaces
     const cleanTitle = title.trim().replace(/\s+/g, ' ');
     
-    // 1. Try exact translation key
+    // 1. Try exact translation key (case-sensitive first)
     const exactKey = `myProgress.stages.${cleanTitle}`;
     const exactTranslation = t(exactKey);
     if (exactTranslation !== exactKey) return exactTranslation;
     
-    // 2. Try mapping known titles to short keys
+    // 2. Try mapping known titles to short keys (case-insensitive)
     const stageMap = {
       'Emerging Communicator': 'emerging',
       'Developing Communicator': 'developing',
       'Confident Communicator': 'confident',
       'Impactful Communicator': 'impactful',
-      'Master Communicator': 'master'
+      'Master Communicator': 'master',
+      // Also handle uppercase versions
+      'EMERGING COMMUNICATOR': 'emerging',
+      'DEVELOPING COMMUNICATOR': 'developing',
+      'CONFIDENT COMMUNICATOR': 'confident',
+      'IMPACTFUL COMMUNICATOR': 'impactful',
+      'MASTER COMMUNICATOR': 'master'
     };
     
     // Case-insensitive lookup
@@ -331,7 +338,7 @@ export default function MyProgressPage({
   // Only show secondary subtitle for standard goals that have specific guidance
   const showGoalGuidance = focusSlug && ['confidence', 'content', 'presentation', 'leadership', 'interview', 'sales', 'dating', 'social', 'general'].includes(focusSlug);
   
-  const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000';
   const location = useLocation();
 
   useEffect(() => {
@@ -846,13 +853,6 @@ export default function MyProgressPage({
                 unit: metrics.length === 1 ? t('myProgress.sessionUnitSingular') : t('myProgress.sessionUnitPlural')
               })}
         </p>
-        {showGoalGuidance && (
-          <p className="myProgressPage__subtitleSecondary">
-            {t('myProgress.subtitleSecondary', {
-              goal: focusLabel ? focusLabel.toLowerCase() : ''
-            })}
-          </p>
-        )}
       </div>
 
       {/* Practice Commitment Alert */}
@@ -1226,7 +1226,7 @@ export default function MyProgressPage({
         </div>
       )}
 
-      {/* Areas to Focus On - PROMINENT */}
+      {/* Areas to Focus On  */}
       {weaknesses.length > 0 && (
         <div className="myProgressPage__section myProgressPage__section--focus">
             <div className="progressSection__header">
@@ -1242,6 +1242,8 @@ export default function MyProgressPage({
                 cat.parameters.some(p => p.key === weakness.key)
               );
               const param = category?.parameters.find(p => p.key === weakness.key);
+              // Use param label if available, otherwise fallback to weakness.label
+              const displayLabel = param?.label || weakness.label;
               
               const guidance = {
                 why: t(`myProgress.guidance.${weakness.key}.why`, t('myProgress.guidance.default.why')),
@@ -1259,8 +1261,8 @@ export default function MyProgressPage({
                     </div>
                     <div className="focusCard__meta">
                       <span className="focusCard__category">{weakness.category}</span>
-                      <span className="focusCard__label">{weakness.label}</span>
-                      <span className="focusCard__subtext">{weakness.category} → {weakness.label}</span>
+                      <span className="focusCard__label">{displayLabel}</span>
+                      <span className="focusCard__subtext">{weakness.category} → {displayLabel}</span>
                     </div>
                   </div>
                   <div className="focusCard__score">
@@ -1282,10 +1284,6 @@ export default function MyProgressPage({
                       }}
                     />
                   </div>
-                  <p className="focusCard__description">
-                    {generateWeaknessNarrative(param || { key: weakness.key, label: weakness.label, description: weakness.description }, weakness.current, weakness.trend, t)}
-                  </p>
-                  <div className="focusCard__why">{guidance.why}</div>
                   
                   {/* Practice Button */}
                   <button
@@ -1300,18 +1298,6 @@ export default function MyProgressPage({
               );
             })}
           </div>
-          
-          {trendRows.length > 3 && (
-            <div className="trendList__footer">
-              <button 
-                className="btn btn--text trendList__toggle"
-                onClick={() => setShowAllTrends(!showAllTrends)}
-              >
-                {showAllTrends ? t('myProgress.showLessSessions') : t('myProgress.showMoreSessions')}
-                {showAllTrends ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-              </button>
-            </div>
-          )}
         </div>
       )}
 

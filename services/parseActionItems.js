@@ -3,13 +3,17 @@
  * This is a shared utility for both frontend and backend
  */
 
+import logger from './logger.js';
+
 export const parseActionItems = (text) => {
   if (!text) return [];
   
   // Try new Communication/Body Language Tips format first
   const modernItems = parseTipSections(text);
   if (modernItems.length > 0) {
-    console.log(`parseActionItems: Parsed ${modernItems.length} items from tip sections`);
+    if (typeof logger !== 'undefined') {
+      logger.info({ itemCount: modernItems.length }, '[parseActionItems] Parsed items from tip sections');
+    }
     return modernItems;
   }
 
@@ -289,17 +293,7 @@ const parseTipSections = (text) => {
   
   // Debug logging
   if (tips.length > 0) {
-    console.log(`[parseTipSections] Parsed ${tips.length} items from sections:`, {
-      communication: tips.filter(t => t.section === 'communication').length,
-      bodyLanguage: tips.filter(t => t.section === 'body-language').length,
-      quickWins: tips.filter(t => t.section === 'quick').length,
-      recordingNotes: tips.filter(t => t.section === 'recording').length,
-      items: tips.map(t => ({ 
-        title: t.title.substring(0, 50), 
-        section: t.section,
-        item_type: t.item_type 
-      }))
-    });
+    logger.info({ itemCount: tips.length, communicationCount: tips.filter(t => t.tip_section === 'communication').length, bodyLanguageCount: tips.filter(t => t.tip_section === 'bodyLanguage').length }, '[parseTipSections] Parsed items from sections');
   }
   
   return tips;
@@ -448,7 +442,7 @@ const parseLegacyActionPlan = (text) => {
   
   // Debug logging
   if (dedupedItems.length === 0) {
-    console.log('parseActionItems: Legacy parser found no items. Sample text:', lines.slice(0, 50).join('\n'));
+    logger.info({ sampleText: lines.slice(0, 50).join('\n') }, '[parseActionItems] Legacy parser found no items');
   }
   
   // Transform action items into Tier 1 / Tier 2 structure

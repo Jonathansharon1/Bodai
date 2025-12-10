@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import logger from './logger.js';
 import { 
   sendProgressUpdateEmail, 
   sendActionItemReminderEmail,
@@ -33,13 +34,13 @@ const getInactivityThreshold = (commitmentLevel) => {
  * This should be called via a cron job (e.g., every Monday at 9 AM)
  */
 export const sendWeeklyProgressEmails = async () => {
-  console.log('[Scheduled Emails] Starting weekly progress email job...');
+  logger.info({}, '[Scheduled Emails] Starting weekly progress email job');
   
   // TODO: Get all active users from database
   // For now, this is a placeholder that would need to be implemented
   // based on your user querying needs
   
-  console.log('[Scheduled Emails] Weekly progress email job completed');
+  logger.info({}, '[Scheduled Emails] Weekly progress email job completed');
 };
 
 /**
@@ -47,14 +48,14 @@ export const sendWeeklyProgressEmails = async () => {
  * This should be called via a cron job (e.g., daily at 10 AM)
  */
 export const sendCommitmentBasedReminders = async () => {
-  console.log('[Scheduled Emails] Starting commitment-based reminder job...');
+  logger.info({}, '[Scheduled Emails] Starting commitment-based reminder job');
   
   try {
     // Get users who need reminders based on their commitment level
     const usersToRemind = await getUsersNeedingReminders();
     
     if (!usersToRemind || usersToRemind.length === 0) {
-      console.log('[Scheduled Emails] No users need reminders at this time');
+      logger.info({}, '[Scheduled Emails] No users need reminders at this time');
       return { sent: 0, skipped: 0 };
     }
 
@@ -74,15 +75,15 @@ export const sendCommitmentBasedReminders = async () => {
           skipped++;
         }
       } catch (err) {
-        console.error(`[Scheduled Emails] Failed to process reminder for user ${user.clerk_user_id}:`, err.message);
+        logger.error({ error: err.message, stack: err.stack, clerkUserId: user.clerk_user_id }, '[Scheduled Emails] Failed to process reminder for user');
         skipped++;
       }
     }
 
-    console.log(`[Scheduled Emails] Commitment reminders completed: ${sent} sent, ${skipped} skipped`);
+    logger.info({ sent, skipped }, '[Scheduled Emails] Commitment reminders completed');
     return { sent, skipped };
   } catch (error) {
-    console.error('[Scheduled Emails] Failed to run commitment reminders:', error.message);
+    logger.error({ error: error.message, stack: error.stack }, '[Scheduled Emails] Failed to run commitment reminders');
     return { sent: 0, skipped: 0, error: error.message };
   }
 };
@@ -92,13 +93,13 @@ export const sendCommitmentBasedReminders = async () => {
  * This should be called via a cron job (e.g., daily at 10 AM)
  */
 export const sendActionItemReminders = async () => {
-  console.log('[Scheduled Emails] Starting action item reminder job...');
+  logger.info({}, '[Scheduled Emails] Starting action item reminder job');
   
   // TODO: Get all users with pending action items older than 3 days
   // For now, this is a placeholder that would need to be implemented
   // based on your user querying needs
   
-  console.log('[Scheduled Emails] Action item reminder job completed');
+  logger.info({}, '[Scheduled Emails] Action item reminder job completed');
 };
 
 /**
@@ -107,7 +108,7 @@ export const sendActionItemReminders = async () => {
 export const sendUserPracticeReminder = async (user) => {
   try {
     if (!user?.email || !user?.id) {
-      console.warn('[Scheduled Emails] No email or user ID found for reminder');
+      logger.warn({}, '[Scheduled Emails] No email or user ID found for reminder');
       return { success: false, reason: 'missing_user_data' };
     }
 
@@ -167,10 +168,10 @@ export const sendUserPracticeReminder = async (user) => {
       introMessage: message.intro
     });
 
-    console.log(`[Scheduled Emails] Practice reminder sent to ${user.email} (${user.commitment_level})`);
+    logger.info({ email: user.email, commitmentLevel: user.commitment_level, userId: user.id }, '[Scheduled Emails] Practice reminder sent');
     return { success: true };
   } catch (error) {
-    console.error(`[Scheduled Emails] Failed to send practice reminder:`, error.message);
+    logger.error({ error: error.message, stack: error.stack, userId: user?.id }, '[Scheduled Emails] Failed to send practice reminder');
     return { success: false, error: error.message };
   }
 };
@@ -189,14 +190,14 @@ export const sendUserProgressUpdate = async (clerkUserId) => {
     ]);
     
     if (!userData?.email || !userData?.id) {
-      console.warn(`[Scheduled Emails] No email or user ID found for user ${clerkUserId}`);
+      logger.warn({ clerkUserId }, '[Scheduled Emails] No email or user ID found for user');
       return;
     }
 
     const metrics = profile?.latest_metrics;
     
     if (!metrics) {
-      console.log(`[Scheduled Emails] No metrics found for user ${clerkUserId}, skipping progress email`);
+      logger.info({ clerkUserId }, '[Scheduled Emails] No metrics found for user, skipping progress email');
       return;
     }
 
@@ -221,9 +222,9 @@ export const sendUserProgressUpdate = async (clerkUserId) => {
       progressData
     });
 
-    console.log(`[Scheduled Emails] Progress update sent to ${userData.email}`);
+    logger.info({ email: userData.email, clerkUserId }, '[Scheduled Emails] Progress update sent');
   } catch (error) {
-    console.error(`[Scheduled Emails] Failed to send progress update to user ${clerkUserId}:`, error.message);
+    logger.error({ error: error.message, stack: error.stack, clerkUserId }, '[Scheduled Emails] Failed to send progress update to user');
   }
 };
 
@@ -240,7 +241,7 @@ export const sendUserActionItemReminder = async (clerkUserId) => {
     ]);
     
     if (!userData?.email || !userData?.id) {
-      console.warn(`[Scheduled Emails] No email or user ID found for user ${clerkUserId}`);
+      logger.warn({ clerkUserId }, '[Scheduled Emails] No email or user ID found for user');
       return;
     }
 
@@ -278,9 +279,9 @@ export const sendUserActionItemReminder = async (clerkUserId) => {
       }
     });
 
-    console.log(`[Scheduled Emails] Action item reminder sent to ${userData.email}`);
+    logger.info({ email: userData.email, clerkUserId }, '[Scheduled Emails] Action item reminder sent');
   } catch (error) {
-    console.error(`[Scheduled Emails] Failed to send action item reminder to user ${clerkUserId}:`, error.message);
+    logger.error({ error: error.message, stack: error.stack, clerkUserId }, '[Scheduled Emails] Failed to send action item reminder to user');
   }
 };
 

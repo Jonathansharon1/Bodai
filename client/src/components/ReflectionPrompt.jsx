@@ -16,7 +16,7 @@ export default function ReflectionPrompt({
   const [submitting, setSubmitting] = useState(false);
   const [existingReflection, setExistingReflection] = useState(null);
   const [error, setError] = useState(null);
-  const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
   // Mood options with translations
   const MOOD_OPTIONS = [

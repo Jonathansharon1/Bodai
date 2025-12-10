@@ -38,6 +38,15 @@
   z-index: 0;
 }
 
+[dir="rtl"] .sidebar--collapsed + .dashboardLayout .myAnalysesPage::after {
+  left: auto;
+  right: 72px;
+}
+
+.sidebar--collapsed + .dashboardLayout .myAnalysesPage::after {
+  left: 72px;
+}
+
 [dir="rtl"] .myAnalysesPage::after {
   left: auto;
   right: 280px;

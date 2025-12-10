@@ -2,13 +2,14 @@ import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SignIn } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
+import { getClerkLocalization } from '../utils/clerkLocalization';
 import './AuthPages.css';
 
 export default function SignInPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
-  // Memoize Clerk component to prevent re-mounting and duplicate verification codes
-  // Stable key ensures Clerk doesn't re-initialize when parent re-renders
+  // Memoize Clerk component but allow re-mounting when language changes
+  // Key includes language to force re-mount when language changes
   const clerkSignIn = useMemo(() => {
     // Use current pathname or dashboard as redirect, but don't store it persistently
     // This prevents Clerk from storing redirect URLs that get applied on refresh
@@ -19,21 +20,27 @@ export default function SignInPage() {
     
     return (
       <SignIn 
-        key="clerk-sign-in-stable" // Stable key prevents re-mounting
+        key={`clerk-sign-in-${i18n.language}`} // Include language in key to force re-mount on language change
         routing="path" 
         path="/sign-in"
         signUpUrl="/sign-up"
         afterSignInUrl={redirectUrl}
         redirectUrl={redirectUrl}
+        localization={getClerkLocalization(i18n.language)}
         appearance={{
           elements: {
             rootBox: 'authPage__clerkRoot',
             card: 'authPage__clerkCard',
+            footer: { display: 'none' },
+            footerAction: { display: 'none' },
+            footerActionText: { display: 'none' },
+            footerActionLink: { display: 'none' },
+            headerSubtitle: { display: 'none' },
           }
         }}
       />
     );
-  }, []); // Empty deps - component should only mount once
+  }, [i18n.language]); // Re-mount when language changes
 
   return (
     <div className="authPage">

@@ -437,18 +437,23 @@
     gap: 12px;
     margin-bottom: 48px;
     flex-direction: column;
+    align-items: center;
   }
   
   .socialProofSection__stat {
     padding: 16px 20px;
     width: 100%;
     flex-direction: row;
-    text-align: left;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
     gap: 12px;
   }
   
   .socialProofSection__statValue {
     font-size: 22px;
+    width: 100%;
+    text-align: center;
   }
 
   .socialProofSection__header {
@@ -478,20 +483,35 @@
   
   .socialProofSection__testimonialCard {
     padding: 24px 20px;
+    text-align: center;
   }
   
   .socialProofSection__testimonialText {
     font-size: 15px;
+    text-align: center;
   }
   
   .socialProofSection__testimonialMeta {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
+    justify-content: center;
     gap: 12px;
   }
   
   .socialProofSection__testimonialResult {
-    align-items: flex-start;
+    align-items: center;
+  }
+
+  .socialProofSection__testimonialAuthor {
+    justify-content: center;
+  }
+
+  .socialProofSection__rating {
+    justify-content: center;
+  }
+
+  .socialProofSection__improvement {
+    align-self: center;
   }
 
   .socialProofSection__carouselContainer {

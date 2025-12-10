@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
+import * as Sentry from '@sentry/react';
 import OnboardingPage from './pages/OnboardingPage';
 import AnalysisPage from './pages/AnalysisPage';
 import Sidebar from './components/layout/Sidebar';
@@ -105,11 +106,24 @@ function ProtectedRoute({ children, requireOnboarding = false }) {
     if (!userLoaded) return;
 
     if (!user) {
+      // Clear Sentry user context when signed out
+      if (import.meta.env.VITE_SENTRY_DSN) {
+        Sentry.setUser(null);
+      }
       // User not signed in - redirect to home
       if (location.pathname !== '/') {
         navigate('/', { replace: true });
       }
       return;
+    }
+
+    // Set Sentry user context when user is available
+    if (import.meta.env.VITE_SENTRY_DSN) {
+      Sentry.setUser({
+        id: user.id,
+        email: user.primaryEmailAddress?.emailAddress,
+        username: user.username || user.primaryEmailAddress?.emailAddress,
+      });
     }
 
     // Check onboarding status
@@ -139,7 +153,11 @@ function ProtectedRoute({ children, requireOnboarding = false }) {
           headers['X-User-Image-Url'] = user.imageUrl;
         }
         
-        const res = await fetch(process.env.REACT_APP_API_URL || 'http://localhost:5000/api/user/profile', {
+        const apiBase = import.meta.env.DEV
+          ? '' // use Vite proxy in dev
+          : (import.meta.env.VITE_API_URL || 'http://localhost:5000');
+
+        const res = await fetch(`${apiBase}/api/user/profile`, {
           headers
         });
 
@@ -430,6 +448,23 @@ export default function AppRouter() {
   const { i18n, t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Track navigation in Sentry breadcrumbs
+  useEffect(() => {
+    if (import.meta.env.VITE_SENTRY_DSN) {
+      Sentry.addBreadcrumb({
+        category: 'navigation',
+        message: `Navigated to ${location.pathname}${location.search}`,
+        level: 'info',
+        data: {
+          pathname: location.pathname,
+          search: location.search,
+          hash: location.hash,
+        },
+      });
+    }
+  }, [location.pathname, location.search, location.hash]);
+  
   const [file, setFile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState('');
@@ -448,7 +483,9 @@ export default function AppRouter() {
   const [activeJourneyId, setActiveJourneyId] = useState(null);
   const [practiceCompletionNotices, setPracticeCompletionNotices] = useState([]);
   const [hasCompletedAnalysis, setHasCompletedAnalysis] = useState(() => localStorage.getItem('bodai_has_completed_analysis') === 'true');
-  const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  const apiBase = import.meta.env.DEV
+    ? '' // use Vite proxy in dev
+    : (import.meta.env.VITE_API_URL || 'http://localhost:5000');
 
   // Note: Clerk handles redirects via afterSignInUrl and afterSignUpUrl
   // We don't need custom redirect logic here - authenticated users can visit the homepage
@@ -771,7 +808,11 @@ export default function AppRouter() {
           headers['X-User-Image-Url'] = user.imageUrl;
         }
         
-        await fetch(process.env.REACT_APP_API_URL || 'http://localhost:5000/api/user/onboarding', {
+        const apiBase = import.meta.env.DEV
+          ? '' // use Vite proxy in dev
+          : (import.meta.env.VITE_API_URL || 'http://localhost:5000');
+
+        await fetch(`${apiBase}/api/user/onboarding`, {
           method: 'POST',
           headers,
           body: JSON.stringify(answers)
@@ -841,14 +882,28 @@ export default function AppRouter() {
         form.append('journey_id', activeJourneyId);
       }
 
-      const res = await fetch(process.env.REACT_APP_API_URL || 'http://localhost:5000/api/analyze-video', {
+      // In development, use relative URL to leverage Vite proxy
+      // In production, use full API URL from env or default
+      const isDev = import.meta.env.DEV;
+      const apiUrl = isDev 
+        ? '' // Use relative URL in dev (Vite proxy handles it)
+        : (import.meta.env.VITE_API_URL || 'http://localhost:5000');
+      const res = await fetch(`${apiUrl}/api/analyze-video`, {
         method: 'POST',
         headers,
         body: form,
       });
       
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
+        let errorData = {};
+        try {
+          const text = await res.text();
+          errorData = text ? JSON.parse(text) : {};
+        } catch (e) {
+          // If response is not JSON, use status text
+          errorData = { error: `Server error: ${res.status} ${res.statusText}` };
+        }
+        
         if (errorData.requiresUpgrade || errorData.reason === 'video_duration_exceeded') {
           setUpgradeMessage(errorData.error || 'You have reached your analysis limit. Upgrade to continue.');
           setShowUpgradeModal(true);
@@ -867,7 +922,7 @@ export default function AppRouter() {
           setResult('');
           return;
         }
-        throw new Error(errorData.error || 'Request failed');
+        throw new Error(errorData.error || `Request failed with status ${res.status}: ${res.statusText}`);
       }
       
       const data = await res.json();
@@ -886,7 +941,16 @@ export default function AppRouter() {
       setDashboardRefreshTrigger(prev => prev + 1);
     } catch (err) {
       // Show error message (upgrade modal is handled above)
-      setResult(`An error occurred while processing the video: ${err.message}`);
+      console.error('[onAnalyze] Error processing video:', err);
+      const errorMessage = err.message || 'Unknown error occurred';
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      
+      // Check if it's a network error
+      if (err.name === 'TypeError' && err.message.includes('fetch')) {
+        setResult(`Network error: Could not connect to server at ${apiUrl}. Please check if the server is running.`);
+      } else {
+        setResult(`An error occurred while processing the video: ${errorMessage}`);
+      }
     } finally {
       setIsLoading(false);
     }

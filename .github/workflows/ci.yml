@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [20.x]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    
+    - name: Install backend dependencies
+      run: npm ci
+    
+    - name: Run backend linter
+      run: npm run lint || true
+    
+    - name: Run backend tests
+      run: npm test
+    
+    - name: Install frontend dependencies
+      working-directory: ./client
+      run: npm ci
+    
+    - name: Run frontend linter
+      working-directory: ./client
+      run: npm run lint || true
+    
+    - name: Build frontend
+      working-directory: ./client
+      run: npm run build
+      env:
+        REACT_APP_CLERK_PUBLISHABLE_KEY: ${{ secrets.REACT_APP_CLERK_PUBLISHABLE_KEY || 'pk_test_placeholder' }}
+        REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL || 'http://localhost:5000' }}
+    
+    - name: Security audit
+      run: npm audit --audit-level=moderate || true
+    
+    - name: Frontend security audit
+      working-directory: ./client
+      run: npm audit --audit-level=moderate || true
+
+
+

@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import logger from './logger.js';
 
 const webhookUrl = process.env.MONITORING_WEBHOOK_URL || null;
 
@@ -15,7 +16,7 @@ const postWebhook = async (payload) => {
       body: JSON.stringify(payload)
     });
   } catch (err) {
-    console.warn('Failed to send monitoring webhook:', err.message || err);
+    logger.warn({ error: err.message || err }, '[NotificationService] Failed to send monitoring webhook');
   }
 };
 

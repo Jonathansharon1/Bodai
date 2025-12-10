@@ -66,13 +66,13 @@ export default function Header() {
     <header className={headerClass} role="banner">
       <div className="siteHeader__inner">
         <div className="siteHeader__left">
-          <Link className="brand" to="/" aria-label="BodAI home">
-            <Logo size={32} className="brand__logo" />
-            <div className="brand__text">
-              <span className="brand__name">BodAI</span>
-              <span className="brand__tagline">{t('header.brand.tagline')}</span>
-            </div>
-          </Link>
+        <Link className="brand" to="/" aria-label="BodAI home">
+          <Logo size={32} className="brand__logo" />
+          <div className="brand__text">
+            <span className="brand__name">BodAI</span>
+            <span className="brand__tagline">{t('header.brand.tagline')}</span>
+          </div>
+        </Link>
         </div>
 
         <button 
@@ -84,26 +84,26 @@ export default function Header() {
           {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
 
-        <nav className="nav" aria-label="Main">
-          <SignedIn>
-            <Link
-              className={`nav__link nav__link--dashboard ${isActiveLink('/dashboard') ? 'nav__link--active' : ''}`}
-              to="/dashboard"
-            >
-              {t('header.nav.dashboard')}
-            </Link>
-          </SignedIn>
-          {marketingLinks.map((link) => (
-            <Link
-              key={link.to}
-              className={`nav__link ${isActiveLink(link.to) ? 'nav__link--active' : ''}`}
-              to={link.to}
-              aria-current={isActiveLink(link.to) ? 'page' : undefined}
-            >
-              {link.label}
-            </Link>
-          ))}
-        </nav>
+          <nav className="nav" aria-label="Main">
+            <SignedIn>
+              <Link
+                className={`nav__link nav__link--dashboard ${isActiveLink('/dashboard') ? 'nav__link--active' : ''}`}
+                to="/dashboard"
+              >
+                {t('header.nav.dashboard')}
+              </Link>
+            </SignedIn>
+            {marketingLinks.map((link) => (
+              <Link
+                key={link.to}
+                className={`nav__link ${isActiveLink(link.to) ? 'nav__link--active' : ''}`}
+                to={link.to}
+                aria-current={isActiveLink(link.to) ? 'page' : undefined}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
 
         <div className="siteHeader__right">
           <div className="siteHeader__languageSection">

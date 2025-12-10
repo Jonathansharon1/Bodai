@@ -3,6 +3,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { GoogleGenAI } from "@google/genai";
+import logger from './logger.js';
 import { calculateOverallScore, getStageTitle } from './scoringConfig.js';
 
 const capitalizeLabel = (value = '') => {
@@ -448,7 +449,7 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
     let effectiveModel = modelName;
     const ai = new GoogleGenAI({ apiKey: API_KEY });
     
-    console.log(`[Gemini] Starting video analysis - Requested model: ${modelName}, Fallback: ${fallbackModel}`);
+    logger.info({ modelName, fallbackModel, videoSizeMB: (videoBuffer.byteLength / 1024 / 1024).toFixed(2) }, '[Gemini] Starting video analysis');
     
     // Build dynamic prompt based on user context
     const userContext = options.userContext || {};
@@ -506,7 +507,7 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
             config: { mimeType },
           });
           const tryModel = effectiveModel || modelName;
-          console.log(`[Gemini] Calling API with model: ${tryModel} (Files API, video size: ${(videoBuffer.byteLength / 1024 / 1024).toFixed(2)}MB)`);
+          logger.info({ model: tryModel, videoSizeMB: (videoBuffer.byteLength / 1024 / 1024).toFixed(2), apiType: 'Files API' }, '[Gemini] Calling API');
           return await ai.models.generateContent({
             model: tryModel,
             generationConfig,
@@ -533,17 +534,20 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
           } catch (err) {
             const errorCode = err?.status || err?.code;
             const errorMsg = err?.message || '';
-            console.warn(`[Gemini] ${effectiveModel || modelName} failed (files API run, attempt ${attempt})`, {
-              status: errorCode,
-              code: err?.code,
-              message: errorMsg.substring(0, 200) // Truncate long messages
-            });
+            logger.warn({ 
+              model: effectiveModel || modelName, 
+              attempt, 
+              status: errorCode, 
+              code: err?.code, 
+              message: errorMsg.substring(0, 200),
+              apiType: 'Files API'
+            }, '[Gemini] Model failed');
             // Fallback to flash after 2 failed attempts on overload
             const canFallback = modelName !== fallbackModel;
             if (attempt >= 1 && shouldRetry(err) && canFallback) {
-              console.warn(`[Gemini] Falling back to ${fallbackModel} after ${effectiveModel || modelName} failure (files API run, attempt ${attempt})`);
+              logger.warn({ originalModel: effectiveModel || modelName, fallbackModel, attempt, apiType: 'Files API' }, '[Gemini] Falling back to fallback model');
               effectiveModel = fallbackModel;
-              console.log(`[Gemini] Calling API with fallback model: ${fallbackModel} (Files API)`);
+              logger.info({ model: fallbackModel, apiType: 'Files API' }, '[Gemini] Calling API with fallback model');
               return await ai.models.generateContent({
                 model: fallbackModel,
                 generationConfig,
@@ -584,7 +588,7 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
       };
       const exec = async () => {
         const tryModel = effectiveModel || modelName;
-        console.log(`[Gemini] Calling API with model: ${tryModel} (Inline API, video size: ${(videoBuffer.byteLength / 1024 / 1024).toFixed(2)}MB)`);
+        logger.info({ model: tryModel, videoSizeMB: (videoBuffer.byteLength / 1024 / 1024).toFixed(2), apiType: 'Inline API' }, '[Gemini] Calling API');
         return await ai.models.generateContent({
           model: tryModel,
           generationConfig,
@@ -605,16 +609,19 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
         } catch (err) {
           const errorCode = err?.status || err?.code;
           const errorMsg = err?.message || '';
-          console.warn(`[Gemini] ${effectiveModel || modelName} failed (inline run, attempt ${attempt})`, {
-            status: errorCode,
-            code: err?.code,
-            message: errorMsg.substring(0, 200) // Truncate long messages
-          });
+          logger.warn({ 
+            model: effectiveModel || modelName, 
+            attempt, 
+            status: errorCode, 
+            code: err?.code, 
+            message: errorMsg.substring(0, 200),
+            apiType: 'Inline API'
+          }, '[Gemini] Model failed');
           const canFallback = modelName !== fallbackModel;
           if (attempt >= 1 && shouldRetry(err) && canFallback) {
-            console.warn(`[Gemini] Falling back to ${fallbackModel} after ${effectiveModel || modelName} failure (inline run, attempt ${attempt})`);
+            logger.warn({ originalModel: effectiveModel || modelName, fallbackModel, attempt, apiType: 'Inline API' }, '[Gemini] Falling back to fallback model');
             effectiveModel = fallbackModel;
-            console.log(`[Gemini] Calling API with fallback model: ${fallbackModel} (Inline API)`);
+            logger.info({ model: fallbackModel, apiType: 'Inline API' }, '[Gemini] Calling API with fallback model');
             return await ai.models.generateContent({
               model: fallbackModel,
               generationConfig,
@@ -642,9 +649,9 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
                          response.finishReason;
     
     if (finishReason === 'MAX_TOKENS' || finishReason === 'OTHER') {
-      console.warn(`[Gemini] ⚠️ Analysis response may be truncated - finishReason: ${finishReason}. Consider increasing maxOutputTokens.`);
+      logger.warn({ finishReason, model: effectiveModel }, '[Gemini] Analysis response may be truncated - consider increasing maxOutputTokens');
     } else if (finishReason) {
-      console.log(`[Gemini] Response finishReason: ${finishReason}`);
+      logger.info({ finishReason, model: effectiveModel }, '[Gemini] Response finishReason');
     }
     
     // Parse structured metrics from the response
@@ -719,11 +726,11 @@ export const analyzeBodyLanguage = async (videoBuffer, mimeType, options = {}) =
           parsedText = text.replace(jsonMatch[0], '').trim();
         }
       } catch (e) {
-        console.warn('Failed to parse metrics JSON from AI response:', e);
+        logger.warn({ error: e.message, model: effectiveModel }, '[Gemini] Failed to parse metrics JSON from AI response');
       }
     }
     
-    console.log(`[Gemini] ✅ Analysis completed successfully using model: ${effectiveModel} (started with: ${modelName})`);
+    logger.info({ effectiveModel, originalModel: modelName }, '[Gemini] Analysis completed successfully');
     
     return {
       text: parsedText,
@@ -745,14 +752,14 @@ export const generatePracticePromptFromAction = async ({
   previousTitles = []
 }) => {
   if (!process.env.API_KEY) {
-    console.warn('Cannot generate practice prompt: API_KEY missing');
+    logger.warn({}, '[Gemini] Cannot generate practice prompt: API_KEY missing');
     return null;
   }
 
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const fallbackModel = 'gemini-2.5-flash';
   const modelName = process.env.GEMINI_PRACTICE_MODEL || 'gemini-2.5-flash';
-  console.log(`[Gemini] Starting practice prompt generation - Model: ${modelName}, Fallback: ${fallbackModel}`);
+  logger.info({ modelName, fallbackModel }, '[Gemini] Starting practice prompt generation');
   const goal = userContext.primaryGoal || 'confidence';
   const confidence = userContext.confidenceLevel || 'medium';
   const language = userContext.language || 'en';
@@ -824,7 +831,7 @@ Please respond ONLY with valid JSON (no markdown) in the format:
 7. Remind the user the drill is self-practice, no upload required.`;
 
   const runGeneration = async (model) => {
-    console.log(`[Gemini] Calling API with model: ${model} (Practice Prompt Generation)`);
+    logger.info({ model }, '[Gemini] Calling API for practice prompt generation');
     const response = await ai.models.generateContent({
       model,
       contents: [{ parts: [{ text: prompt }] }],
@@ -836,47 +843,45 @@ Please respond ONLY with valid JSON (no markdown) in the format:
     let effectiveModel = modelName;
     let text = await runGeneration(modelName);
     if (!text && modelName !== fallbackModel) {
-      console.warn(`[Gemini] ${modelName} returned empty response, trying fallback: ${fallbackModel}`);
+      logger.warn({ modelName, fallbackModel }, '[Gemini] Model returned empty response, trying fallback');
       effectiveModel = fallbackModel;
       text = await runGeneration(fallbackModel);
     }
     if (!text) {
-      console.error(`[Gemini] Practice prompt generation failed - no response from ${effectiveModel}`);
+      logger.error({ model: effectiveModel }, '[Gemini] Practice prompt generation failed - no response');
       return null;
     }
     const cleaned = text.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(cleaned);
     if (!parsed?.title || !parsed?.description) {
-      console.error(`[Gemini] Practice prompt generation failed - invalid response from ${effectiveModel}`);
+      logger.error({ model: effectiveModel }, '[Gemini] Practice prompt generation failed - invalid response');
       return null;
     }
-    console.log(`[Gemini] Practice prompt generated successfully using model: ${effectiveModel}`);
+    logger.info({ model: effectiveModel }, '[Gemini] Practice prompt generated successfully');
     return normalizePracticePrompt(parsed);
   } catch (err) {
     if (modelName !== fallbackModel) {
       try {
-        console.warn(`[Gemini] ${modelName} failed, trying fallback: ${fallbackModel}`, {
-          error: err.message?.substring(0, 200)
-        });
+        logger.warn({ modelName, fallbackModel, error: err.message?.substring(0, 200) }, '[Gemini] Model failed, trying fallback');
         const text = await runGeneration(fallbackModel);
         if (!text) {
-          console.error(`[Gemini] Practice prompt generation failed - no response from fallback ${fallbackModel}`);
+          logger.error({ model: fallbackModel }, '[Gemini] Practice prompt generation failed - no response from fallback');
           return null;
         }
         const cleaned = text.replace(/```json|```/g, '').trim();
         const parsed = JSON.parse(cleaned);
         if (!parsed?.title || !parsed?.description) {
-          console.error(`[Gemini] Practice prompt generation failed - invalid response from fallback ${fallbackModel}`);
+          logger.error({ model: fallbackModel }, '[Gemini] Practice prompt generation failed - invalid response from fallback');
           return null;
         }
-        console.log(`[Gemini] Practice prompt generated successfully using fallback model: ${fallbackModel}`);
+        logger.info({ model: fallbackModel }, '[Gemini] Practice prompt generated successfully using fallback model');
         return normalizePracticePrompt(parsed);
       } catch (fallbackErr) {
-        console.error(`[Gemini] Failed to generate practice prompt (fallback ${fallbackModel}):`, fallbackErr.message || fallbackErr);
+        logger.error({ error: fallbackErr.message || fallbackErr, model: fallbackModel }, '[Gemini] Failed to generate practice prompt (fallback)');
         return null;
       }
     }
-    console.error(`[Gemini] Failed to generate practice prompt (${modelName}):`, err.message || err);
+    logger.error({ error: err.message || err, model: modelName }, '[Gemini] Failed to generate practice prompt');
     return null;
   }
 };
@@ -915,7 +920,7 @@ export const generatePracticeMissions = async ({
   previousMissions = []
 }) => {
   if (!process.env.API_KEY) {
-    console.warn('[Gemini] Cannot generate practice missions: API_KEY missing');
+    logger.warn({}, '[Gemini] Cannot generate practice missions: API_KEY missing');
     return null;
   }
 
@@ -923,7 +928,7 @@ export const generatePracticeMissions = async ({
   const fallbackModel = 'gemini-2.5-flash';
   const modelName = process.env.GEMINI_PRACTICE_MODEL || 'gemini-2.5-flash';
   
-  console.log(`[Gemini] Starting practice missions generation for ${parameterKey} - Model: ${modelName}`);
+  logger.info({ parameterKey, modelName, fallbackModel }, '[Gemini] Starting practice missions generation');
   
   const goal = userContext.primaryGoal || 'confidence';
   const goalLabel = getGoalLabel(goal);
@@ -1005,7 +1010,7 @@ Respond ONLY with valid JSON (no markdown) in this format:
 }`;
 
   const runGeneration = async (model) => {
-    console.log(`[Gemini] Calling API with model: ${model} (Practice Missions Generation)`);
+    logger.info({ model, parameterKey }, '[Gemini] Calling API for practice missions generation');
     const response = await ai.models.generateContent({
       model,
       contents: [{ parts: [{ text: prompt }] }],
@@ -1023,7 +1028,7 @@ Respond ONLY with valid JSON (no markdown) in this format:
                          response.finishReason;
     
     if (finishReason === 'MAX_TOKENS' || finishReason === 'OTHER') {
-      console.warn(`[Gemini] Response may be truncated - finishReason: ${finishReason}`);
+      logger.warn({ finishReason, model, parameterKey }, '[Gemini] Response may be truncated');
     }
     
     return typeof response.text === 'function' ? await response.text() : (response.text ?? response.response?.text);
@@ -1034,13 +1039,13 @@ Respond ONLY with valid JSON (no markdown) in this format:
     let text = await runGeneration(modelName);
     
     if (!text && modelName !== fallbackModel) {
-      console.warn(`[Gemini] ${modelName} returned empty response, trying fallback: ${fallbackModel}`);
+      logger.warn({ modelName, fallbackModel, parameterKey }, '[Gemini] Model returned empty response, trying fallback');
       effectiveModel = fallbackModel;
       text = await runGeneration(fallbackModel);
     }
     
     if (!text) {
-      console.error(`[Gemini] Practice missions generation failed - no response from ${effectiveModel}`);
+      logger.error({ model: effectiveModel, parameterKey }, '[Gemini] Practice missions generation failed - no response');
       return null;
     }
     
@@ -1048,7 +1053,7 @@ Respond ONLY with valid JSON (no markdown) in this format:
     const parsed = JSON.parse(cleaned);
     
     if (!parsed?.missions || !Array.isArray(parsed.missions) || parsed.missions.length === 0) {
-      console.error(`[Gemini] Practice missions generation failed - invalid response from ${effectiveModel}`);
+      logger.error({ model: effectiveModel, parameterKey }, '[Gemini] Practice missions generation failed - invalid response');
       return null;
     }
     
@@ -1059,42 +1064,40 @@ Respond ONLY with valid JSON (no markdown) in this format:
       .slice(0, 2); // Exactly 2 missions
     
     if (missions.length === 0) {
-      console.error(`[Gemini] Practice missions generation failed - no valid missions in response`);
+      logger.error({ model: effectiveModel, parameterKey }, '[Gemini] Practice missions generation failed - no valid missions in response');
       return null;
     }
     
-    console.log(`[Gemini] ✅ Generated ${missions.length} practice missions for ${parameterKey} using model: ${effectiveModel}`);
+    logger.info({ missionCount: missions.length, parameterKey, model: effectiveModel }, '[Gemini] Generated practice missions successfully');
     return missions;
     
   } catch (err) {
     if (modelName !== fallbackModel) {
       try {
-        console.warn(`[Gemini] ${modelName} failed, trying fallback: ${fallbackModel}`, {
-          error: err.message?.substring(0, 200)
-        });
+        logger.warn({ modelName, fallbackModel, error: err.message?.substring(0, 200), parameterKey }, '[Gemini] Model failed, trying fallback');
         const text = await runGeneration(fallbackModel);
         if (!text) {
-          console.error(`[Gemini] Practice missions generation failed - no response from fallback ${fallbackModel}`);
+          logger.error({ model: fallbackModel, parameterKey }, '[Gemini] Practice missions generation failed - no response from fallback');
           return null;
         }
         const cleaned = text.replace(/```json|```/g, '').trim();
         const parsed = JSON.parse(cleaned);
         if (!parsed?.missions || !Array.isArray(parsed.missions) || parsed.missions.length === 0) {
-          console.error(`[Gemini] Practice missions generation failed - invalid response from fallback ${fallbackModel}`);
+          logger.error({ model: fallbackModel, parameterKey }, '[Gemini] Practice missions generation failed - invalid response from fallback');
           return null;
         }
         const missions = parsed.missions
           .filter(m => m && typeof m === 'string' && m.trim().length > 0)
           .map(m => m.trim())
           .slice(0, 2);
-        console.log(`[Gemini] ✅ Generated ${missions.length} practice missions for ${parameterKey} using fallback model: ${fallbackModel}`);
+        logger.info({ missionCount: missions.length, parameterKey, model: fallbackModel }, '[Gemini] Generated practice missions successfully using fallback model');
         return missions;
       } catch (fallbackErr) {
-        console.error(`[Gemini] Failed to generate practice missions (fallback ${fallbackModel}):`, fallbackErr.message || fallbackErr);
+        logger.error({ error: fallbackErr.message || fallbackErr, model: fallbackModel, parameterKey }, '[Gemini] Failed to generate practice missions (fallback)');
         return null;
       }
     }
-    console.error(`[Gemini] Failed to generate practice missions (${modelName}):`, err.message || err);
+    logger.error({ error: err.message || err, model: modelName, parameterKey }, '[Gemini] Failed to generate practice missions');
     return null;
   }
 };

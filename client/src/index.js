@@ -1,9 +1,29 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import * as Sentry from '@sentry/react';
 import { ClerkProvider } from '@clerk/clerk-react';
 import { BrowserRouter } from 'react-router-dom';
 import './index.css';
 import App from './App';
+import ErrorBoundary from './components/ErrorBoundary';
+
+// Initialize Sentry for frontend
+if (import.meta.env.VITE_SENTRY_DSN) {
+  Sentry.init({
+    dsn: import.meta.env.VITE_SENTRY_DSN,
+    environment: import.meta.env.MODE || 'development',
+    integrations: [
+      Sentry.browserTracingIntegration(),
+      Sentry.replayIntegration({
+        maskAllText: false,
+        blockAllMedia: false,
+      }),
+    ],
+    tracesSampleRate: import.meta.env.PROD ? 0.1 : 1.0,
+    replaysSessionSampleRate: 0.1,
+    replaysOnErrorSampleRate: 1.0,
+  });
+}
 
 // Clear Clerk redirect URLs BEFORE anything else runs
 // This must happen before ClerkProvider initializes
@@ -56,12 +76,11 @@ import App from './App';
   }
 })();
 
-// For React Scripts (create-react-app), use REACT_APP_ prefix
-// For Vite, use VITE_ prefix instead
-const PUBLISHABLE_KEY = process.env.REACT_APP_CLERK_PUBLISHABLE_KEY;
+// For Vite, use VITE_ prefix for environment variables
+const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 if (!PUBLISHABLE_KEY) {
-  throw new Error('Missing Clerk Publishable Key. Please set REACT_APP_CLERK_PUBLISHABLE_KEY in your .env file');
+  throw new Error('Missing Clerk Publishable Key. Please set VITE_CLERK_PUBLISHABLE_KEY in your .env file');
 }
 
 // Custom Clerk appearance to match BodAI design system
@@ -285,15 +304,17 @@ const clerkAppearance = {
 const container = document.getElementById('root');
 const root = createRoot(container);
 root.render(
-  <ClerkProvider 
-    publishableKey={PUBLISHABLE_KEY} 
-    afterSignOutUrl="/"
-    afterSignInUrl="/"
-    appearance={clerkAppearance}
-  >
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
-  </ClerkProvider>
+  <ErrorBoundary>
+    <ClerkProvider 
+      publishableKey={PUBLISHABLE_KEY} 
+      afterSignOutUrl="/"
+      afterSignInUrl="/"
+      appearance={clerkAppearance}
+    >
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </ClerkProvider>
+  </ErrorBoundary>
 );
 

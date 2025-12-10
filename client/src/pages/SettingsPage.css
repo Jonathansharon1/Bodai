@@ -38,6 +38,15 @@
   z-index: 0;
 }
 
+[dir="rtl"] .sidebar--collapsed + .dashboardLayout .settingsPage::after {
+  left: auto;
+  right: 72px;
+}
+
+.sidebar--collapsed + .dashboardLayout .settingsPage::after {
+  left: 72px;
+}
+
 [dir="rtl"] .settingsPage::after {
   left: auto;
   right: 280px;

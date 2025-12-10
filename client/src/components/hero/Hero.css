@@ -539,7 +539,7 @@
     0 0 30px rgba(14, 165, 233, 0.15);
   z-index: 15;
   opacity: 0;
-  animation: scanSmooth 16s ease-in-out infinite;
+  animation: scanSmooth 10s ease-in-out infinite;
   animation-delay: 0.5s;
 }
 
@@ -562,16 +562,21 @@
     top: 95%;
     opacity: 0;
   }
-  /* 40-100%: Long pause before next scan */
-  100% {
+  /* 40-65%: Shorter pause before next scan */
+  65% {
     top: 95%;
+    opacity: 0;
+  }
+  /* 65-100%: Prepare for next cycle */
+  100% {
+    top: 5%;
     opacity: 0;
   }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
    SVG Skeleton Lines - Connecting the markers
-   Animation: 16s total cycle with long pause between repetitions
+   Animation: 10s total cycle with shorter pause between repetitions
    ───────────────────────────────────────────────────────────────────────────── */
 
 .hero__skeleton {
@@ -590,7 +595,7 @@
   stroke-dasharray: 100;
   stroke-dashoffset: 100;
   filter: drop-shadow(0 0 2px rgba(14, 165, 233, 0.4));
-  animation: lineReveal 16s ease-in-out infinite;
+  animation: lineReveal 10s ease-in-out infinite;
 }
 
 .hero__skeletonLine--shoulders {
@@ -630,7 +635,12 @@
     stroke-dashoffset: 100;
     opacity: 0;
   }
-  /* 45-100%: Long pause before next cycle */
+  /* 48-70%: Shorter pause before next cycle */
+  70% {
+    stroke-dashoffset: 100;
+    opacity: 0;
+  }
+  /* 70-100%: Prepare for next cycle */
   100% {
     stroke-dashoffset: 100;
     opacity: 0;
@@ -639,7 +649,7 @@
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Pose Tracking Markers - Elegant Minimal Brackets
-   Animation: 16s total cycle with long pause between repetitions
+   Animation: 10s total cycle with shorter pause between repetitions
    ───────────────────────────────────────────────────────────────────────────── */
 
 .hero__marker {
@@ -647,7 +657,7 @@
   z-index: 20;
   opacity: 0;
   transform: scale(0.7);
-  animation: markerReveal 16s ease-in-out infinite;
+  animation: markerReveal 10s ease-in-out infinite;
 }
 
 /* Smaller, more elegant bracket */
@@ -732,7 +742,7 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   opacity: 0;
   transform: translateX(-4px);
-  animation: labelReveal 16s ease-in-out infinite;
+  animation: labelReveal 10s ease-in-out infinite;
 }
 
 .hero__markerLabel--left {
@@ -813,7 +823,12 @@
     opacity: 0;
     transform: scale(0.5);
   }
-  /* 48-100%: Long pause before next cycle */
+  /* 48-70%: Shorter pause before next cycle */
+  70% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  /* 70-100%: Prepare for next cycle */
   100% {
     opacity: 0;
     transform: scale(0.5);
@@ -844,7 +859,12 @@
     opacity: 0;
     transform: translateX(-4px);
   }
-  /* 46-100%: Long pause */
+  /* 46-70%: Shorter pause */
+  70% {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+  /* 70-100%: Prepare for next cycle */
   100% {
     opacity: 0;
     transform: translateX(-4px);
@@ -873,6 +893,10 @@
     transform: translateY(0);
   }
   46% {
+    opacity: 0;
+    transform: translateX(4px);
+  }
+  70% {
     opacity: 0;
     transform: translateX(4px);
   }
@@ -960,18 +984,24 @@
 
   .hero__container {
     gap: 32px;
+    text-align: center;
   }
 
   .hero__content {
     gap: 24px;
+    text-align: center !important;
+    align-items: center !important;
+    margin: 0 auto !important;
   }
 
   .hero__title {
     font-size: clamp(32px, 8vw, 48px);
+    text-align: center !important;
   }
 
   .hero__subtitle {
     font-size: clamp(16px, 4vw, 18px);
+    text-align: center !important;
   }
 
   .hero__cta {
@@ -985,6 +1015,29 @@
   .hero__actions {
     width: 100%;
     flex-direction: column;
+    justify-content: center !important;
+    align-items: center !important;
+  }
+
+  .hero__micro {
+    text-align: center !important;
+  }
+
+  [dir="rtl"] .hero__content {
+    text-align: center !important;
+    align-items: center !important;
+    margin: 0 auto !important;
+  }
+
+  [dir="rtl"] .hero__title,
+  [dir="rtl"] .hero__subtitle,
+  [dir="rtl"] .hero__micro {
+    text-align: center !important;
+  }
+
+  [dir="rtl"] .hero__actions {
+    justify-content: center !important;
+    align-items: center !important;
   }
 
   .hero__visual {

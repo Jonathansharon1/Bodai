@@ -48,7 +48,7 @@ const parseAnalysisText = (markdown) => {
   let currentContent = [];
   
   // Debug: Log the markdown to help diagnose parsing issues
-  if (process.env.NODE_ENV === 'development') {
+  if (import.meta.env.DEV === 'development') {
     console.log('[parseAnalysisText] Parsing markdown, length:', markdown.length);
     console.log('[parseAnalysisText] First 500 chars:', markdown.substring(0, 500));
   }
@@ -111,7 +111,7 @@ const parseAnalysisText = (markdown) => {
                                   (line.toLowerCase().includes('communication') && line.toLowerCase().includes('tip'));
     // Accept header even without markdown formatting (more flexible)
     if (isCommunicationHeader) {
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV === 'development') {
         console.log('[parseAnalysisText] Found Communication Tips header:', line);
       }
       savePreviousSection();
@@ -128,7 +128,7 @@ const parseAnalysisText = (markdown) => {
                                  (line.toLowerCase().includes('body language') && line.toLowerCase().includes('tip'));
     // Accept header even without markdown formatting (more flexible)
     if (isBodyLanguageHeader) {
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV === 'development') {
         console.log('[parseAnalysisText] Found Body Language Tips header:', line);
       }
       savePreviousSection();
@@ -175,7 +175,7 @@ const parseAnalysisText = (markdown) => {
   savePreviousSection();
 
   // Debug: Log parsed sections
-  if (process.env.NODE_ENV === 'development') {
+  if (import.meta.env.DEV === 'development') {
     console.log('[parseAnalysisText] Parsed sections:', {
       communicationTips: sections.communicationTips.length,
       bodyLanguageTips: sections.bodyLanguageTips.length,
@@ -214,7 +214,7 @@ const parseTipItems = (text) => {
   let pendingContent = [];
   
   // Debug logging
-  if (process.env.NODE_ENV === 'development') {
+  if (import.meta.env.DEV === 'development') {
     console.log('[parseTipItems] Parsing text, lines:', lines.length);
     console.log('[parseTipItems] First 200 chars:', text.substring(0, 200));
   }
@@ -448,7 +448,7 @@ const parseTipItems = (text) => {
   }
 
   // Debug logging
-  if (process.env.NODE_ENV === 'development') {
+  if (import.meta.env.DEV === 'development') {
     console.log('[parseTipItems] Parsed', items.length, 'tips');
     items.forEach((tip, idx) => {
       console.log(`[parseTipItems] Tip ${idx + 1}:`, {
@@ -717,7 +717,7 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
       try {
         setTipsLoading(true);
         const res = await fetch(
-          `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/action-items?analysisId=${analysisId}`,
+          `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/action-items?analysisId=${analysisId}`,
           {
             headers: {
               'X-Clerk-User-Id': user.id,
@@ -862,7 +862,7 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
     : mergeTips(tipsFromDB.bodyLanguage, parsedSections.bodyLanguageTips || []);
   
   // Debug logging
-  if (process.env.NODE_ENV === 'development') {
+  if (import.meta.env.DEV === 'development') {
     console.log('[AnalysisResult] Tips merge result:', {
       loading: tipsLoading,
       dbCommunication: tipsFromDB.communication.length,
@@ -890,7 +890,7 @@ export default function AnalysisResult({ markdown, loading, analysisId, viewingA
       try {
         // Fetch current analysis metrics
         const metricsRes = await fetch(
-          `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/communication/metrics`,
+          `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/communication/metrics`,
           {
             headers: {
               'X-Clerk-User-Id': user.id,

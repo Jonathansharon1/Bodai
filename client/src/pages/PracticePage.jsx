@@ -51,6 +51,8 @@ const getParameterCategories = (t) => ({
       { key: 'presence_eye_contact', label: t('parameters.presence.eyeContact') },
       { key: 'presence_facial_relaxation', label: t('parameters.presence.facialRelaxation') },
       { key: 'presence_body_posture', label: t('parameters.presence.bodyPosture') },
+      // Map backend metric "presence_fidgeting" to the posture label
+      { key: 'presence_fidgeting', label: t('parameters.presence.bodyPosture') },
       { key: 'presence_hand_naturalness', label: t('parameters.presence.handNaturalness') },
       { key: 'presence_openness', label: t('parameters.presence.openness') }
     ]
@@ -158,7 +160,7 @@ const MissionModal = ({ mission, onClose, onStart, onCompleteManual, t }) => {
               {mission.difficulty && (
                 <span className="missionModal__metaItem">
                   <Zap size={16} />
-                  <span>{t('common.labels.difficulty')}: {t(`common.difficulty.${mission.difficulty}`)}</span>
+                  <span>{t('common.labels.difficulty')}: {t(`common.difficulty.${mission.difficulty}`, mission.difficulty || '')}</span>
                 </span>
               )}
             </div>
@@ -394,7 +396,7 @@ export default function PracticePage({
 
   const focusSlug = activeJourney?.focus_slug;
   const focusLabel = focusSlug ? getGoalLabel(focusSlug) : (activeJourney?.display_name || activeJourney?.focus_label || null);
-  const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
   // Check for focus filter in URL
   const urlParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
@@ -1002,13 +1004,11 @@ export default function PracticePage({
   };
 
   const handleManualCompletion = async (mission) => {
-    // If it's an action item
-    if (mission.type === 'action_item' && mission.item) {
+    // If it's an action item (from skill stations or priority)
+    if (mission.type === 'action_item') {
       try {
-        // Optimistic UI update
+        // Close modal; no alert, same as dismiss
         setSelectedMission(null);
-        // Don't delete or complete the action item, just acknowledge it
-        alert(t('practice.completedToast', 'Great job! Keep practicing.'));
       } catch (err) {
         console.error("Failed to complete action item", err);
       }
@@ -1022,6 +1022,10 @@ export default function PracticePage({
       } catch (err) {
         console.error("Failed to complete mission", err);
       }
+    }
+    // Default: just close the modal
+    else {
+      setSelectedMission(null);
     }
   };
 

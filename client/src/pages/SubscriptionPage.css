@@ -32,6 +32,15 @@
   z-index: 0;
 }
 
+[dir="rtl"] .sidebar--collapsed + .dashboardLayout .subscriptionPage::after {
+  left: auto;
+  right: 72px;
+}
+
+.sidebar--collapsed + .dashboardLayout .subscriptionPage::after {
+  left: 72px;
+}
+
 .subscriptionPage__container {
   max-width: 900px;
   margin: 0 auto;
