@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "buildCommand": "npm install && cd client && npm install && npm run build",
+  "buildCommand": "cd client && npm install --legacy-peer-deps && npm run build",
   "outputDirectory": "client/build",
-  "installCommand": "echo 'Skipping root install - handled in buildCommand'",
+  "installCommand": "npm install --legacy-peer-deps",
   "framework": null,
   "rewrites": [
     {

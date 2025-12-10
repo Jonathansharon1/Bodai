@@ -2,6 +2,9 @@
   "name": "bodai-client",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "@clerk/clerk-react": "^5.58.1",
     "@clerk/localizations": "^3.30.0",
