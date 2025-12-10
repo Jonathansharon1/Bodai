@@ -7,7 +7,7 @@
     "@clerk/localizations": "^3.30.0",
     "@sentry/react": "^10.29.0",
     "canvas-confetti": "^1.9.4",
-    "framer-motion": "^11.18.2",
+    "framer-motion": "^12.23.26",
     "i18next": "^23.7.0",
     "i18next-browser-languagedetector": "^7.2.0",
     "lucide-react": "^0.553.0",
