@@ -2540,7 +2540,14 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(port, () => {
-  logger.info({ port, env: process.env.NODE_ENV || 'development' }, 'Server listening');
-});
+// Only start listening if not in Vercel environment
+// In Vercel, the app is exported and handled by the serverless function
+if (process.env.VERCEL !== '1' && !process.env.VERCEL_ENV) {
+  app.listen(port, () => {
+    logger.info({ port, env: process.env.NODE_ENV || 'development' }, 'Server listening');
+  });
+}
+
+// Export the app for Vercel serverless functions
+export default app;
 
